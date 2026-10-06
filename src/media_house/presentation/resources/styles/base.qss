@@ -1,0 +1,23 @@
+/* Application stylesheet. Dollar-prefixed tokens are filled from ThemeTokens. */
+QWidget { background-color: $background; color: $text; }
+QMainWindow, QDialog { background-color: $background; }
+QMenuBar, QMenu, QStatusBar, QDockWidget { background-color: $surface; }
+QMenu { border: 1px solid $border; }
+QMenu::item:selected, QListView::item:selected {
+    background-color: $accent; color: $accent_text;
+}
+QDockWidget::title { padding: 6px; border-bottom: 1px solid $border; }
+QListView, QLineEdit, QListWidget {
+    background-color: $surface; border: 1px solid $border; border-radius: 4px; padding: 4px;
+}
+QLineEdit:focus, QListView:focus, QListWidget:focus { border: 2px solid $accent; }
+QPushButton {
+    background-color: $surface; border: 1px solid $border; border-radius: 4px; padding: 6px 14px;
+}
+QPushButton:hover { border-color: $accent; }
+QPushButton:focus { border: 2px solid $accent; }
+QPushButton:disabled { color: $text_muted; }
+QProgressBar { border: 1px solid $border; border-radius: 4px; text-align: center; }
+QProgressBar::chunk { background-color: $accent; }
+QLabel[role="muted"] { color: $text_muted; }
+QLabel[role="alert"] { color: $accent; font-weight: bold; }
