@@ -22,7 +22,7 @@ def _default_size_limits() -> dict[MediaType, int]:
         MediaType.IMAGE: 200 * _MIB,
         MediaType.AUDIO: 2048 * _MIB,
         MediaType.VIDEO: 32 * 1024 * _MIB,
-        MediaType.OTHER: 0,
+        MediaType.OTHER: 64 * _MIB,  # typed JSON documents (JsonDocumentProbe) only
     }
 
 

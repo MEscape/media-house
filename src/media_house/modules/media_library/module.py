@@ -30,6 +30,11 @@ from media_house.modules.media_library.infrastructure.ffmpeg_thumbnails import (
     FfmpegThumbnailGenerator,
 )
 from media_house.modules.media_library.infrastructure.file_inspector import FileMediaInspector
+from media_house.modules.media_library.infrastructure.image_probes import default_image_probes
+from media_house.modules.media_library.infrastructure.media_probes import (
+    FfprobeProbe,
+    JsonDocumentProbe,
+)
 from media_house.modules.media_library.infrastructure.local_storage import LocalMediaStorage
 from media_house.modules.media_library.infrastructure.sqlite_asset_repository import (
     SqliteMediaAssetRepository,
@@ -73,7 +78,16 @@ class MediaLibraryModule:
             MediaStorage,
             lambda c: LocalMediaStorage(c.resolve(AppPaths).data_dir / STORAGE_DIRECTORY_NAME),
         )
-        container.register_factory(MediaInspector, lambda _c: FileMediaInspector())
+        container.register_factory(
+            MediaInspector,
+            lambda c: FileMediaInspector(
+                [
+                    *default_image_probes(),
+                    FfprobeProbe(c.resolve(ProcessRunner)),
+                    JsonDocumentProbe(),
+                ],
+            ),
+        )
         container.register_factory(
             ThumbnailGenerator,
             lambda c: FfmpegThumbnailGenerator(c.resolve(ProcessRunner)),
