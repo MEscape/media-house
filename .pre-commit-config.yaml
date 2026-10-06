@@ -1,0 +1,27 @@
+# Install once with:  uv run pre-commit install
+# Hooks run the project's own pinned tools (no second copy of ruff/mypy versions to drift).
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format
+        language: system
+        types: [python]
+      - id: ruff-lint
+        name: ruff lint
+        entry: uv run ruff check --fix
+        language: system
+        types: [python]
+      - id: mypy
+        name: mypy (strict)
+        entry: uv run mypy
+        language: system
+        pass_filenames: false
+        types: [python]
+      - id: architecture-tests
+        name: architecture tests
+        entry: uv run pytest tests/architecture -q
+        language: system
+        pass_filenames: false
+        types: [python]

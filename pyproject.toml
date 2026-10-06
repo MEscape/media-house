@@ -1,0 +1,140 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "media-house"
+version = "0.1.0"
+description = "Modular desktop platform for media automation."
+readme = "README.md"
+requires-python = ">=3.13"
+license = "LicenseRef-Proprietary"
+license-files = ["LICENSE"]
+dependencies = [
+    # UI adapter. "Essentials" ships QtCore/QtGui/QtWidgets without the
+    # large optional add-on modules (WebEngine, 3D, ...).
+    "PySide6-Essentials>=6.8,<7",
+    # Validation of *external* data (configuration files, environment).
+    # Deliberately not used for domain objects.
+    "pydantic>=2.9,<3",
+    # Per-OS application directories (Windows/macOS/Linux).
+    "platformdirs>=4.3,<5",
+    "pillow>=11",
+    "numpy>=2",
+    "scipy>=1.14",
+    "rembg[cpu]>=2.0.60",
+    "whisperx>=3.8.6",
+]
+
+[project.scripts]
+media-house = "media_house.bootstrap.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-qt>=4.4",
+    "mypy>=1.13",
+    "ruff>=0.8",
+    "pre-commit>=4.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/media_house"]
+
+[tool.uv]
+default-groups = ["dev"]
+
+# --------------------------------------------------------------------------- #
+# Ruff: formatter + linter + import sorting + security rules (one tool).
+# --------------------------------------------------------------------------- #
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W", "F",   # pycodestyle / pyflakes
+    "I",             # import sorting
+    "N",             # naming
+    "UP",            # pyupgrade (modern syntax)
+    "B",             # bugbear
+    "A",             # shadowed builtins
+    "C4",            # comprehensions
+    "DTZ",           # naive datetimes
+    "T20",           # print()
+    "SIM",           # simplifications
+    "TID",           # import hygiene (relative imports, banned APIs)
+    "TC",            # typing-only imports
+    "PTH",           # pathlib over os.path
+    "PT",            # pytest style
+    "S",             # security (bandit rules)
+    "BLE",           # blind except
+    "LOG", "G",      # logging correctness
+    "RET",           # return consistency
+    "RUF",
+]
+ignore = [
+    "RUF012",  # mutable class attrs: we use ClassVar explicitly where needed
+    "N818",    # domain exceptions are named after business concepts (InvariantViolation)
+    "A005",    # shared/logging deliberately mirrors the stdlib package name
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests may assert, use compound assertions, spawn processes and read os.environ.
+"tests/**" = ["S101", "S105", "S106", "PT018", "TC", "TID251"]
+# Rule tables are easier to read one rule per line.
+"tests/architecture/**" = ["E501"]
+# Developer scripts talk to the terminal and run our own pinned tools.
+"scripts/**" = ["T201", "TID251", "S603", "S404"]
+"src/media_house/bootstrap/cli.py" = ["T201", "TID251"]  # terminal output; reads os.environ once
+"src/media_house/core/infrastructure/process/subprocess_runner.py" = ["TID251"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+# One import style everywhere keeps dependency analysis trivial.
+ban-relative-imports = "all"
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"subprocess".msg = "Use the ProcessRunner port; only the subprocess adapter may import subprocess."
+"os.getenv".msg = "Read configuration through Settings, not the environment."
+"os.environ".msg = "Read configuration through Settings, not the environment."
+
+[tool.ruff.lint.isort]
+known-first-party = ["media_house"]
+
+# --------------------------------------------------------------------------- #
+# mypy: strict. Public APIs must be fully typed.
+# --------------------------------------------------------------------------- #
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_unreachable = true
+# Protocol classes are used as container keys (type[T]); this is intentional.
+disable_error_code = ["type-abstract"]
+enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
+plugins = ["pydantic.mypy"]
+files = ["src", "tests", "scripts"]
+mypy_path = "src"
+
+# rembg and scipy ship no usable type information.
+[[tool.mypy.overrides]]
+module = ["rembg", "rembg.*", "scipy", "scipy.*"]
+ignore_missing_imports = true
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+# --------------------------------------------------------------------------- #
+# pytest
+# --------------------------------------------------------------------------- #
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra --strict-markers --strict-config"
+markers = [
+    "integration: touches the filesystem, subprocesses or SQLite",
+    "presentation: needs a (headless) QApplication",
+]
+filterwarnings = ["error"]
