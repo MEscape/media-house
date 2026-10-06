@@ -42,6 +42,7 @@ def test_starts_with_default_modules_and_wires_everything(tmp_path: Path) -> Non
             "workspace",
             "media_library",
             "image_adjustment",
+            "audio_intelligence",
         }
         assert (tmp_path / "data").is_dir()
     finally:

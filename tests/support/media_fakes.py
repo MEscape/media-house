@@ -126,7 +126,9 @@ class InMemoryMediaStore:
     def search(self, query: MediaQuery) -> Page[MediaAsset]:
         matches = [a for a in self._assets.values() if self._matches(a, query)]
         matches.sort(key=lambda a: a.id.value)  # stable tie-break, as in SQL
-        matches.sort(key=lambda a: _sort_key(a, query.sort_by), reverse=query.sort_order is SortOrder.DESC)
+        matches.sort(
+            key=lambda a: _sort_key(a, query.sort_by), reverse=query.sort_order is SortOrder.DESC
+        )
         window = matches[query.offset : query.offset + query.page_size]
         return Page([_copy_asset(a) for a in window], len(matches), query.page, query.page_size)
 
@@ -231,8 +233,12 @@ class InMemoryMediaStore:
                     changed = True
         return closure
 
-    def _matches(self, a: MediaAsset, q: MediaQuery) -> bool:  # noqa: PLR0911, C901
-        if q.text and q.text not in a.display_name.key and q.text not in a.original_filename.casefold():
+    def _matches(self, a: MediaAsset, q: MediaQuery) -> bool:
+        if (
+            q.text
+            and q.text not in a.display_name.key
+            and q.text not in a.original_filename.casefold()
+        ):
             return False
         if q.media_types and a.file.media_type not in q.media_types:
             return False
