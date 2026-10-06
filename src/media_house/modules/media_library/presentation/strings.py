@@ -1,0 +1,7 @@
+NAV_TITLE = "Media Library"
+MENU = "Media"
+ACTION_IMPORT = "Import Media..."
+ACTION_REFRESH = "Refresh Media Library"
+NAME_PLACEHOLDER = "Enter display name"
+BUTTON_IMPORT = "Import"
+LIST_LABEL = "Media Assets"
