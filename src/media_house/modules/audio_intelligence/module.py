@@ -25,6 +25,7 @@ from media_house.modules.audio_intelligence.infrastructure.ffmpeg_audio import (
     FfmpegAudioPreparer,
 )
 from media_house.modules.audio_intelligence.infrastructure.whisperx_engine import WhisperXEngine
+from media_house.modules.media_inspection.application.contracts import InspectionCatalog
 from media_house.modules.media_library.application.contracts import MediaLibrary
 from media_house.shared.filesystem import AppPaths
 
@@ -46,6 +47,7 @@ class AudioIntelligenceModule:
                 c.resolve(TranscriptionEngine),
                 c.resolve(AppPaths),
                 c.resolve(Clock),
+                c.resolve(InspectionCatalog),
             ),
         )
         container.register_factory(AudioEngine, lambda c: c.resolve(TranscribeAudio))

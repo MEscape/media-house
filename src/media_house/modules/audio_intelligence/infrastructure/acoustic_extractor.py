@@ -34,6 +34,8 @@ _log = get_logger(__name__)
 
 type Floats = NDArray[np.float64]
 
+# Algorithm constants of the analyzers below: not user settings. Changing one changes the measured
+# values, so it needs a bump of the analyzer's version string (pinned by a unit test).
 ENERGY_VERSION = "rms-1"
 LOUDNESS_VERSION = "bs1770-momentary-1"
 ACTIVITY_VERSION = "adaptive-1"
@@ -45,6 +47,8 @@ _MIN_DYNAMIC_DB = 6.0
 _ABSOLUTE_VOICED_FLOOR_DB = -60.0
 _MAX_GAP_FRAMES = 3
 _MIN_RUN_FRAMES = 3
+#: Voiced frames count as speech this far above the noise floor (a lower bar than pure energy).
+_VOICED_ACTIVITY_MARGIN_DB = 3.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -260,7 +264,9 @@ def measure_activity(
         # No level contrast to separate speech from background: only clear voicing counts.
         active = voiced & (rms_db > _ABSOLUTE_VOICED_FLOOR_DB)
     else:
-        active = (rms_db > floor + config.activity_margin_db) | (voiced & (rms_db > floor + 3.0))
+        active = (rms_db > floor + config.activity_margin_db) | (
+            voiced & (rms_db > floor + _VOICED_ACTIVITY_MARGIN_DB)
+        )
     return _smooth_runs(active).astype(np.float64)
 
 

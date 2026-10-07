@@ -37,7 +37,23 @@ def validate_timeline(
     timeline: AudioIntelligenceTimeline,
     tolerance: float = DEFAULT_TOLERANCE,
 ) -> tuple[ValidationIssue, ...]:
-    issues: list[ValidationIssue] = list(validate_transcript(timeline.transcript, tolerance))
+    """Every finding: the speech layer's (transcript) followed by the analysis layers'."""
+    return (
+        *validate_transcript(timeline.transcript, tolerance),
+        *validate_analysis(timeline, tolerance),
+    )
+
+
+def validate_analysis(
+    timeline: AudioIntelligenceTimeline,
+    tolerance: float = DEFAULT_TOLERANCE,
+) -> tuple[ValidationIssue, ...]:
+    """Findings about what fusion added to the transcript: frames, events, pauses, scores, sync.
+
+    Separate from the speech layer so fusion can refuse its own inconsistent output without
+    failing on transcript findings, which the transcript stage already reports.
+    """
+    issues: list[ValidationIssue] = []
     meta, transcript = timeline.metadata, timeline.transcript
 
     def add(code: str, severity: Severity, message: str, word: int | None = None) -> None:

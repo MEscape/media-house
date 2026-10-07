@@ -84,6 +84,7 @@ from media_house.modules.audio_intelligence.domain.analysis.validation import va
 from media_house.modules.audio_intelligence.domain.errors import (
     AlignmentUnavailable,
     AudioIntelligenceError,
+    InvalidTimeline,
     InvalidTranscript,
     NoAudioTrack,
     UnreadableAudio,
@@ -190,6 +191,7 @@ __all__ = [
     "EnergySummary",
     "Fps",
     "FrameRounding",
+    "InvalidTimeline",
     "InvalidTranscript",
     "NoAudioTrack",
     "NormalizationOptions",

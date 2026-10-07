@@ -18,6 +18,11 @@ TRANSCRIPTION_OPERATION = "transcription"
 EXTRACTION_VERSION = 1
 EXTRACTION_OPERATION = "audio_extraction"
 
+#: Target of the optional loudness normalisation of audio preparation (EBU R128, single pass).
+LOUDNESS_TARGET_LUFS = -16.0
+LOUDNESS_RANGE_LU = 11.0
+LOUDNESS_TRUE_PEAK_DBTP = -1.5
+
 DEVICES = frozenset({"auto", "cuda", "cpu"})
 _LANGUAGE = re.compile(r"^[a-z]{2,3}$")
 

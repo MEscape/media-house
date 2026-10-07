@@ -20,6 +20,7 @@ from media_house.modules.audio_intelligence.application.analyze_audio import (
     AnalyzeAudioCommand,
 )
 from media_house.modules.audio_intelligence.application.transcribe_audio import TranscribeAudio
+from media_house.modules.audio_intelligence.domain.analysis import config as config_module
 from media_house.modules.audio_intelligence.domain.analysis.acoustic import AcousticMeasurements
 from media_house.modules.audio_intelligence.domain.analysis.config import (
     AcousticConfig,
@@ -291,6 +292,20 @@ def test_identical_requests_reuse_everything_also_after_a_restart(env: Env) -> N
     assert len(env.library.list_derived(source_id)) == 4
 
 
+def test_a_damaged_stored_timeline_is_recomputed_from_its_reusable_parts(env: Env) -> None:
+    source_id = env.voice_asset()
+    first = env.analyze(source_id)
+    stored = env.library.local_path(first.asset.id)
+    assert isinstance(stored, Ok)
+    stored.value.write_text("{not json", encoding="utf-8")
+
+    again = env.analyze(source_id)
+
+    assert again.created
+    assert [w.raw_word for w in again.timeline.words] == [w.raw_word for w in first.timeline.words]
+    assert (env.engine.calls, env.extractor.calls) == (1, 1)  # only fusion ran again
+
+
 def test_new_scoring_reuses_transcript_and_measurements(env: Env) -> None:
     source_id = env.voice_asset()
     base = env.analyze(source_id)
@@ -308,6 +323,21 @@ def test_new_scoring_reuses_transcript_and_measurements(env: Env) -> None:
     emphasis = new.timeline.words[2].signals.emphasis
     assert emphasis is not None
     assert set(emphasis.contributors) == {"energy_level"}
+
+
+@pytest.mark.parametrize("version", ["MEASUREMENTS_VERSION", "EXTRACTION_VERSION"])
+def test_a_bumped_pipeline_version_never_serves_the_stale_timeline(
+    env: Env, monkeypatch: pytest.MonkeyPatch, version: str
+) -> None:
+    source_id = env.voice_asset()
+    base = env.analyze(source_id)
+
+    monkeypatch.setattr(config_module, version, getattr(config_module, version) + 1)
+    new = env.analyze(source_id)
+
+    assert new.created
+    assert new.asset.id != base.asset.id
+    assert new.transcript_asset.id == base.transcript_asset.id  # speech is untouched
 
 
 def test_a_new_analyzer_version_remeasures_but_keeps_the_transcript(env: Env) -> None:

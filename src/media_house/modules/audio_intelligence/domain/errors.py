@@ -54,3 +54,15 @@ class InvalidTranscript(AudioIntelligenceError):
             f"Invalid transcript: {reason}",
             user_message="The stored transcript is damaged or has an unsupported format.",
         )
+
+
+class InvalidTimeline(AudioIntelligenceError):
+    """Fusion produced a timeline that violates its own contract; nothing is stored or cached."""
+
+    code = "audio_intelligence.invalid_timeline"
+
+    def __init__(self, findings: tuple[str, ...]) -> None:
+        super().__init__(
+            "Audio analysis produced an inconsistent timeline: " + "; ".join(findings),
+            user_message="The audio analysis result was inconsistent and was discarded.",
+        )

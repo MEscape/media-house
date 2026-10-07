@@ -12,10 +12,21 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from media_house.core.application.ports import Clock
+from media_house.modules.audio_intelligence.application.derived_documents import (
+    DerivedDocuments,
+    DocumentSpec,
+    require_audio_or_video,
+)
 from media_house.modules.audio_intelligence.application.ports import (
     AudioPreparer,
     PreparedAudio,
     TranscriptionEngine,
+)
+from media_house.modules.audio_intelligence.application.prior_inspection import (
+    known_source_timing,
+)
+from media_house.modules.audio_intelligence.application.prior_processing import (
+    effective_preparation,
 )
 from media_house.modules.audio_intelligence.domain.builder import BuildContext, build_transcript
 from media_house.modules.audio_intelligence.domain.errors import AudioIntelligenceError
@@ -29,6 +40,7 @@ from media_house.modules.audio_intelligence.domain.values import (
     PreparationConfig,
     TranscriptionConfig,
 )
+from media_house.modules.media_inspection.application.contracts import InspectionCatalog
 from media_house.modules.media_library.application.contracts import (
     JsonValue as LibraryJson,
 )
@@ -36,10 +48,9 @@ from media_house.modules.media_library.application.contracts import (
     MediaAssetDto,
     MediaError,
     MediaLibrary,
-    MediaType,
 )
 from media_house.shared.concurrency import JobContext
-from media_house.shared.errors import Err, Ok, Result, ValidationError
+from media_house.shared.errors import Err, Ok, Result
 from media_house.shared.filesystem import AppPaths
 from media_house.shared.logging import get_logger
 
@@ -78,12 +89,15 @@ class TranscribeAudio:
         engine: TranscriptionEngine,
         paths: AppPaths,
         clock: Clock,
+        inspections: InspectionCatalog | None = None,
     ) -> None:
         self._library = library
         self._preparer = preparer
         self._engine = engine
         self._paths = paths
         self._clock = clock
+        self._inspections = inspections
+        self._documents = DerivedDocuments(library, paths)
 
     def execute(
         self,
@@ -95,33 +109,25 @@ class TranscribeAudio:
         if isinstance(source_result, Err):
             return source_result
         source = source_result.value
-        if source.media_type not in {MediaType.AUDIO, MediaType.VIDEO}:
-            return Err(
-                ValidationError(
-                    f"Asset {source.id} is {source.media_type.value}, not audio or video",
-                    field="source_asset_id",
-                    user_message="Only audio and video files can be transcribed.",
-                ),
-            )
+        if (rejected := require_audio_or_video(source, "transcribed")) is not None:
+            return rejected
         config = command.config
         identity = self._engine.identity(config)
-        transcript_config = config.fingerprint_config(identity.version)
-        fingerprint = self._library.fingerprint(
-            source.id,
+        spec = DocumentSpec(
             TRANSCRIPTION_OPERATION,
-            transcript_config,
             TRANSCRIPTION_VERSION,
+            config.fingerprint_config(identity.version),
         )
+        fingerprint = self._documents.fingerprint(source.id, spec)
         if isinstance(fingerprint, Err):
             return fingerprint
 
-        existing = self._library.find_derived_asset(source.id, fingerprint.value)
-        if existing is not None:
-            reused = self._load_existing(existing)
-            if isinstance(reused, Ok):
-                _log.info("Transcript reused", asset_id=existing.id, cache_hit=True)
-                return reused
-            _log.warning("Stored transcript unusable, regenerating", asset_id=existing.id)
+        cached = self._documents.load(source.id, fingerprint.value, from_json)
+        if cached is not None:
+            reused = self._with_audio(*cached)
+            if reused is not None:
+                _log.info("Transcript reused", asset_id=reused.asset.id, cache_hit=True)
+                return Ok(reused)
 
         ctx.raise_if_cancelled()
         ctx.progress.report(1, _STEPS, "Preparing audio")
@@ -160,7 +166,7 @@ class TranscribeAudio:
         )
 
         ctx.progress.report(5, _STEPS, "Saving transcript")
-        stored = self._store(source, transcript, transcript_config, audio_asset)
+        stored = self._store(source, transcript, spec, audio_asset)
         if isinstance(stored, Err):
             return stored
         _log.info(
@@ -178,23 +184,17 @@ class TranscribeAudio:
         return Ok(TranscriptionResult(transcript, stored.value, audio_asset, created=True))
 
     # --- reuse -------------------------------------------------------------------------------
-    def _load_existing(
+    def _with_audio(
         self,
+        transcript: Transcript,
         asset: MediaAssetDto,
-    ) -> Result[TranscriptionResult, TranscribeError]:
-        path = self._library.local_path(asset.id)
-        if isinstance(path, Err):
-            return path
-        try:
-            transcript = from_json(path.value.read_text(encoding="utf-8"))
-        except (OSError, UnicodeDecodeError) as exc:
-            return Err(ValidationError(f"Stored transcript unreadable: {exc}"))
-        except AudioIntelligenceError as exc:
-            return Err(exc)
+    ) -> TranscriptionResult | None:
+        """The stored result, or ``None`` if the audio it was made from is gone."""
         audio = self._library.get(transcript.metadata.audio_asset_id)
         if isinstance(audio, Err):
-            return audio
-        return Ok(TranscriptionResult(transcript, asset, audio.value, created=False))
+            _log.warning("Transcript's audio is missing, regenerating", asset_id=asset.id)
+            return None
+        return TranscriptionResult(transcript, asset, audio.value, created=False)
 
     # --- audio preparation -------------------------------------------------------------------
     def engine_version(self, config: TranscriptionConfig) -> str:
@@ -212,6 +212,7 @@ class TranscribeAudio:
         Public so that other analyses of the same audio (acoustic measurement) share this
         exact asset instead of decoding the source again.
         """
+        preparation, reused = effective_preparation(source, preparation)
         extraction_config = preparation.to_config()
         fingerprint = self._library.fingerprint(
             source.id,
@@ -235,7 +236,10 @@ class TranscribeAudio:
         with self._paths.temporary_directory(prefix="audio-") as tmp:
             wav = tmp / "audio.wav"
             try:
-                info = self._preparer.prepare(source_path.value, wav, preparation, ctx.cancellation)
+                known = known_source_timing(self._inspections, source.id, preparation.audio_stream)
+                info = self._preparer.prepare(
+                    source_path.value, wav, preparation, ctx.cancellation, known
+                )
             except AudioIntelligenceError as exc:
                 return Err(exc)
             registered = self._library.register_derived(
@@ -245,7 +249,7 @@ class TranscribeAudio:
                 config=extraction_config,
                 version=EXTRACTION_VERSION,
                 display_name=f"{source.display_name} (audio)"[:255],
-                metadata=_metadata_from_facts(source.id, info),
+                metadata=_metadata_from_facts(source.id, info, reused),
             )
         if isinstance(registered, Err):
             return registered
@@ -259,40 +263,35 @@ class TranscribeAudio:
         self,
         source: MediaAssetDto,
         transcript: Transcript,
-        config: dict[str, LibraryJson],
+        spec: DocumentSpec,
         audio_asset: MediaAssetDto,
     ) -> Result[MediaAssetDto, TranscribeError]:
         meta = transcript.metadata
-        with self._paths.temporary_directory(prefix="transcript-") as tmp:
-            document = tmp / "transcript.json"
-            document.write_text(to_json(transcript), encoding="utf-8")
-            registered = self._library.register_derived(
-                source.id,
-                document,
-                operation=TRANSCRIPTION_OPERATION,
-                config=config,
-                version=TRANSCRIPTION_VERSION,
-                display_name=f"{source.display_name} (transcript, {meta.language})"[:255],
-                metadata={
-                    "processing_type": TRANSCRIPTION_OPERATION,
-                    "source_asset_id": source.id,
-                    "audio_asset_id": audio_asset.id,
-                    "language": meta.language,
-                    "model": meta.model,
-                    "alignment_method": meta.alignment_method,
-                    "alignment_model": meta.alignment_model,
-                    "word_count": len(transcript.words),
-                    "segment_count": len(transcript.segments),
-                    "duration": meta.duration,
-                    "warning_count": len(meta.warnings),
-                },
-            )
-        if isinstance(registered, Err):
-            return registered
-        return Ok(registered.value.asset)
+        return self._documents.store(
+            source,
+            to_json(transcript),
+            filename="transcript.json",
+            spec=spec,
+            display_name=f"{source.display_name} (transcript, {meta.language})",
+            metadata={
+                "audio_asset_id": audio_asset.id,
+                "language": meta.language,
+                "model": meta.model,
+                "alignment_method": meta.alignment_method,
+                "alignment_model": meta.alignment_model,
+                "word_count": len(transcript.words),
+                "segment_count": len(transcript.segments),
+                "duration": meta.duration,
+                "warning_count": len(meta.warnings),
+            },
+        )
 
 
-def _metadata_from_facts(source_id: str, info: PreparedAudio) -> dict[str, LibraryJson]:
+def _metadata_from_facts(
+    source_id: str,
+    info: PreparedAudio,
+    reused: tuple[str, ...] = (),
+) -> dict[str, LibraryJson]:
     return {
         "processing_type": EXTRACTION_OPERATION,
         "source_asset_id": source_id,
@@ -301,6 +300,8 @@ def _metadata_from_facts(source_id: str, info: PreparedAudio) -> dict[str, Libra
         "sample_rate": info.sample_rate,
         "channels": info.channels,
         "duration_seconds": info.duration,
+        # Processing the source already had, so preparation did not repeat it.
+        "reused_processing": list(reused),
     }
 
 

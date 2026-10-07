@@ -37,6 +37,16 @@ class EngineIdentity:
     version: str
 
 
+@dataclass(frozen=True, slots=True)
+class KnownSourceTiming:
+    """Timing of the chosen audio stream already known, so the source need not be probed again."""
+
+    #: Length of the SOURCE media (container duration).
+    duration: float
+    #: Seconds from the source timeline origin to where the audio stream starts (never negative).
+    audio_offset: float
+
+
 class AudioPreparer(Protocol):
     """Extracts one audio stream to a standard PCM WAV without touching the source."""
 
@@ -46,9 +56,13 @@ class AudioPreparer(Protocol):
         destination: Path,
         config: PreparationConfig,
         cancellation: CancellationToken,
+        known: KnownSourceTiming | None = None,
     ) -> PreparedAudio:
-        """Blocking. Raises ``NoAudioTrack`` / ``UnreadableAudio``; a missing FFmpeg raises
-        ``ToolNotFoundError``."""
+        """Blocking. ``known`` replaces probing the source when it is available.
+
+        Raises ``NoAudioTrack`` / ``UnreadableAudio``; a missing FFmpeg raises
+        ``ToolNotFoundError``.
+        """
         ...
 
 

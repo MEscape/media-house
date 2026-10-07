@@ -12,9 +12,11 @@ re-transcribing.
 """
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 
 from media_house.modules.audio_intelligence.domain.values import (
+    EXTRACTION_VERSION,
+    TRANSCRIPTION_VERSION,
     JsonValue,
     TranscriptionConfig,
 )
@@ -52,16 +54,14 @@ class AcousticConfig:
             raise InvariantViolation("Pitch floor must be below the ceiling")
         if not 0.0 < self.voicing_threshold < 1.0:
             raise InvariantViolation("Voicing threshold must be in (0, 1)")
+        if self.loudness_window <= 0:
+            raise InvariantViolation("Loudness window must be positive")
+        if self.activity_margin_db < 0:
+            raise InvariantViolation("Activity margin must not be negative")
 
     def to_config(self) -> dict[str, JsonValue]:
-        return {
-            "hop": self.hop,
-            "pitch_floor": self.pitch_floor,
-            "pitch_ceiling": self.pitch_ceiling,
-            "voicing_threshold": self.voicing_threshold,
-            "loudness_window": self.loudness_window,
-            "activity_margin_db": self.activity_margin_db,
-        }
+        """Every field, so a new setting can never be missing from the processing identity."""
+        return {f.name: getattr(self, f.name) for f in fields(self)}
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,9 +98,26 @@ class AnalysisConfig:
             raise InvariantViolation("Context windows must be positive")
         if self.smoothing_frames < 1 or self.smoothing_frames % 2 == 0:
             raise InvariantViolation("Smoothing frames must be a positive odd number")
+        if not 0.0 <= self.min_pitch_confidence <= 1.0:
+            raise InvariantViolation("Minimum pitch confidence must be in [0, 1]")
+        if self.min_baseline_voiced_frames < 1 or self.min_word_voiced_frames < 1:
+            raise InvariantViolation("Minimum voiced frame counts must be at least 1")
+        positive = (
+            self.articulation_pause,
+            self.min_silence,
+            self.pitch_event_min_st,
+            self.pitch_event_max_duration,
+            self.pitch_full_scale_st,
+            self.energy_event_min_db,
+            self.energy_event_max_duration,
+            self.energy_full_scale_db,
+        )
+        if any(value <= 0 for value in positive):
+            raise InvariantViolation("Event thresholds, scales and durations must be positive")
 
     def to_config(self) -> dict[str, JsonValue]:
-        return {name: getattr(self, name) for name in self.__dataclass_fields__}
+        """Every field, so a new setting can never be missing from the processing identity."""
+        return {f.name: getattr(self, f.name) for f in fields(self)}
 
 
 def _default_weights(**weights: float) -> Mapping[str, float]:
@@ -217,23 +234,40 @@ class AudioIntelligenceConfig:
     scoring: ScoringConfig = field(default_factory=ScoringConfig)
 
     def measurements_fingerprint(self, identity: Mapping[str, str]) -> dict[str, JsonValue]:
-        """Identity of the measured frames: analyzer versions + acoustic config + audio prep."""
+        """Identity of the measured frames: analyzer versions + acoustic config + audio prep.
+
+        ``MEASUREMENTS_VERSION`` is passed to the library separately; the extraction version is
+        listed here because the frames are measured from the prepared samples it produces.
+        """
         return {
             "acoustic": self.acoustic.to_config(),
             "analyzers": dict(sorted(identity.items())),
             "preparation": self.transcription.preparation.to_config(),
+            "extraction_version": EXTRACTION_VERSION,
         }
 
     def timeline_fingerprint(
         self,
         engine_version: str,
         identity: Mapping[str, str],
+        scorer_identity: str,
     ) -> dict[str, JsonValue]:
-        """Identity of the whole timeline: speech + measurements + interpretation + scoring."""
+        """Identity of the whole timeline: speech + measurements + interpretation + scoring.
+
+        Carries EVERY pipeline version, so bumping any of them retires stored timelines instead
+        of serving them as if they were current. ``scorer_identity`` is the strategy that really
+        scores (an injected scorer may differ from the one ``scoring`` configures).
+        """
         return {
             "transcription": self.transcription.fingerprint_config(engine_version),
             "measurements": self.measurements_fingerprint(identity),
             "analysis": self.analysis.to_config(),
             "scoring": self.scoring.to_config(),
-            "analysis_version": ANALYSIS_VERSION,
+            "scorer": scorer_identity,
+            "versions": {
+                "transcription": TRANSCRIPTION_VERSION,
+                "extraction": EXTRACTION_VERSION,
+                "measurements": MEASUREMENTS_VERSION,
+                "analysis": ANALYSIS_VERSION,
+            },
         }

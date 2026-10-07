@@ -18,6 +18,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from media_house.core.application.ports import Clock
+from media_house.modules.audio_intelligence.application.derived_documents import (
+    DerivedDocuments,
+    DocumentSpec,
+    require_audio_or_video,
+)
 from media_house.modules.audio_intelligence.application.ports import AcousticExtractor
 from media_house.modules.audio_intelligence.application.transcribe_audio import (
     TranscribeAudio,
@@ -50,13 +55,11 @@ from media_house.modules.audio_intelligence.domain.analysis.timeline import (
 )
 from media_house.modules.audio_intelligence.domain.errors import AudioIntelligenceError
 from media_house.modules.media_library.application.contracts import (
-    JsonValue,
     MediaAssetDto,
     MediaLibrary,
-    MediaType,
 )
 from media_house.shared.concurrency import JobContext
-from media_house.shared.errors import Err, Ok, Result, ValidationError
+from media_house.shared.errors import Err, Ok, Result
 from media_house.shared.filesystem import AppPaths
 from media_house.shared.logging import get_logger
 
@@ -112,6 +115,7 @@ class AnalyzeAudio:
         self._paths = paths
         self._clock = clock
         self._scorer_factory = scorer_factory
+        self._documents = DerivedDocuments(library, paths)
 
     def execute(
         self,
@@ -123,33 +127,26 @@ class AnalyzeAudio:
         if isinstance(source_result, Err):
             return source_result
         source = source_result.value
-        if source.media_type not in {MediaType.AUDIO, MediaType.VIDEO}:
-            return Err(
-                ValidationError(
-                    f"Asset {source.id} is {source.media_type.value}, not audio or video",
-                    field="source_asset_id",
-                    user_message="Only audio and video files can be analysed.",
-                ),
-            )
+        if (rejected := require_audio_or_video(source, "analysed")) is not None:
+            return rejected
         config = command.config
         identity = self._extractor.identity(config.acoustic)
         engine_version = self._transcriber.engine_version(config.transcription)
-        timeline_config = config.timeline_fingerprint(engine_version, identity)
-        fingerprint = self._library.fingerprint(
-            source.id,
+        scorer = self._scorer_factory(config.scoring)
+        spec = DocumentSpec(
             ANALYSIS_OPERATION,
-            timeline_config,
             ANALYSIS_VERSION,
+            config.timeline_fingerprint(engine_version, identity, scorer.identity),
         )
+        fingerprint = self._documents.fingerprint(source.id, spec)
         if isinstance(fingerprint, Err):
             return fingerprint
-        existing = self._library.find_derived_asset(source.id, fingerprint.value)
-        if existing is not None:
-            reused = self._load_existing(existing)
+        cached = self._documents.load(source.id, fingerprint.value, timeline_from_json)
+        if cached is not None:
+            reused = self._with_related(*cached)
             if reused is not None:
-                _log.info("Audio intelligence reused", asset_id=existing.id, cache_hit=True)
+                _log.info("Audio intelligence reused", asset_id=reused.asset.id, cache_hit=True)
                 return Ok(reused)
-            _log.warning("Stored timeline unusable, recomputing", asset_id=existing.id)
 
         ctx.raise_if_cancelled()
         ctx.progress.report(1, _STEPS, "Preparing audio")
@@ -168,19 +165,23 @@ class AnalyzeAudio:
 
         ctx.raise_if_cancelled()
         ctx.progress.report(4, _STEPS, "Fusing timeline")
-        timeline = build_timeline(
-            transcript=transcription.transcript,
-            measurements=measured.value.measurements,
-            config=config,
-            scorer=self._scorer_factory(config.scoring),
-            audio_offset=audio_info.audio_offset,
-            created_at=self._clock.now(),
-        )
+        try:
+            timeline = build_timeline(
+                transcript=transcription.transcript,
+                measurements=measured.value.measurements,
+                config=config,
+                scorer=scorer,
+                audio_offset=audio_info.audio_offset,
+                created_at=self._clock.now(),
+            )
+        except AudioIntelligenceError as exc:
+            _log.error("Fusion rejected its own result", reason=exc.code, asset_id=source.id)
+            return Err(exc)
         ctx.progress.report(5, _STEPS, "Saving timeline")
         stored = self._store(
             source,
             timeline,
-            timeline_config,
+            spec,
             audio_asset,
             transcription.asset,
             measured.value.asset,
@@ -242,108 +243,84 @@ class AnalyzeAudio:
         identity: dict[str, str],
         ctx: JobContext,
     ) -> Result[_Measured, AnalyzeError]:
-        measurement_config = config.measurements_fingerprint(identity)
-        fingerprint = self._library.fingerprint(
-            source.id,
+        spec = DocumentSpec(
             MEASUREMENTS_OPERATION,
-            measurement_config,
             MEASUREMENTS_VERSION,
+            config.measurements_fingerprint(identity),
         )
+        fingerprint = self._documents.fingerprint(source.id, spec)
         if isinstance(fingerprint, Err):
             return fingerprint
-        existing = self._library.find_derived_asset(source.id, fingerprint.value)
-        if existing is not None:
-            path = self._library.local_path(existing.id)
-            if isinstance(path, Ok):
-                try:
-                    loaded = measurements_from_json(path.value.read_text(encoding="utf-8"))
-                except (OSError, UnicodeDecodeError, AudioIntelligenceError):
-                    _log.warning("Stored measurements unusable, re-measuring", asset_id=existing.id)
-                else:
-                    _log.info("Acoustic measurements reused", asset_id=existing.id)
-                    return Ok(_Measured(loaded, existing, reused=True))
+        cached = self._documents.load(source.id, fingerprint.value, measurements_from_json)
+        if cached is not None:
+            loaded, asset = cached
+            _log.info("Acoustic measurements reused", asset_id=asset.id)
+            return Ok(_Measured(loaded, asset, reused=True))
 
         try:
             measurements = self._extractor.measure(audio_path, config.acoustic, ctx.cancellation)
         except AudioIntelligenceError as exc:
             return Err(exc)
-        with self._paths.temporary_directory(prefix="measurements-") as tmp:
-            document = tmp / "measurements.json"
-            document.write_text(measurements_to_json(measurements), encoding="utf-8")
-            registered = self._library.register_derived(
-                source.id,
-                document,
-                operation=MEASUREMENTS_OPERATION,
-                config=measurement_config,
-                version=MEASUREMENTS_VERSION,
-                display_name=f"{source.display_name} (acoustic measurements)"[:255],
-                metadata={
-                    "processing_type": MEASUREMENTS_OPERATION,
-                    "source_asset_id": source.id,
-                    "frame_count": len(measurements.track),
-                    "hop": measurements.track.hop,
-                    "event_count": len(measurements.events),
-                    "analyzers": dict(measurements.identity),
-                },
-            )
-        if isinstance(registered, Err):
-            return registered
-        return Ok(_Measured(measurements, registered.value.asset, reused=False))
+        stored = self._documents.store(
+            source,
+            measurements_to_json(measurements),
+            filename="measurements.json",
+            spec=spec,
+            display_name=f"{source.display_name} (acoustic measurements)",
+            metadata={
+                "frame_count": len(measurements.track),
+                "hop": measurements.track.hop,
+                "event_count": len(measurements.events),
+                "analyzers": dict(measurements.identity),
+            },
+        )
+        if isinstance(stored, Err):
+            return stored
+        return Ok(_Measured(measurements, stored.value, reused=False))
 
     # --- persistence -------------------------------------------------------------------------
     def _store(
         self,
         source: MediaAssetDto,
         timeline: AudioIntelligenceTimeline,
-        config: dict[str, JsonValue],
+        spec: DocumentSpec,
         audio_asset: MediaAssetDto,
         transcript_asset: MediaAssetDto,
         measurements_asset: MediaAssetDto,
     ) -> Result[MediaAssetDto, AnalyzeError]:
-        with self._paths.temporary_directory(prefix="timeline-") as tmp:
-            document = tmp / "timeline.json"
-            document.write_text(timeline_to_json(timeline), encoding="utf-8")
-            registered = self._library.register_derived(
-                source.id,
-                document,
-                operation=ANALYSIS_OPERATION,
-                config=config,
-                version=ANALYSIS_VERSION,
-                display_name=f"{source.display_name} (audio intelligence)"[:255],
-                metadata={
-                    "processing_type": ANALYSIS_OPERATION,
-                    "source_asset_id": source.id,
-                    "audio_asset_id": audio_asset.id,
-                    "transcript_asset_id": transcript_asset.id,
-                    "measurements_asset_id": measurements_asset.id,
-                    "language": timeline.language,
-                    "scoring": timeline.metadata.scoring,
-                    "word_count": len(timeline.words),
-                    "segment_count": len(timeline.segments),
-                    "event_count": len(timeline.events),
-                    "editing_signal_count": len(timeline.editing_signals),
-                    "duration": timeline.duration,
-                    "warning_count": len(timeline.metadata.warnings),
-                },
-            )
-        if isinstance(registered, Err):
-            return registered
-        return Ok(registered.value.asset)
+        return self._documents.store(
+            source,
+            timeline_to_json(timeline),
+            filename="timeline.json",
+            spec=spec,
+            display_name=f"{source.display_name} (audio intelligence)",
+            metadata={
+                "audio_asset_id": audio_asset.id,
+                "transcript_asset_id": transcript_asset.id,
+                "measurements_asset_id": measurements_asset.id,
+                "language": timeline.language,
+                "scoring": timeline.metadata.scoring,
+                "word_count": len(timeline.words),
+                "segment_count": len(timeline.segments),
+                "event_count": len(timeline.events),
+                "editing_signal_count": len(timeline.editing_signals),
+                "duration": timeline.duration,
+                "warning_count": len(timeline.metadata.warnings),
+            },
+        )
 
-    def _load_existing(self, asset: MediaAssetDto) -> AnalysisResult | None:
-        """The stored result, or ``None`` if anything it needs is missing or unreadable."""
-        path = self._library.local_path(asset.id)
-        if isinstance(path, Err):
-            return None
-        try:
-            timeline = timeline_from_json(path.value.read_text(encoding="utf-8"))
-        except (OSError, UnicodeDecodeError, AudioIntelligenceError):
-            return None
+    def _with_related(
+        self,
+        timeline: AudioIntelligenceTimeline,
+        asset: MediaAssetDto,
+    ) -> AnalysisResult | None:
+        """The stored result, or ``None`` if a building block it names is gone."""
         related: list[MediaAssetDto] = []
         for key in ("audio_asset_id", "transcript_asset_id", "measurements_asset_id"):
             ref = asset.metadata.get(key)
             found = self._library.get(ref) if isinstance(ref, str) else None
             if not isinstance(found, Ok):
+                _log.warning("Stored timeline's inputs are gone, recomputing", asset_id=asset.id)
                 return None
             related.append(found.value)
         audio, transcript, measurements = related

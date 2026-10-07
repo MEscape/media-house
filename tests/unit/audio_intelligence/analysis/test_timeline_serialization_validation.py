@@ -35,7 +35,7 @@ from media_house.modules.audio_intelligence.domain.analysis.timeline import (
     AudioIntelligenceTimeline,
 )
 from media_house.modules.audio_intelligence.domain.analysis.validation import validate_timeline
-from media_house.modules.audio_intelligence.domain.errors import InvalidTranscript
+from media_house.modules.audio_intelligence.domain.errors import InvalidTimeline, InvalidTranscript
 from media_house.modules.audio_intelligence.domain.validation import Severity
 from media_house.shared.errors import InvariantViolation
 from tests.support.analysis_fakes import NAN, Delivery, make_track, measurements, timeline
@@ -290,6 +290,13 @@ def test_validation_reports_scores_outside_the_unit_interval() -> None:
     assert found["signal_invalid"] is Severity.ERROR
 
 
+def test_fusion_refuses_to_return_an_inconsistent_timeline() -> None:
+    impossible = AudioEvent("laughter", 1.0, 1.5, 1.7)  # strength must be within [0, 1]
+
+    with pytest.raises(InvalidTimeline, match="event_strength_range"):
+        timeline([[("Hello", 0.2, 0.6)]], events=[impossible])
+
+
 def test_validation_never_repairs_data() -> None:
     tl = sample_timeline()
     bad = replace(tl, events=(AudioEvent("x", 2.0, 1.0, 0.5),))
@@ -309,7 +316,7 @@ def fingerprints(
 ) -> tuple[object, object]:
     return (
         config.measurements_fingerprint(identity),
-        config.timeline_fingerprint("3.8.6", identity),
+        config.timeline_fingerprint("3.8.6", identity, "heuristic-1"),
     )
 
 

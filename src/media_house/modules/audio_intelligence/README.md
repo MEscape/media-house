@@ -181,12 +181,40 @@ Layers of meaning, never collapsed into one score:
 | --- | --- |
 | `transcription` | engine version, model, language, alignment, chunking, preparation |
 | `acoustic_measurements` | analyzer versions (pitch/energy/loudness/activity/detectors), `AcousticConfig`, preparation |
-| `audio_intelligence` | all of the above + `AnalysisConfig` + `ScoringConfig` + `ANALYSIS_VERSION` |
+| `audio_intelligence` | all of the above + `AnalysisConfig` + `ScoringConfig` + the scorer's identity + every pipeline version (transcription, extraction, measurements, analysis) |
+
+All three documents go through one `DerivedDocuments` helper (`application/derived_documents.py`):
+look up by fingerprint, treat an unreadable document as absent, register a new one. A stage
+never reimplements it.
+
+Constants that are part of an algorithm (not settings) are named in the module that uses them and
+pinned by `tests/unit/audio_intelligence/analysis/test_algorithm_constants.py`: change one, bump
+the matching version, update the snapshot.
 
 Changing only scoring or analysis settings re-fuses (milliseconds) and keeps transcript and
 frames; a new analyzer version re-measures but keeps the transcript; a new speech model
 re-transcribes but keeps the frames. Versions: `TRANSCRIPTION_VERSION`, `MEASUREMENTS_VERSION`,
 `ANALYSIS_VERSION`, `ScoringConfig.version`, JSON `schema_version`.
+
+## Audio Improvement (optional, independent)
+
+Audio Intelligence works on any audio. When its input is an asset produced by Audio Improvement it
+reads that asset's *processing provenance* through `audio_improvement.application.contracts`
+(`application/prior_processing.py`) and skips a pass only when the provenance proves, by
+measurement, that the result is already what the pass would produce (today: loudness
+normalisation, when the measured loudness is within `LOUDNESS_TOLERANCE_LU` of the preparation
+target and the true peak is under its ceiling). The skipped operation is recorded in the prepared
+audio asset's `reused_processing` metadata. Anything unproven is simply done again. The original
+signal is untouched by Improvement, so pitch and prosody analysis can also run on the original.
+
+## Media Inspection (optional, independent)
+
+Preparing audio needs the source's duration and the offset of the chosen audio stream from the
+container origin. When Media Inspection has stored an inspection of the source,
+`application/prior_inspection.py` takes these from it (through the `InspectionCatalog` contract)
+instead of probing the file; with no inspection, or when the requested audio stream is not in
+it, the preparer probes (and reports a missing track) as before. The prepared audio and the
+transcript are identical either way.
 
 ## Parallelism
 
@@ -212,5 +240,10 @@ Editing signals are evidence aggregates (`kind, start, end, score, contributors,
 decisions: this module does not cut, zoom, duck music or pick footage.
 
 `validate_timeline` reports (never repairs): non-finite/impossible values, ordering, ranges of
-confidences and scores, frame/word synchronisation, source identity. Findings are kept in
-`metadata.warnings`.
+confidences and scores, frame/word synchronisation, source identity. Warnings and transcript
+findings are kept in `metadata.warnings`. An ERROR in the analysis layers (`validate_analysis`)
+makes fusion raise `InvalidTimeline`; `AnalyzeAudio` returns it as an `Err` and stores nothing.
+
+Not yet defined: partial failure. A failing event detector or acoustic analyzer fails the whole
+analysis. Add an explicit per-analyzer availability field (and keep such a result out of the
+cache) together with the first detector that ships.

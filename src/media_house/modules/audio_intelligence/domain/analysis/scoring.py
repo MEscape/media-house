@@ -47,6 +47,15 @@ ANCHOR_PAUSE = "pause"
 ANCHOR_SEGMENT = "segment"
 _SENTENCE_END = (".", "!", "?", "…")
 
+# Algorithm constants of ``heuristic-1`` (not user settings; changing one changes results, so it
+# needs a ``ScoringConfig.version`` / ``ANALYSIS_VERSION`` bump; pinned by a unit test).
+#: A pause BEFORE a word counts half as much as one after it when judging a word's context.
+PAUSE_BEFORE_CONTEXT_WEIGHT = 0.5
+#: Weight of "pauses inside the segment" against the three equally weighted variation measures.
+PAUSE_STRUCTURE_WEIGHT = 0.34
+#: One long pause per this many seconds of speech counts as a fully structured segment.
+SECONDS_PER_STRUCTURING_PAUSE = 10.0
+
 
 @dataclass(frozen=True, slots=True)
 class WordSignals:
@@ -187,7 +196,10 @@ class HeuristicScorer:
                 max(
                     [
                         p.duration * w
-                        for p, w in ((pause_after, 1.0), (pause_before, 0.5))
+                        for p, w in (
+                            (pause_after, 1.0),
+                            (pause_before, PAUSE_BEFORE_CONTEXT_WEIGHT),
+                        )
                         if p is not None
                     ],
                     default=0.0,
@@ -289,11 +301,13 @@ class HeuristicScorer:
             equal = {"pitch_variation": 1.0, "energy_variation": 1.0, "rate_variation": 1.0}
             dynamic = stats.weighted_mean(variation, equal)
             structure = (
-                min(1.0, inside / max(1.0, segment.duration / 10.0)) if segment.words else None
+                min(1.0, inside / max(1.0, segment.duration / SECONDS_PER_STRUCTURING_PAUSE))
+                if segment.words
+                else None
             )
             expressiveness = _signal(
                 {**variation, "pause_structure": structure},
-                {**equal, "pause_structure": 0.34},
+                {**equal, "pause_structure": PAUSE_STRUCTURE_WEIGHT},
             )
             monotony = (
                 None

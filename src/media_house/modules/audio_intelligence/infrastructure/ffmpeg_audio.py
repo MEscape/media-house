@@ -12,9 +12,17 @@ from pathlib import Path
 from typing import Any
 
 from media_house.core.application.ports import ProcessRunner, ProcessSpec
-from media_house.modules.audio_intelligence.application.ports import PreparedAudio
+from media_house.modules.audio_intelligence.application.ports import (
+    KnownSourceTiming,
+    PreparedAudio,
+)
 from media_house.modules.audio_intelligence.domain.errors import NoAudioTrack, UnreadableAudio
-from media_house.modules.audio_intelligence.domain.values import PreparationConfig
+from media_house.modules.audio_intelligence.domain.values import (
+    LOUDNESS_RANGE_LU,
+    LOUDNESS_TARGET_LUFS,
+    LOUDNESS_TRUE_PEAK_DBTP,
+    PreparationConfig,
+)
 from media_house.shared.concurrency import CancellationToken
 from media_house.shared.errors import ExternalSystemError, ProcessFailedError
 from media_house.shared.logging import get_logger
@@ -22,7 +30,9 @@ from media_house.shared.logging import get_logger
 _log = get_logger(__name__)
 
 #: Mild, single-pass EBU R128 loudness normalisation (only when requested).
-_LOUDNORM = "loudnorm=I=-16:LRA=11:TP=-1.5"
+_LOUDNORM = (
+    f"loudnorm=I={LOUDNESS_TARGET_LUFS:g}:LRA={LOUDNESS_RANGE_LU:g}:TP={LOUDNESS_TRUE_PEAK_DBTP:g}"
+)
 _PROBE_TIMEOUT = 60.0
 _MIN_TIMEOUT = 600.0
 
@@ -59,8 +69,12 @@ class FfmpegAudioPreparer:
         destination: Path,
         config: PreparationConfig,
         cancellation: CancellationToken,
+        known: KnownSourceTiming | None = None,
     ) -> PreparedAudio:
-        duration, offset = self._probe(source, config.audio_stream, cancellation)
+        if known is not None:
+            duration, offset = known.duration, known.audio_offset
+        else:
+            duration, offset = self._probe(source, config.audio_stream, cancellation)
         args = [
             "-hide_banner",
             "-loglevel",

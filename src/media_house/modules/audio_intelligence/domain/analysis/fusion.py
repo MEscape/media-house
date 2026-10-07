@@ -43,9 +43,14 @@ from media_house.modules.audio_intelligence.domain.analysis.timeline import (
 )
 from media_house.modules.audio_intelligence.domain.analysis.validation import (
     summarize,
-    validate_timeline,
+    validate_analysis,
 )
+from media_house.modules.audio_intelligence.domain.errors import InvalidTimeline
 from media_house.modules.audio_intelligence.domain.transcript import Transcript
+from media_house.modules.audio_intelligence.domain.validation import (
+    Severity,
+    validate_transcript,
+)
 
 
 def build_timeline(
@@ -57,7 +62,12 @@ def build_timeline(
     audio_offset: float,
     created_at: datetime,
 ) -> AudioIntelligenceTimeline:
-    """``measurements`` are in PREPARED-audio time; ``audio_offset`` maps them to the source."""
+    """``measurements`` are in PREPARED-audio time; ``audio_offset`` maps them to the source.
+
+    Raises ``InvalidTimeline`` when the fused result breaks its contract (non-finite or
+    out-of-range values, frames out of sync with the transcript, wrong source): corrupted
+    intelligence is never returned, stored or cached. Transcript findings stay warnings.
+    """
     analysis = config.analysis
     track = replace(measurements.track, origin=measurements.track.origin + audio_offset)
     measured_events = tuple(
@@ -132,5 +142,9 @@ def build_timeline(
         ),
         editing_signals=scored.editing_signals,
     )
-    findings = summarize(validate_timeline(timeline))
+    analysis_issues = validate_analysis(timeline)
+    broken = tuple(i for i in analysis_issues if i.severity is Severity.ERROR)
+    if broken:
+        raise InvalidTimeline(summarize(broken))
+    findings = summarize((*validate_transcript(transcript), *analysis_issues))
     return replace(timeline, metadata=replace(metadata, warnings=(*metadata.warnings, *findings)))
