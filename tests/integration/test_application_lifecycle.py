@@ -6,6 +6,16 @@ from media_house.bootstrap.application import Application, StartupOptions
 from media_house.bootstrap.lifecycle import StartupError, StartupPhase
 from media_house.core.application.ports import Clock, ProcessRunner
 from media_house.core.modules import Container
+from media_house.modules.audio_improvement.application.contracts import AudioImprover, AudioMixing
+from media_house.modules.audio_improvement.application.improve_audio import ImproveAudio
+from media_house.modules.audio_improvement.application.mix_audio import MixAudio
+from media_house.modules.media_inspection.application.contracts import (
+    InspectionCatalog,
+    MediaInspector,
+    MediaRelations,
+)
+from media_house.modules.media_inspection.application.inspect_media import InspectMedia
+from media_house.modules.media_inspection.application.related_media import FindRelatedMedia
 from media_house.modules.workspace.application.commands import CreateWorkspaceCommand
 from media_house.modules.workspace.application.contracts import WorkspaceCatalog
 from media_house.modules.workspace.application.create_workspace import CreateWorkspace
@@ -43,7 +53,16 @@ def test_starts_with_default_modules_and_wires_everything(tmp_path: Path) -> Non
             "media_library",
             "image_adjustment",
             "audio_intelligence",
+            "audio_improvement",
+            "media_inspection",
         }
+        # the real composition root wires both audio subsystems and their public contracts
+        assert container.resolve(AudioImprover) is container.resolve(ImproveAudio)
+        assert container.resolve(AudioMixing) is container.resolve(MixAudio)
+        # media inspection is wired, and both audio modules receive its read-only catalog
+        assert container.resolve(MediaInspector) is container.resolve(InspectMedia)
+        assert container.resolve(InspectionCatalog) is container.resolve(InspectMedia)
+        assert container.resolve(MediaRelations) is container.resolve(FindRelatedMedia)
         assert (tmp_path / "data").is_dir()
     finally:
         application.shutdown()
