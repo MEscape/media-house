@@ -41,12 +41,15 @@ from media_house.modules.media_inspection.domain.relations import (
     RelationKind,
 )
 from media_house.modules.media_inspection.domain.timecode import Timecode
+from media_house.modules.media_inspection.domain.timing import StreamTiming
 from media_house.modules.media_inspection.domain.values import (
     Certainty,
     Concern,
     Depth,
+    FrameRateMode,
     Provenance,
     Rational,
+    ScanType,
     Severity,
     Sourced,
     Verdict,
@@ -88,6 +91,7 @@ __all__ = [
     "ContainerInfo",
     "Depth",
     "Finding",
+    "FrameRateMode",
     "InspectError",
     "InspectMediaCommand",
     "InspectionCatalog",
@@ -105,8 +109,10 @@ __all__ = [
     "RelatedMedia",
     "RelationCandidate",
     "RelationKind",
+    "ScanType",
     "Severity",
     "Sourced",
+    "StreamTiming",
     "Timecode",
     "Verdict",
     "VideoStream",

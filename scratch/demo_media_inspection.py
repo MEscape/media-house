@@ -95,12 +95,33 @@ def main():
             lines.append("None")
         for i, vs in enumerate(inspection.video_streams):
             lines.append(f"[{i}] {vs.codec} ({vs.geometry.width}x{vs.geometry.height})")
+            if vs.average_frame_rate.value:
+                lines.append(f"    FPS: {vs.average_frame_rate.value.value:.3f} ({vs.average_frame_rate.value.numerator}/{vs.average_frame_rate.value.denominator})")
+            if vs.pixel_format:
+                lines.append(f"    Pixel Format: {vs.pixel_format}")
+            if vs.bit_depth.value:
+                lines.append(f"    Bit Depth: {vs.bit_depth.value}-bit")
+            if vs.bit_rate.value:
+                lines.append(f"    Bitrate: {vs.bit_rate.value / 1000:.0f} kbps")
+            if vs.color.space.value:
+                lines.append(f"    Color Space: {vs.color.space.value}")
             
         lines.append("\n=== Audio Streams ===")
         if not inspection.audio_streams:
             lines.append("None")
         for i, ast in enumerate(inspection.audio_streams):
             lines.append(f"[{i}] {ast.codec} - {ast.channels} channels @ {ast.sample_rate}Hz")
+            if ast.bit_depth.value:
+                lines.append(f"    Bit Depth: {ast.bit_depth.value}-bit")
+            if ast.bit_rate.value:
+                lines.append(f"    Bitrate: {ast.bit_rate.value / 1000:.0f} kbps")
+            if ast.language:
+                lines.append(f"    Language: {ast.language}")
+                
+        if inspection.observed.timecode:
+            lines.append("\n=== Timecode ===")
+            tc = inspection.observed.timecode
+            lines.append(f"Start: {tc.start} (Source: {tc.source})")
             
         lines.append("\n=== Findings ===")
         if not inspection.findings:

@@ -16,6 +16,12 @@ from media_house.modules.media_inspection.application.contracts import (
 )
 from media_house.modules.media_inspection.application.inspect_media import InspectMedia
 from media_house.modules.media_inspection.application.related_media import FindRelatedMedia
+from media_house.modules.video_improvement.application.calibration import CalibrateProfile
+from media_house.modules.video_improvement.application.contracts import (
+    VideoCalibration,
+    VideoImprover,
+)
+from media_house.modules.video_improvement.application.improve_video import ImproveVideo
 from media_house.modules.workspace.application.commands import CreateWorkspaceCommand
 from media_house.modules.workspace.application.contracts import WorkspaceCatalog
 from media_house.modules.workspace.application.create_workspace import CreateWorkspace
@@ -55,6 +61,7 @@ def test_starts_with_default_modules_and_wires_everything(tmp_path: Path) -> Non
             "audio_intelligence",
             "audio_improvement",
             "media_inspection",
+            "video_improvement",
         }
         # the real composition root wires both audio subsystems and their public contracts
         assert container.resolve(AudioImprover) is container.resolve(ImproveAudio)
@@ -63,6 +70,9 @@ def test_starts_with_default_modules_and_wires_everything(tmp_path: Path) -> Non
         assert container.resolve(MediaInspector) is container.resolve(InspectMedia)
         assert container.resolve(InspectionCatalog) is container.resolve(InspectMedia)
         assert container.resolve(MediaRelations) is container.resolve(FindRelatedMedia)
+        # video improvement is wired with the same read-only inspection catalog
+        assert container.resolve(VideoImprover) is container.resolve(ImproveVideo)
+        assert container.resolve(VideoCalibration) is container.resolve(CalibrateProfile)
         assert (tmp_path / "data").is_dir()
     finally:
         application.shutdown()
