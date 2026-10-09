@@ -1,4 +1,4 @@
-"""Vocabulary of media inspection: versions, enums, exact rationals and sourced facts.
+"""Vocabulary of media inspection: versions, enums and sourced facts (``Rational`` is in core).
 
 The central idea is separating *what the media says* from *what we conclude*:
 
@@ -7,10 +7,10 @@ The central idea is separating *what the media says* from *what we conclude*:
 * ``Rational`` keeps exact timing values (29.97 fps is 30000/1001, not "30").
 """
 
-import math
 from dataclasses import dataclass
 from enum import StrEnum
 
+from media_house.core.domain.rational import Rational as Rational
 from media_house.shared.errors import InvariantViolation
 
 #: Identity of the derived inspection document in the Media Library.
@@ -135,49 +135,3 @@ class Sourced[T]:
     @property
     def known(self) -> bool:
         return self.value is not None
-
-
-@dataclass(frozen=True, slots=True)
-class Rational:
-    """An exact, reduced, positive-denominator fraction (frame rates, time bases, aspect ratios)."""
-
-    numerator: int
-    denominator: int
-
-    def __post_init__(self) -> None:
-        if self.denominator <= 0 or self.numerator < 0:
-            raise InvariantViolation(
-                "A rational needs a non-negative numerator and a positive denominator",
-                details={"numerator": self.numerator, "denominator": self.denominator},
-            )
-        divisor = math.gcd(self.numerator, self.denominator)
-        if divisor > 1:
-            object.__setattr__(self, "numerator", self.numerator // divisor)
-            object.__setattr__(self, "denominator", self.denominator // divisor)
-
-    @classmethod
-    def parse(cls, text: object) -> "Rational | None":
-        """``"30000/1001"``, ``"16:9"`` or ``"25"``; ``None`` for anything unusable or zero."""
-        if not isinstance(text, str):
-            return None
-        parts = text.strip().replace(":", "/").split("/")
-        try:
-            numbers = [int(part) for part in parts]
-        except ValueError:
-            return None
-        if len(numbers) == 1:
-            numbers.append(1)
-        if len(numbers) != 2 or numbers[0] <= 0 or numbers[1] <= 0:
-            return None
-        return cls(numbers[0], numbers[1])
-
-    @property
-    def value(self) -> float:
-        return self.numerator / self.denominator
-
-    @property
-    def reciprocal(self) -> "Rational":
-        return Rational(self.denominator, self.numerator)
-
-    def __str__(self) -> str:
-        return f"{self.numerator}/{self.denominator}"
