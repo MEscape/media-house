@@ -22,6 +22,8 @@ from media_house.modules.video_improvement.application.contracts import (
     VideoImprover,
 )
 from media_house.modules.video_improvement.application.improve_video import ImproveVideo
+from media_house.modules.video_intelligence.application.analyze_video import AnalyzeVideo
+from media_house.modules.video_intelligence.application.contracts import VideoAnalyzer
 from media_house.modules.workspace.application.commands import CreateWorkspaceCommand
 from media_house.modules.workspace.application.contracts import WorkspaceCatalog
 from media_house.modules.workspace.application.create_workspace import CreateWorkspace
@@ -62,6 +64,7 @@ def test_starts_with_default_modules_and_wires_everything(tmp_path: Path) -> Non
             "audio_improvement",
             "media_inspection",
             "video_improvement",
+            "video_intelligence",
         }
         # the real composition root wires both audio subsystems and their public contracts
         assert container.resolve(AudioImprover) is container.resolve(ImproveAudio)
@@ -73,6 +76,8 @@ def test_starts_with_default_modules_and_wires_everything(tmp_path: Path) -> Non
         # video improvement is wired with the same read-only inspection catalog
         assert container.resolve(VideoImprover) is container.resolve(ImproveVideo)
         assert container.resolve(VideoCalibration) is container.resolve(CalibrateProfile)
+        # video intelligence is wired on the inspector's public contract (it never probes itself)
+        assert container.resolve(VideoAnalyzer) is container.resolve(AnalyzeVideo)
         assert (tmp_path / "data").is_dir()
     finally:
         application.shutdown()

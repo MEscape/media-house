@@ -29,6 +29,18 @@ dependencies = [
     "praat-parselmouth>=0.4.7",
 ]
 
+[project.optional-dependencies]
+# Model-based video analysis (Video Intelligence). Every analyzer that needs one of these reports
+# "not_available" when it is missing; nothing else breaks. Licences: MediaPipe Apache-2.0,
+# RapidOCR Apache-2.0 (its ONNX models ship in the wheel), torchvision BSD-3, transformers
+# Apache-2.0 (torch is already a dependency through WhisperX).
+vision = [
+    "mediapipe>=1.1,<2",
+    "rapidocr>=3.10,<4",
+    "torchvision>=0.23,<0.24",
+    "transformers>=4.57,<5",
+]
+
 [project.scripts]
 media-house = "media_house.bootstrap.cli:main"
 
@@ -121,8 +133,19 @@ mypy_path = "src"
 
 # rembg, scipy, whisperx and its engines ship no usable type information.
 [[tool.mypy.overrides]]
-module = ["rembg", "rembg.*", "scipy", "scipy.*", "whisperx", "whisperx.*", "ctranslate2", "faster_whisper", "faster_whisper.*", "parselmouth"]
+module = ["rembg", "rembg.*", "scipy", "scipy.*", "whisperx", "whisperx.*", "ctranslate2", "faster_whisper", "faster_whisper.*", "parselmouth", "mediapipe", "mediapipe.*", "rapidocr", "rapidocr.*", "torchvision", "torchvision.*", "transformers", "transformers.*", "huggingface_hub", "huggingface_hub.*", "skimage", "skimage.*"]
 ignore_missing_imports = true
+
+# The model adapters call libraries that ship partial or no type information.
+[[tool.mypy.overrides]]
+module = [
+    "media_house.modules.video_intelligence.infrastructure.mediapipe_engines",
+    "media_house.modules.video_intelligence.infrastructure.vlm_descriptions",
+    "media_house.modules.video_intelligence.infrastructure.clip_engines",
+    "media_house.modules.video_intelligence.infrastructure.torchvision_detector",
+    "tests.integration.video_intelligence.test_real_models",
+]
+disallow_untyped_calls = false
 
 [tool.pydantic-mypy]
 init_forbid_extra = true

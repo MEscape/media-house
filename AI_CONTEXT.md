@@ -23,7 +23,7 @@ Do NOT edit the main window, `shared/`, other modules, or `bootstrap/` (except o
 bootstrap/     composition root (cli, application, composition, desktop, modules.py). Knows everything.
 shared/        tiny kernel: errors, logging, configuration, filesystem, concurrency, events, types. NO business logic.
 core/
-  domain/            AggregateRoot
+  domain/            AggregateRoot, Rational, FrameTime, TimeRange (exact time base; canonical video position)
   application/ports/ Clock, ProcessRunner (+ProcessSpec, ProcessResult, OutputLine)
   infrastructure/    SystemClock, SubprocessRunner (ONLY file allowed to `import subprocess`)
   modules/           ApplicationModule protocol, Container (composition-only), install_modules
@@ -355,7 +355,38 @@ stylesheet strings in widgets · module-level mutable state · returning domain 
 
 ---------------------------------------------------------------------------------------------------
 
-## 11. Task template (fill in and send together with this document)
+## 11. Analysis modules in the media pipeline
+
+`media_library -> media_inspection -> audio_improvement / video_improvement -> audio_intelligence /
+video_intelligence -> later editing stages`. Every processing module works standalone AND in the
+pipeline with one implementation: **resolve** a stored upstream result (through the owner's
+`application.contracts`), **reuse** it, **request** it from the owner if missing, else **degrade** to
+an explicit `not_available`. Never probe or recompute what an owner provides; record how each input
+was obtained (`inputs_used`).
+
+Shared building blocks (do not copy them into a module):
+
+* `core.domain.Rational` and `core.domain.FrameTime` / `TimeRange`: frame index + pts + exact time base. Use
+  them for every "when" in a video. Float seconds alone are never an address.
+* `media_library` contracts: `fingerprint` / `find_derived_asset` / `register_derived` are THE cache;
+  `DerivedDocuments` + `DocumentSpec` store and find JSON documents as derived assets (a JSON document
+  must declare a top-level `document_type` to be accepted as an asset).
+* `media_inspection` contracts: `InspectionCatalog.find` (never probes) and `MediaInspector.execute`.
+* `video_improvement` contracts: `read_provenance(asset.metadata)` says what was done to a version.
+
+`video_intelligence` (see its README) OBSERVES and ASSESSES, never recommends: states
+(`ok/unknown/not_analyzed/not_applicable/not_available/failed`), confidence and supporting frames on
+every observation, raw signals cached per analyzer (key = source hash + analyzer version + settings it
+uses + engine and model versions + the fingerprints of the analyzers it reads), descriptions derived
+from signals in the pure domain (thresholds live in versioned profiles, so re-tuning never re-decodes
+and never re-runs a model). Model-based analyzers are adapters behind one `SignalAnalyzer` port:
+libraries load lazily, a missing library or model makes only that analyzer `not_available`, models load
+once per run, GPU use never changes a result beyond tolerance and nothing is downloaded unless a run
+allows it. Add an analyzer by following "How to add an analyzer" in that README.
+
+---------------------------------------------------------------------------------------------------
+
+## 12. Task template (fill in and send together with this document)
 
 ```text
 Task: Create module "<name>" that <one-sentence capability>.
