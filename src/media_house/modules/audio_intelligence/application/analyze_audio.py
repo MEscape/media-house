@@ -19,8 +19,6 @@ from pathlib import Path
 
 from media_house.core.application.ports import Clock
 from media_house.modules.audio_intelligence.application.derived_documents import (
-    DerivedDocuments,
-    DocumentSpec,
     require_audio_or_video,
 )
 from media_house.modules.audio_intelligence.application.ports import AcousticExtractor
@@ -55,6 +53,8 @@ from media_house.modules.audio_intelligence.domain.analysis.timeline import (
 )
 from media_house.modules.audio_intelligence.domain.errors import AudioIntelligenceError
 from media_house.modules.media_library.application.contracts import (
+    DerivedDocuments,
+    DocumentSpec,
     MediaAssetDto,
     MediaLibrary,
 )

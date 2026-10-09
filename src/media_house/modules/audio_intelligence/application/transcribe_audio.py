@@ -13,8 +13,6 @@ from pathlib import Path
 
 from media_house.core.application.ports import Clock
 from media_house.modules.audio_intelligence.application.derived_documents import (
-    DerivedDocuments,
-    DocumentSpec,
     require_audio_or_video,
 )
 from media_house.modules.audio_intelligence.application.ports import (
@@ -42,12 +40,14 @@ from media_house.modules.audio_intelligence.domain.values import (
 )
 from media_house.modules.media_inspection.application.contracts import InspectionCatalog
 from media_house.modules.media_library.application.contracts import (
-    JsonValue as LibraryJson,
-)
-from media_house.modules.media_library.application.contracts import (
+    DerivedDocuments,
+    DocumentSpec,
     MediaAssetDto,
     MediaError,
     MediaLibrary,
+)
+from media_house.modules.media_library.application.contracts import (
+    JsonValue as LibraryJson,
 )
 from media_house.shared.concurrency import JobContext
 from media_house.shared.errors import Err, Ok, Result

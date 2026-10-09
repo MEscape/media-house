@@ -183,9 +183,10 @@ Layers of meaning, never collapsed into one score:
 | `acoustic_measurements` | analyzer versions (pitch/energy/loudness/activity/detectors), `AcousticConfig`, preparation |
 | `audio_intelligence` | all of the above + `AnalysisConfig` + `ScoringConfig` + the scorer's identity + every pipeline version (transcription, extraction, measurements, analysis) |
 
-All three documents go through one `DerivedDocuments` helper (`application/derived_documents.py`):
-look up by fingerprint, treat an unreadable document as absent, register a new one. A stage
-never reimplements it.
+All three documents go through the shared `DerivedDocuments` helper of the Media Library
+(`media_library.application.contracts`, also used by Video Intelligence): look up by fingerprint,
+discard an unreadable document and treat it as absent, register a new one. A stage never
+reimplements it. (`application/derived_documents.py` keeps only the audio-specific media-type guard.)
 
 Constants that are part of an algorithm (not settings) are named in the module that uses them and
 pinned by `tests/unit/audio_intelligence/analysis/test_algorithm_constants.py`: change one, bump
