@@ -2,8 +2,13 @@
 
 Blobs are written atomically (temp file in the destination directory, ``replace``) and hashed
 while being copied, so a source that changes after inspection is rejected rather than stored
-under the wrong identity. Every key is resolved through ``resolve_within``: nothing an
-outside caller supplies can escape the configured root.
+under the wrong identity.
+
+A ``StorageKey`` is a validated value object (relative, ``/``-separated, no dot segments), so a
+key is mapped to a path LEXICALLY under the root, which is resolved once at construction. The
+file system is never asked to resolve a path per call: ``Path.resolve`` on a file that another
+writer is replacing at that moment can return a transient, wrong path (seen on Windows), which
+made concurrent stores of identical content fail spuriously.
 """
 
 import hashlib
@@ -14,8 +19,6 @@ from typing import BinaryIO
 
 from media_house.modules.media_library.domain.errors import MediaStorageError
 from media_house.modules.media_library.domain.values import Checksum, StorageKey
-from media_house.shared.errors import ValidationError
-from media_house.shared.filesystem import resolve_within
 from media_house.shared.types import new_id
 
 _CHUNK = 1024 * 1024
@@ -25,7 +28,7 @@ class LocalMediaStorage:
     """Structurally implements ``MediaStorage`` on a local (or mounted) directory."""
 
     def __init__(self, root: Path) -> None:
-        self._root = root
+        self._root = root.resolve()
 
     def store(self, source: Path, key: StorageKey, *, expected_checksum: Checksum) -> None:
         destination = self._resolve(key)
@@ -91,7 +94,7 @@ class LocalMediaStorage:
                 f"Failed to delete media blob: {exc}",
                 details={"storage_key": key.value},
             ) from exc
-        root = self._root.resolve()
+        root = self._root
         for parent in path.parents:  # prune empty shard directories, never the root
             if parent == root or not parent.is_relative_to(root):
                 break
@@ -102,13 +105,8 @@ class LocalMediaStorage:
 
     # ------------------------------------------------------------------ internals
     def _resolve(self, key: StorageKey) -> Path:
-        try:
-            return resolve_within(self._root, key.value)
-        except ValidationError as exc:
-            raise MediaStorageError(
-                "Storage key escapes the storage root",
-                details={"storage_key": key.value},
-            ) from exc
+        """The path of ``key`` under the root. ``StorageKey`` already forbids escaping it."""
+        return self._root.joinpath(*key.value.split("/"))
 
     @staticmethod
     def _is_stored(destination: Path, source: Path) -> bool:

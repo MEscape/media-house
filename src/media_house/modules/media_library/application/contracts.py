@@ -16,6 +16,10 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Protocol
 
+from media_house.modules.media_library.application.derived_documents import (
+    DerivedDocuments,
+    DocumentSpec,
+)
 from media_house.modules.media_library.application.dto import (
     DeleteSummaryDto,
     DerivationDto,
@@ -188,6 +192,8 @@ __all__ = [
     "DerivationDto",
     "DerivedAssetRegistered",
     "DerivedAssetResultDto",
+    "DerivedDocuments",
+    "DocumentSpec",
     "GroupNotFound",
     "ImportResultDto",
     "InvalidMedia",
