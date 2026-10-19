@@ -9,6 +9,12 @@ from media_house.core.modules import Container
 from media_house.modules.audio_improvement.application.contracts import AudioImprover, AudioMixing
 from media_house.modules.audio_improvement.application.improve_audio import ImproveAudio
 from media_house.modules.audio_improvement.application.mix_audio import MixAudio
+from media_house.modules.audio_intelligence.application.contracts import AudioCatalog
+from media_house.modules.audio_visual_alignment.application.align import AlignAudioVisual
+from media_house.modules.audio_visual_alignment.application.contracts import (
+    AlignmentCatalog,
+    AudioVisualAligner,
+)
 from media_house.modules.media_inspection.application.contracts import (
     InspectionCatalog,
     MediaInspector,
@@ -23,7 +29,10 @@ from media_house.modules.video_improvement.application.contracts import (
 )
 from media_house.modules.video_improvement.application.improve_video import ImproveVideo
 from media_house.modules.video_intelligence.application.analyze_video import AnalyzeVideo
-from media_house.modules.video_intelligence.application.contracts import VideoAnalyzer
+from media_house.modules.video_intelligence.application.contracts import (
+    VideoAnalyzer,
+    VideoCatalog,
+)
 from media_house.modules.workspace.application.commands import CreateWorkspaceCommand
 from media_house.modules.workspace.application.contracts import WorkspaceCatalog
 from media_house.modules.workspace.application.create_workspace import CreateWorkspace
@@ -65,6 +74,8 @@ def test_starts_with_default_modules_and_wires_everything(tmp_path: Path) -> Non
             "media_inspection",
             "video_improvement",
             "video_intelligence",
+            "content_intelligence",
+            "audio_visual_alignment",
         }
         # the real composition root wires both audio subsystems and their public contracts
         assert container.resolve(AudioImprover) is container.resolve(ImproveAudio)
@@ -78,6 +89,10 @@ def test_starts_with_default_modules_and_wires_everything(tmp_path: Path) -> Non
         assert container.resolve(VideoCalibration) is container.resolve(CalibrateProfile)
         # video intelligence is wired on the inspector's public contract (it never probes itself)
         assert container.resolve(VideoAnalyzer) is container.resolve(AnalyzeVideo)
+        # audio-visual alignment reads the owners' stored results through their catalogs
+        assert container.resolve(AudioVisualAligner) is container.resolve(AlignAudioVisual)
+        for catalog in (AudioCatalog, VideoCatalog, AlignmentCatalog):
+            assert container.resolve(catalog) is not None
         assert (tmp_path / "data").is_dir()
     finally:
         application.shutdown()

@@ -55,15 +55,34 @@ Also:
 ```python
 # --- errors (shared/errors) ---------------------------------------------------------------
 from media_house.shared.errors import (
-    MediaHouseError, DomainError, InvariantViolation, ValidationError, ApplicationError, NotFoundError,
-    ConflictError, OperationCancelledError, InfrastructureError, PersistenceError, ExternalSystemError,
-    ToolNotFoundError, ProcessTimeoutError, ProcessFailedError, ConfigurationError, UnexpectedError,
-    Ok, Err, Result,
+    MediaHouseError,
+    DomainError,
+    InvariantViolation,
+    ValidationError,
+    ApplicationError,
+    NotFoundError,
+    ConflictError,
+    OperationCancelledError,
+    InfrastructureError,
+    PersistenceError,
+    ExternalSystemError,
+    ToolNotFoundError,
+    ProcessTimeoutError,
+    ProcessFailedError,
+    ConfigurationError,
+    UnexpectedError,
+    Ok,
+    Err,
+    Result,
 )
+
 # All errors: Err(message, user_message="...", details={...}); has .code .category .error_id .user_message .details
 # ValidationError(message, field="name", user_message=...). Subclass DomainError for module-specific rules:
 #   class FooNameTaken(DomainError): code = "foo.name_taken"; def __init__(self, name): super().__init__(..., user_message=...)
-from media_house.shared.errors.handler import ErrorHandler, ErrorReport   # (not re-exported from shared.errors)
+from media_house.shared.errors.handler import (
+    ErrorHandler,
+    ErrorReport,
+)  # (not re-exported from shared.errors)
 
 # --- events ----------------------------------------------------------------------------------
 from media_house.shared.events import DomainEvent, ApplicationEvent, EventPublisher, EventBus
@@ -73,30 +92,49 @@ from media_house.shared.events import DomainEvent, ApplicationEvent, EventPublis
 
 # --- logging ----------------------------------------------------------------------------------
 from media_house.shared.logging import get_logger, bind_context
-log = get_logger(__name__); log.info("Imported", asset_id=a.id, count=3)   # keyword fields; sensitive keys auto-redacted
+
+log = get_logger(__name__)
+log.info("Imported", asset_id=a.id, count=3)  # keyword fields; sensitive keys auto-redacted
 
 # --- paths / config -----------------------------------------------------------------------------
 from media_house.shared.filesystem import AppPaths, resolve_within
+
 #   paths.data_dir / config_dir / cache_dir / log_dir / temp_dir ; with paths.temporary_directory() as tmp: ...
 #   resolve_within(root, untrusted_path) -> Path  (raises ValidationError on traversal)
-from media_house.shared.configuration import AppSettings  # settings.concurrency.max_workers, settings.ui.theme, ...
+from media_house.shared.configuration import (
+    AppSettings,
+)  # settings.concurrency.max_workers, settings.ui.theme, ...
 
 # --- time / processes (ports from core) ----------------------------------------------------------
-from media_house.core.application.ports import Clock, ProcessRunner, ProcessSpec, ProcessResult, OutputLine
+from media_house.core.application.ports import (
+    Clock,
+    ProcessRunner,
+    ProcessSpec,
+    ProcessResult,
+    OutputLine,
+)
 #   clock.now() -> aware UTC datetime
 #   runner.run(ProcessSpec("ffprobe", ["-v","error", str(path)], timeout_seconds=30, check=True),
 #              cancellation=ctx.cancellation, on_output=lambda line: ...) -> ProcessResult(exit_code, stdout, stderr, duration_seconds)
 #   raises ToolNotFoundError / ProcessTimeoutError / ProcessFailedError(check=True) / OperationCancelledError. No shell, argv list only.
 
 # --- background jobs ---------------------------------------------------------------------------------
-from media_house.shared.concurrency import JobContext, JobScheduler, JobProgress, JobState, CancellationToken
+from media_house.shared.concurrency import (
+    JobContext,
+    JobScheduler,
+    JobProgress,
+    JobState,
+    CancellationToken,
+)
 #   Work is a plain function: def execute(self, ctx: JobContext) -> T:
 #       ctx.raise_if_cancelled(); ctx.progress.report(current, total, "message"); ctx.cancellation.wait(0.1)
 #   In unit tests run it directly with JobContext.detached().
 
 # --- domain base ---------------------------------------------------------------------------------------
-from media_house.core.domain import AggregateRoot   # self._record(event) ; aggregate.pull_events() -> list[DomainEvent]
-from media_house.shared.types import new_id         # opaque unique id string
+from media_house.core.domain import (
+    AggregateRoot,
+)  # self._record(event) ; aggregate.pull_events() -> list[DomainEvent]
+from media_house.shared.types import new_id  # opaque unique id string
 
 # --- composition (module.py / bootstrap ONLY) ---------------------------------------------------------
 from media_house.core.modules import Container, ApplicationModule
@@ -108,15 +146,22 @@ from media_house.core.modules import Container, ApplicationModule
 
 # --- UI (presentation) -----------------------------------------------------------------------------------
 from media_house.presentation.extension import (
-    UiContributor, UiRegistry, ActionContribution, ViewContribution, DockContribution)
+    UiContributor,
+    UiRegistry,
+    ActionContribution,
+    ViewContribution,
+    DockContribution,
+)
+
 #   ActionContribution(id, text, menu, callback, shortcut=None, status_tip="")   # menu: "File"/"View"/"Help"/your own name
 #   ViewContribution(id, title, factory: Callable[[], QWidget])                  # page in nav list, built lazily
 #   DockContribution(id, title, factory, area=Qt.DockWidgetArea.BottomDockWidgetArea)
 from media_house.presentation.qt.job_bridge import UiJobRunner
+
 #   jobs.submit("Name", work(ctx)->T, on_success=cb(T), on_error=cb(ErrorReport), on_cancelled=cb(),
 #               on_progress=cb(JobProgress), on_finished=cb())   -> JobHandle (handle.cancel())
 #   Call on the UI thread only. All callbacks run on the UI thread. Unhandled failures show the global error dialog.
-from media_house.presentation.qt.status import StatusReporter       # status.show("Saved", 5000)
+from media_house.presentation.qt.status import StatusReporter  # status.show("Saved", 5000)
 ```
 
 ## 5. Module blueprint (copy this shape; omit layers you do not need)
@@ -139,46 +184,67 @@ never read another module's database.
 @dataclass(frozen=True, slots=True)
 class FooId:
     value: str
+
     def __post_init__(self) -> None:
-        if not self.value: raise InvariantViolation("FooId must not be empty")
+        if not self.value:
+            raise InvariantViolation("FooId must not be empty")
+
     @classmethod
-    def new(cls) -> "FooId": return cls(new_id())
+    def new(cls) -> "FooId":
+        return cls(new_id())
+
 
 @dataclass(frozen=True, slots=True)
 class FooName:
     MAX_LENGTH: ClassVar[int] = 80
     value: str
+
     def __post_init__(self) -> None:
         if not self.value or self.value != self.value.strip():
-            raise InvariantViolation("Name must be non-empty and trimmed", user_message="Please enter a name.")
+            raise InvariantViolation(
+                "Name must be non-empty and trimmed", user_message="Please enter a name."
+            )
+
     @classmethod
-    def of(cls, raw: str) -> "FooName": return cls(raw.strip())
+    def of(cls, raw: str) -> "FooName":
+        return cls(raw.strip())
+
     @property
-    def key(self) -> str: return self.value.casefold()          # uniqueness key
+    def key(self) -> str:
+        return self.value.casefold()  # uniqueness key
+
 
 # domain/events.py
 @dataclass(frozen=True, kw_only=True, slots=True)
 class FooCreated(DomainEvent):
     foo_id: str
 
+
 # domain/foo.py — aggregate: state changes via methods, events recorded, time passed in
 class Foo(AggregateRoot):
     def __init__(self, *, id: FooId, name: FooName, created_at: datetime) -> None:  # noqa: A002
-        super().__init__(); self.id = id; self.name = name; self.created_at = created_at
+        super().__init__()
+        self.id = id
+        self.name = name
+        self.created_at = created_at
+
     @classmethod
     def create(cls, name: FooName, *, now: datetime) -> "Foo":
         foo = cls(id=FooId.new(), name=name, created_at=now)
         foo._record(FooCreated(occurred_at=now, foo_id=foo.id.value))
         return foo
 
+
 # domain/repository.py — PORT (Protocol) + business errors
 class FooNameTaken(DomainError):
     code = "foo.name_taken"
+
     def __init__(self, name: FooName) -> None:
         super().__init__(f"Name in use: {name}", user_message=f"'{name}' already exists.")
 
+
 class FooRepository(Protocol):
-    def add(self, foo: Foo) -> None: ...            # raises FooNameTaken
+    def add(self, foo: Foo) -> None: ...  # raises FooNameTaken
     def get(self, foo_id: FooId) -> Foo | None: ...
     def list_all(self) -> Sequence[Foo]: ...
     def name_exists(self, name: FooName) -> bool: ...
@@ -189,29 +255,33 @@ class FooRepository(Protocol):
 # application/dto.py          @dataclass(frozen=True, slots=True) class FooDto: id: str; name: str; created_at: datetime
 # application/commands.py     @dataclass(frozen=True, slots=True) class CreateFooCommand: name: str
 
+
 class CreateFoo:
     def __init__(self, repository: FooRepository, clock: Clock, events: EventPublisher) -> None: ...
     def execute(self, command: CreateFooCommand) -> Result[FooDto, ValidationError | ConflictError]:
         try:
             name = FooName.of(command.name)
-        except DomainError as exc:                                   # expected failure -> Err, not raise
+        except DomainError as exc:  # expected failure -> Err, not raise
             return Err(ValidationError(str(exc), field="name", user_message=exc.user_message))
         if self._repository.name_exists(name):
             return Err(ConflictError("duplicate", user_message=f"'{name}' already exists."))
         foo = Foo.create(name, now=self._clock.now())
         try:
             self._repository.add(foo)
-        except FooNameTaken:                                         # lost a race
+        except FooNameTaken:  # lost a race
             return Err(ConflictError("duplicate", user_message=f"'{name}' already exists."))
-        for event in foo.pull_events():                              # publish AFTER persisting
+        for event in foo.pull_events():  # publish AFTER persisting
             self._events.publish(event)
-        return Ok(to_dto(foo))                                       # map domain -> DTO; never leak domain objects
+        return Ok(to_dto(foo))  # map domain -> DTO; never leak domain objects
+
 
 # Long-running use case = plain method taking JobContext:
 class ImportFoos:
     def execute(self, ctx: JobContext) -> ImportSummary:
         for i, item in enumerate(items, 1):
-            ctx.raise_if_cancelled(); ...; ctx.progress.report(i, len(items), f"Imported {item}")
+            ctx.raise_if_cancelled()
+            ...
+            ctx.progress.report(i, len(items), f"Imported {item}")
 ```
 Rules: expected failures (bad input, duplicates, not found) → `Err(...)`; infrastructure failures → let typed exceptions propagate.
 Use cases never import Qt, never touch paths/DB/processes directly (use ports).
@@ -221,17 +291,25 @@ Use cases never import Qt, never touch paths/DB/processes directly (use ports).
 # application/contracts.py — the ONLY file other modules may import from this module
 class FooCatalog(Protocol):
     def list_foos(self) -> Sequence[FooDto]: ...
+
+
 # any event another module should react to must be re-exported/defined here too.
 ```
 
 ### 5.4 Infrastructure (adapter implements the port; wrap library errors; keep DTO/ORM rows out of the domain)
 ```python
-class SqliteFooRepository:                       # structurally implements FooRepository
+class SqliteFooRepository:  # structurally implements FooRepository
     def __init__(self, database_path: Path) -> None: ...
     def add(self, foo: Foo) -> None:
-        try: ...  # one short-lived sqlite3 connection per operation (thread-safe); closing(sqlite3.connect(...))
-        except sqlite3.IntegrityError as exc: raise FooNameTaken(foo.name) from exc
-        except sqlite3.Error as exc: raise PersistenceError(f"Failed to add: {exc}", details={"database": str(self._path)}) from exc
+        try:
+            ...  # one short-lived sqlite3 connection per operation (thread-safe); closing(sqlite3.connect(...))
+        except sqlite3.IntegrityError as exc:
+            raise FooNameTaken(foo.name) from exc
+        except sqlite3.Error as exc:
+            raise PersistenceError(
+                f"Failed to add: {exc}", details={"database": str(self._path)}
+            ) from exc
+
     # map rows -> domain with explicit code; corrupt data -> PersistenceError from exc
 ```
 Always `raise X(...) from exc`. Close connections (tests turn ResourceWarnings into failures).
@@ -240,18 +318,31 @@ Always `raise X(...) from exc`. Close connections (tests turn ResourceWarnings i
 ```python
 class FooModule:
     name: str = "foo"
+
     def register(self, container: Container) -> None:
-        container.register_factory(FooRepository,
-            lambda c: SqliteFooRepository(c.resolve(AppPaths).data_dir / "foo.db"))
-        container.register_factory(CreateFoo,
-            lambda c: CreateFoo(c.resolve(FooRepository), c.resolve(Clock), c.resolve(EventPublisher)))
+        container.register_factory(
+            FooRepository, lambda c: SqliteFooRepository(c.resolve(AppPaths).data_dir / "foo.db")
+        )
+        container.register_factory(
+            CreateFoo,
+            lambda c: CreateFoo(
+                c.resolve(FooRepository), c.resolve(Clock), c.resolve(EventPublisher)
+            ),
+        )
         container.register_factory(ListFoos, lambda c: ListFoos(c.resolve(FooRepository)))
-        container.register_factory(FooCatalog, lambda c: c.resolve(ListFoos))      # expose public contract
-        container.add_to_collection(UiContributor,                                   # UI hook (lazy)
-            lambda c: FooUiContributor(lambda: _build_viewmodel(c)))
+        container.register_factory(
+            FooCatalog, lambda c: c.resolve(ListFoos)
+        )  # expose public contract
+        container.add_to_collection(
+            UiContributor,  # UI hook (lazy)
+            lambda c: FooUiContributor(lambda: _build_viewmodel(c)),
+        )
+
 
 def _build_viewmodel(c: Container) -> FooViewModel:
-    return FooViewModel(c.resolve(CreateFoo), c.resolve(ListFoos), c.resolve(UiJobRunner), c.resolve(StatusReporter))
+    return FooViewModel(
+        c.resolve(CreateFoo), c.resolve(ListFoos), c.resolve(UiJobRunner), c.resolve(StatusReporter)
+    )
 ```
 Then in `bootstrap/modules.py`: `from media_house.modules.foo.module import FooModule` and add `FooModule()` to the returned tuple.
 Registration order does not matter (factories are lazy).
@@ -260,35 +351,65 @@ Registration order does not matter (factories are lazy).
 ```python
 # viewmodels/foo_viewmodel.py — QObject + signals; talks to use cases via UiJobRunner; NO widgets
 class FooViewModel(QObject):
-    foos_changed = Signal(object)        # Sequence[FooDto]
+    foos_changed = Signal(object)  # Sequence[FooDto]
     busy_changed = Signal(bool)
-    form_error_changed = Signal(str)     # "" clears
-    def __init__(self, create: CreateFoo, catalog: ListFoos, jobs: UiJobRunner, status: StatusReporter,
-                 parent: QObject | None = None) -> None: ...
+    form_error_changed = Signal(str)  # "" clears
+
+    def __init__(
+        self,
+        create: CreateFoo,
+        catalog: ListFoos,
+        jobs: UiJobRunner,
+        status: StatusReporter,
+        parent: QObject | None = None,
+    ) -> None: ...
     def refresh(self) -> None:
         self._begin()
-        self._jobs.submit("Load foos", lambda _ctx: self._catalog.list_foos(),
-                          on_success=self.foos_changed.emit, on_finished=self._end)
+        self._jobs.submit(
+            "Load foos",
+            lambda _ctx: self._catalog.list_foos(),
+            on_success=self.foos_changed.emit,
+            on_finished=self._end,
+        )
+
     def create_foo(self, name: str) -> None:
         self._begin()
-        self._jobs.submit("Create foo", lambda _ctx: self._create.execute(CreateFooCommand(name)),
-                          on_success=self._on_created, on_finished=self._end)
+        self._jobs.submit(
+            "Create foo",
+            lambda _ctx: self._create.execute(CreateFooCommand(name)),
+            on_success=self._on_created,
+            on_finished=self._end,
+        )
+
     def _on_created(self, result: Result[FooDto, ValidationError | ConflictError]) -> None:
         match result:
-            case Ok(dto): self._status.show(f"Created {dto.name}"); self.refresh()
-            case Err(error): self.form_error_changed.emit(error.user_message)
+            case Ok(dto):
+                self._status.show(f"Created {dto.name}")
+                self.refresh()
+            case Err(error):
+                self.form_error_changed.emit(error.user_message)
+
 
 # views/foo_view.py — QWidget: build widgets, connect signals both ways, set setAccessibleName(...) on inputs/lists,
 #   no business logic, NO stylesheet strings (styling lives in presentation/resources/styles/base.qss).
 # models/*.py — QAbstractListModel subclasses use @override on rowCount/data (from typing import override).
 # strings.py — every user-facing string as a constant (future i18n).
 
+
 # contributor.py
 class FooUiContributor:
-    def __init__(self, viewmodel_factory: Callable[[], FooViewModel]) -> None: ...   # cache the VM instance
+    def __init__(
+        self, viewmodel_factory: Callable[[], FooViewModel]
+    ) -> None: ...  # cache the VM instance
     def contribute(self, registry: UiRegistry) -> None:
-        registry.add_view(ViewContribution("foo.main", "Foos", self._create_view))     # ids must be unique app-wide
-        registry.add_action(ActionContribution("foo.refresh", "Refresh Foos", "Foo", lambda: self._vm().refresh(), shortcut="F5"))
+        registry.add_view(
+            ViewContribution("foo.main", "Foos", self._create_view)
+        )  # ids must be unique app-wide
+        registry.add_action(
+            ActionContribution(
+                "foo.refresh", "Refresh Foos", "Foo", lambda: self._vm().refresh(), shortcut="F5"
+            )
+        )
         # registry.add_dock(DockContribution("foo.panel", "Foo Panel", lambda: FooPanel(self._vm())))
 ```
 Prefix every contribution id with the module name (`foo.…`). The main window needs no change.
@@ -383,6 +504,18 @@ and never re-runs a model). Model-based analyzers are adapters behind one `Signa
 libraries load lazily, a missing library or model makes only that analyzer `not_available`, models load
 once per run, GPU use never changes a result beyond tolerance and nothing is downloaded unless a run
 allows it. Add an analyzer by following "How to add an analyzer" in that README.
+
+`audio_visual_alignment` RELATES what the analysis modules above found (it reads, never computes or
+decides; see its README): audio timeline + video analysis (+ content analysis, + inspection) in, one
+`AlignmentDocument` out, stored as one derived library document keyed by the content identity of every
+input. Acquisition is explicit: `Acquire.STORED` (default) reads through the read-only catalogs
+`AudioCatalog`, `VideoCatalog`, `ContentCatalog`, `InspectionCatalog` and fails with
+`MissingPrerequisite`; only `Acquire.REQUEST` lets an owner compute. Time has ONE convention:
+`common = upstream_seconds + correction`, the common clock being the container timeline; the video
+correction is derived from the inspection (FFmpeg's frame timestamps are not container-relative in
+every format), never from a signal. Speaker labels exist only when `AudioIntelligenceConfig.diarization`
+is set (opt-in, gated model, separate stored document, never re-transcribes). Content Intelligence
+exposes its multilingual embedding engine to other modules as `TextEncoder`; nobody loads a second one.
 
 ---------------------------------------------------------------------------------------------------
 
