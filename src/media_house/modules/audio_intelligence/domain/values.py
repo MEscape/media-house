@@ -85,6 +85,11 @@ class TranscriptionConfig:
     #: ``None`` picks the best type the hardware supports (e.g. ``float16``, else ``int8``).
     compute_type: str | None = None
     batch_size: int = 16
+    #: May a model that is not on disk be downloaded during the run? ``False`` (default): only
+    #: models already on disk are used and a missing one is reported together with the command
+    #: that fetches it. Like ``device``, it does not change the result, so it is not part of the
+    #: result's identity.
+    allow_model_download: bool = False
     #: Seconds of speech per recognition window (Whisper's maximum is 30).
     chunk_size: int = 30
     preparation: PreparationConfig = field(default_factory=PreparationConfig)

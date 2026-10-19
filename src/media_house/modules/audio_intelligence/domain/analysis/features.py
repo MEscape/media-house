@@ -226,7 +226,7 @@ def word_acoustics(
                 last_frame=frames[-1] if frames else None,
                 pitch=pitch,
                 energy=energy,
-                pitch_change=_pitch_change(events, word, pitch, config),
+                pitch_change=_pitch_change(events, word, pitch),
                 energy_change=_energy_change(events, word, energy),
                 rate=_rate_summary(word, rate, baseline),
             ),
@@ -270,13 +270,12 @@ def _pitch_summary(
         relative_st=baseline.pitch_relative_st(median_hz),
         z_score=baseline.pitch_z(median_hz),
         percentile=baseline.pitch_percentile(median_hz),
-        local_deviation_st=_local_pitch_deviation(track, baseline, config, word, median_hz),
+        local_deviation_st=_local_pitch_deviation(track, config, word, median_hz),
     )
 
 
 def _local_pitch_deviation(
     track: AcousticTrack,
-    baseline: Baseline,
     config: AnalysisConfig,
     word: TranscriptWord,
     median_hz: float,
@@ -289,7 +288,6 @@ def _local_pitch_deviation(
     if len(previous) < _MIN_LOCAL_FRAMES:
         return None
     context = stats.median(previous)
-    _ = baseline
     return None if context is None else stats.semitones(median_hz, context)
 
 
@@ -334,11 +332,9 @@ def _pitch_change(
     events: Sequence[AudioEvent],
     word: TranscriptWord,
     pitch: PitchSummary | None,
-    config: AnalysisConfig,
 ) -> PitchChange | None:
     if pitch is None or pitch.median_hz is None:
         return None  # nothing measured: unknown, not "no change"
-    _ = config
     inside = overlapping(events, word.start, word.end, frozenset({PITCH_RISE, PITCH_FALL}))
     rise = max((e.strength for e in inside if e.kind == PITCH_RISE), default=0.0)
     fall = max((e.strength for e in inside if e.kind == PITCH_FALL), default=0.0)
