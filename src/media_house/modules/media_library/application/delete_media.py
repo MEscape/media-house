@@ -55,7 +55,9 @@ class DeleteMedia:
             return Err(
                 ConflictError(
                     f"Asset {asset_id} has {len(descendants)} derived assets",
-                    user_message="This item has processed versions. Delete them together or archive it.",
+                    user_message=(
+                        "This item has processed versions. Delete them together or archive it."
+                    ),
                 ),
             )
         doomed = self._repository.get_many([root_id, *descendants])

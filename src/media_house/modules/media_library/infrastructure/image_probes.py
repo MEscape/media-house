@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import BinaryIO, Protocol
 
 from media_house.modules.media_library.domain.errors import InvalidMedia
-from media_house.modules.media_library.domain.values import JsonObject, MediaType
+from media_house.modules.media_library.domain.values import JsonObject, JsonValue, MediaType
 
 
 @dataclass(frozen=True, slots=True)
@@ -178,7 +178,7 @@ class WebpProbe:
     @staticmethod
     def _parse(f: BinaryIO) -> ProbeResult:
         fourcc = f.read(8)[:4]
-        technical: dict[str, object]
+        technical: dict[str, JsonValue]
         if fourcc == b"VP8 ":
             data = f.read(10)
             if len(data) < 10 or data[3:6] != b"\x9d\x01\x2a":
@@ -220,7 +220,7 @@ class WebpProbe:
             ".webp",
             width,
             height,
-            technical={"format": "WEBP", **technical},  # type: ignore[arg-type]
+            technical={"format": "WEBP", **technical},
         )
 
 

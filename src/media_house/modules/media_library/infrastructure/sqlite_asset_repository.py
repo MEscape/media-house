@@ -1,3 +1,5 @@
+# ruff: noqa: S608 - SQL text is only joined from fixed fragments and generated '?' markers;
+# every value travels as a bound parameter.
 """SQLite adapter for :class:`MediaAssetRepository` (stdlib ``sqlite3``, no ORM)."""
 
 import json
@@ -115,7 +117,7 @@ class SqliteMediaAssetRepository:
                 chunk = ids[start : start + _CHUNK]
                 # Tags and memberships go with the row (ON DELETE CASCADE).
                 conn.execute(
-                    f"DELETE FROM media_assets WHERE id IN ({_placeholders(len(chunk))})",  # noqa: S608
+                    f"DELETE FROM media_assets WHERE id IN ({_placeholders(len(chunk))})",
                     chunk,
                 )
 
@@ -136,7 +138,7 @@ class SqliteMediaAssetRepository:
             for start in range(0, len(ids), _CHUNK):
                 chunk = ids[start : start + _CHUNK]
                 rows += conn.execute(
-                    f"SELECT * FROM media_assets WHERE id IN ({_placeholders(len(chunk))})",  # noqa: S608
+                    f"SELECT * FROM media_assets WHERE id IN ({_placeholders(len(chunk))})",
                     chunk,
                 ).fetchall()
             by_id = {a.id.value: a for a in _hydrate_rows(conn, rows)}
@@ -177,12 +179,12 @@ class SqliteMediaAssetRepository:
         def work(conn: sqlite3.Connection) -> Page[MediaAsset]:
             total = int(
                 conn.execute(
-                    f"SELECT COUNT(*) FROM media_assets a {where}",  # noqa: S608
+                    f"SELECT COUNT(*) FROM media_assets a {where}",
                     params,
                 ).fetchone()[0],
             )
             rows = conn.execute(
-                f"SELECT a.* FROM media_assets a {where} "  # noqa: S608
+                f"SELECT a.* FROM media_assets a {where} "
                 f"ORDER BY {column} {direction}, a.id LIMIT ? OFFSET ?",
                 [*params, query.page_size, query.offset],
             ).fetchall()
@@ -220,7 +222,7 @@ class SqliteMediaAssetRepository:
                 clause = "WHERE tag LIKE ? ESCAPE '\\'"
                 params.append(_like_pattern(prefix)[1:])  # prefix match: drop leading '%'
             rows = conn.execute(
-                f"SELECT tag, COUNT(*) AS n FROM media_asset_tags {clause} "  # noqa: S608
+                f"SELECT tag, COUNT(*) AS n FROM media_asset_tags {clause} "
                 "GROUP BY tag ORDER BY n DESC, tag LIMIT ?",
                 [*params, limit],
             ).fetchall()
@@ -307,7 +309,8 @@ def _build_where(query: MediaQuery) -> tuple[str, list[object]]:
             )
         else:
             clauses.append(
-                f"a.id IN (SELECT m.asset_id FROM media_group_members m WHERE m.group_id IN ({marks}))",
+                "a.id IN (SELECT m.asset_id FROM media_group_members m "
+                f"WHERE m.group_id IN ({marks}))",
             )
         params += sorted(query.group_ids)
     if query.tags:

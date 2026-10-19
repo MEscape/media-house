@@ -13,7 +13,7 @@ from typing import ClassVar
 from media_house.shared.errors import InvariantViolation
 from media_house.shared.types import new_id
 
-type JsonValue = str | int | float | bool | None | list[JsonValue] | dict[str, JsonValue]
+type JsonValue = str | int | float | bool | list[JsonValue] | dict[str, JsonValue] | None
 type JsonObject = Mapping[str, JsonValue]
 
 #: Upper bound for any JSON document stored on an asset (technical info, metadata, config).

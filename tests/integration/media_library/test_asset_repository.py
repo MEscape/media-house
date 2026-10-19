@@ -1,8 +1,9 @@
 """Contract tests: every MediaAssetRepository implementation must behave identically."""
 
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -10,14 +11,13 @@ from media_house.modules.media_library.domain.errors import DuplicateMedia
 from media_house.modules.media_library.domain.media_asset import MediaAsset, MediaFileInfo
 from media_house.modules.media_library.domain.repository import MediaAssetRepository
 from media_house.modules.media_library.domain.values import (
-    MediaSource,
     Checksum,
     MediaAssetId,
     MediaName,
+    MediaSource,
     MediaType,
     SourceType,
     StorageKey,
-    Tag,
 )
 from media_house.modules.media_library.infrastructure.sqlite_asset_repository import (
     SqliteMediaAssetRepository,
@@ -29,14 +29,15 @@ pytestmark = pytest.mark.integration
 
 Factory = Callable[[], MediaAssetRepository]
 
-T0 = datetime(2025, 1, 1, 12, 0, tzinfo=timezone.utc)
+T0 = datetime(2025, 1, 1, 12, 0, tzinfo=UTC)
 
 
 @pytest.fixture(params=["in_memory", "sqlite"])
 def make_repository(request: pytest.FixtureRequest, tmp_path: Path) -> Factory:
     if request.param == "in_memory":
         shared = InMemoryMediaStore()
-        return lambda: shared
+        # One fake serves both repositories (assets and groups), so its ``get`` takes either id.
+        return lambda: cast(MediaAssetRepository, shared)
 
     db_path = tmp_path / "media_library.db"
     return lambda: SqliteMediaAssetRepository(SqliteMediaDatabase(db_path))

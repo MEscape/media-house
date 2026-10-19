@@ -27,6 +27,7 @@ Other modules interact with it **only** through the `media_library.application.c
 from media_house.modules.media_library.application.contracts import MediaLibrary
 from media_house.shared.errors import Err, Ok
 
+
 def process_asset(library: MediaLibrary, asset_id: str, ctx: JobContext) -> None:
     # 1. Fetch asset metadata
     asset_result = library.get(asset_id)
@@ -42,7 +43,7 @@ def process_asset(library: MediaLibrary, asset_id: str, ctx: JobContext) -> None
     # 3. Derive a new asset
     fingerprint = library.fingerprint(asset_id, "my_custom_operation", {"quality": "high"}).value
     derived = library.find_derived_asset(asset_id, fingerprint)
-    
+
     if not derived:
         # Run expensive operation and register result
         new_file_path = run_expensive_operation(path_result.value)
@@ -50,7 +51,7 @@ def process_asset(library: MediaLibrary, asset_id: str, ctx: JobContext) -> None
             source_asset_id=asset_id,
             path=new_file_path,
             operation="my_custom_operation",
-            config={"quality": "high"}
+            config={"quality": "high"},
         )
 ```
 

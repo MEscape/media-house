@@ -70,7 +70,7 @@ class InMemoryMediaStore:
         self._members: set[tuple[str, str]] = set()
 
     # ------------------------------------------------------------------ assets
-    def add(self, asset: MediaAsset | MediaGroup) -> None:  # type: ignore[override]
+    def add(self, asset: MediaAsset | MediaGroup) -> None:
         if isinstance(asset, MediaGroup):
             self._add_group(asset)
             return
@@ -87,7 +87,7 @@ class InMemoryMediaStore:
             raise DuplicateDerivative(asset.derivation.fingerprint.value)
         self._assets[asset.id.value] = _copy_asset(asset)
 
-    def save(self, asset: MediaAsset | MediaGroup) -> None:  # type: ignore[override]
+    def save(self, asset: MediaAsset | MediaGroup) -> None:
         if isinstance(asset, MediaGroup):
             self._save_group(asset)
             return
@@ -95,7 +95,7 @@ class InMemoryMediaStore:
             raise MediaNotFound(asset.id.value)
         self._assets[asset.id.value] = _copy_asset(asset)
 
-    def get(self, item_id: MediaAssetId | MediaGroupId) -> MediaAsset | MediaGroup | None:  # type: ignore[override]
+    def get(self, item_id: MediaAssetId | MediaGroupId) -> MediaAsset | MediaGroup | None:
         if isinstance(item_id, MediaGroupId):
             group = self._groups.get(item_id.value)
             return _copy_group(group) if group else None
