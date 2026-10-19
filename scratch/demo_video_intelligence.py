@@ -10,7 +10,14 @@ import shutil
 import sys
 from pathlib import Path
 
-from PySide6.QtWidgets import QApplication, QFileDialog, QDialog, QVBoxLayout, QTextEdit, QPushButton
+from PySide6.QtWidgets import (
+    QApplication,
+    QDialog,
+    QFileDialog,
+    QPushButton,
+    QTextEdit,
+    QVBoxLayout,
+)
 
 from media_house.bootstrap.application import Application, StartupOptions
 from media_house.modules.media_library.application.contracts import MediaLibrary
@@ -30,15 +37,15 @@ class AnalysisViewer(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Analysis Result")
         self.resize(800, 600)
-        
+
         layout = QVBoxLayout(self)
-        
+
         self.text_edit = QTextEdit()
         self.text_edit.setPlainText(text)
         self.text_edit.setReadOnly(True)
         self.text_edit.setStyleSheet("font-family: monospace;")
         layout.addWidget(self.text_edit)
-        
+
         self.btn_close = QPushButton("Close")
         self.btn_close.clicked.connect(self.accept)
         layout.addWidget(self.btn_close)
@@ -61,7 +68,7 @@ def main() -> int:
             None,
             "Select a video file to analyze",
             "",
-            "Video files (*.mp4 *.mov *.mkv *.webm *.avi)"
+            "Video files (*.mp4 *.mov *.mkv *.webm *.avi)",
         )
         if not file_path:
             print("No file selected. Exiting.")
@@ -83,24 +90,24 @@ def main() -> int:
         ctx = JobContext(ctx.job_id, ctx.cancellation, Progress())
         result = app.container.resolve(VideoAnalyzer).execute(
             AnalyzeVideoCommand(
-                imported.value.asset.id, 
-                profile,
-                runtime=RuntimeConfig(allow_model_download=True)
-            ), 
-            ctx
+                imported.value.asset.id, profile, runtime=RuntimeConfig(allow_model_download=True)
+            ),
+            ctx,
         )
         if not isinstance(result, Ok):
             print(f"Analysis failed: {result.error}")
             return 1
 
         analysis = result.value.analysis
-        
+
         output_lines = []
         output_lines.append(f"{profile}: measured on the {analysis.measured_on.value} footage")
         for use in analysis.inputs_used:
             output_lines.append(f"  input {use.name}: {use.source.value} {use.detail}")
         for report in analysis.analyzers:
-            output_lines.append(f"  analyzer {report.analyzer.value}: {report.state.value} ({report.cache.value})")
+            output_lines.append(
+                f"  analyzer {report.analyzer.value}: {report.state.value} ({report.cache.value})"
+            )
         for shot in analysis.shots:
             camera, quality = shot.camera, shot.quality
             movement = camera.movement.value if camera.movement else camera.state.value
@@ -111,19 +118,19 @@ def main() -> int:
             )
         for warning in analysis.warnings:
             output_lines.append(f"warning: {warning}")
-            
+
         output_lines.append("\n=== Full Analysis JSON ===")
         output_lines.append(analysis_to_json(analysis))
-            
+
         output_text = "\n".join(output_lines)
         print(f"\n{output_text}")
-        
-        if 'app_qt' not in locals():
+
+        if "app_qt" not in locals():
             app_qt = QApplication.instance() or QApplication(sys.argv)
-            
+
         viewer = AnalysisViewer(output_text)
         viewer.exec()
-        
+
         return 0
     finally:
         app.shutdown()
