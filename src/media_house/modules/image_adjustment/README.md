@@ -24,6 +24,10 @@ Other modules import only `image_adjustment.application.contracts`.
 | `application` | `AdjustImage` use case, `ImageAdjuster` contract, ports |
 | `infrastructure` | `RembgSegmenter` (AI background removal), `PillowImageRenderer` (image compositing) |
 
+Background removal never downloads a model during a run: `RembgSegmenter` uses a model only if rembg
+already has its file and otherwise fails with the command that fetches it
+(`python scripts/fetch_models.py --background-removal birefnet-general-lite`).
+
 ## Reuse: process once, persist once
 
 Adjustments are expensive (especially AI segmentation). The result is registered in the Media Library using a *processing fingerprint* (source asset + exact adjustment settings + version). If another module requests the exact same adjustment on the same image, it receives the existing derived asset instead of rerunning the operation.
@@ -41,19 +45,20 @@ from media_house.modules.image_adjustment.application.contracts import (
 )
 from media_house.shared.errors import Err
 
+
 def make_thumbnail(adjuster: ImageAdjuster, source_asset_id: str, ctx: JobContext) -> None:
     settings = AdjustmentSettings(
         background_removal=BackgroundRemoval(enabled=True),
-        canvas=Canvas(width=1920, height=1080, background_color=HexColor("#1A1A1A"))
+        canvas=Canvas(width=1920, height=1080, background_color=HexColor("#1A1A1A")),
     )
-    
+
     # blocking: call from a job
     result = adjuster.execute(AdjustImageCommand(source_asset_id, settings), ctx)
-    
+
     if isinstance(result, Err):
         print(f"Failed: {result.error}")
         return
-        
+
     derived_asset = result.value.asset
     print(f"Ready! Stored as library asset {derived_asset.id}")
 ```
