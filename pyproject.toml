@@ -102,6 +102,9 @@ ignore = [
 "tests/architecture/**" = ["E501"]
 # Developer scripts talk to the terminal and run our own pinned tools.
 "scripts/**" = ["T201", "TID251", "S603", "S404"]
+# Manual demos: they print, spawn the OS file opener, hold a QApplication in an unused local and
+# catch broad errors on purpose so one failing demo step cannot stop the rest.
+"scratch/**" = ["T201", "S606", "BLE001", "F841", "E501"]
 "src/media_house/bootstrap/cli.py" = ["T201", "TID251"]  # terminal output; reads os.environ once
 "src/media_house/core/infrastructure/process/subprocess_runner.py" = ["TID251"]
 
@@ -133,7 +136,7 @@ mypy_path = "src"
 
 # rembg, scipy, whisperx and its engines ship no usable type information.
 [[tool.mypy.overrides]]
-module = ["rembg", "rembg.*", "scipy", "scipy.*", "whisperx", "whisperx.*", "ctranslate2", "faster_whisper", "faster_whisper.*", "parselmouth", "mediapipe", "mediapipe.*", "rapidocr", "rapidocr.*", "torchvision", "torchvision.*", "transformers", "transformers.*", "huggingface_hub", "huggingface_hub.*", "skimage", "skimage.*"]
+module = ["rembg", "rembg.*", "scipy", "scipy.*", "whisperx", "whisperx.*", "ctranslate2", "faster_whisper", "faster_whisper.*", "parselmouth", "torchaudio", "torchaudio.*", "mediapipe", "mediapipe.*", "rapidocr", "rapidocr.*", "torchvision", "torchvision.*", "transformers", "transformers.*", "huggingface_hub", "huggingface_hub.*", "skimage", "skimage.*"]
 ignore_missing_imports = true
 
 # The model adapters call libraries that ship partial or no type information.
@@ -143,7 +146,10 @@ module = [
     "media_house.modules.video_intelligence.infrastructure.vlm_descriptions",
     "media_house.modules.video_intelligence.infrastructure.clip_engines",
     "media_house.modules.video_intelligence.infrastructure.torchvision_detector",
+    "media_house.modules.content_intelligence.infrastructure.transformers_embedder",
+    "media_house.modules.content_intelligence.infrastructure.transformers_llm",
     "tests.integration.video_intelligence.test_real_models",
+    "tests.integration.content_intelligence.test_adapters",
 ]
 disallow_untyped_calls = false
 
