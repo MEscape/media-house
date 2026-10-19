@@ -82,7 +82,7 @@ class ClipRuntime:
         return snapshot_reason(self._repo, LICENSE, self._cache, allow_downloads)
 
     def identity(self) -> dict[str, str]:
-        from media_house.modules.video_intelligence.infrastructure.hf_models import cached_snapshot
+        from media_house.core.infrastructure.models import cached_snapshot
 
         snapshot = cached_snapshot(self._repo, self._cache)
         return {

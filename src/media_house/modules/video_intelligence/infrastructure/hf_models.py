@@ -8,28 +8,21 @@ fetches it, unless ``allow_downloads`` is set. The snapshot's commit hash is the
 
 from pathlib import Path
 
+from media_house.core.infrastructure.models import cached_snapshot
 from media_house.modules.video_intelligence.infrastructure.model_files import library_missing
 from media_house.shared.errors import ExternalSystemError
 
 
-def _resolve(repo: str, cache: Path | None, local_only: bool) -> Path:
+def _download(repo: str, cache: Path | None) -> Path:
     from huggingface_hub import snapshot_download
 
     return Path(
         snapshot_download(
             repo_id=repo,
             cache_dir=None if cache is None else str(cache),
-            local_files_only=local_only,
+            local_files_only=False,
         )
     )
-
-
-def cached_snapshot(repo: str, cache: Path | None) -> Path | None:
-    """The local snapshot directory of ``repo`` if it is cached, else ``None``."""
-    try:
-        return _resolve(repo, cache, local_only=True)
-    except Exception:  # noqa: BLE001  (huggingface_hub raises several unrelated types for "not cached")
-        return None
 
 
 def snapshot_reason(repo: str, license_name: str, cache: Path | None, allow: bool) -> str | None:
@@ -53,7 +46,7 @@ def ensure_snapshot(repo: str, cache: Path | None, allow: bool) -> Path:
     if not allow:
         raise ExternalSystemError(f"the model {repo} is not cached and downloads are not allowed")
     try:
-        return _resolve(repo, cache, local_only=False)
+        return _download(repo, cache)
     except Exception as exc:
         raise ExternalSystemError(f"could not download the model {repo}: {exc}") from exc
 

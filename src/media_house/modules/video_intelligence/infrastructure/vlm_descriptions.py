@@ -11,11 +11,11 @@ from typing import Any
 
 import numpy as np
 
+from media_house.core.infrastructure.models import cached_snapshot
 from media_house.modules.video_intelligence.application.ports import DecodedVideo, MeasureRequest
 from media_house.modules.video_intelligence.domain.signals import DescriptionSignals
 from media_house.modules.video_intelligence.domain.values import AnalyzerId, DeviceKind
 from media_house.modules.video_intelligence.infrastructure.hf_models import (
-    cached_snapshot,
     ensure_snapshot,
     revision_of,
     snapshot_reason,
