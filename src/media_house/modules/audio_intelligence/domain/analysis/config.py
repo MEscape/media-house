@@ -14,6 +14,10 @@ re-transcribing.
 from collections.abc import Mapping
 from dataclasses import dataclass, field, fields
 
+from media_house.modules.audio_intelligence.domain.diarization import (
+    DIARIZATION_VERSION,
+    DiarizationConfig,
+)
 from media_house.modules.audio_intelligence.domain.values import (
     EXTRACTION_VERSION,
     TRANSCRIPTION_VERSION,
@@ -232,6 +236,9 @@ class AudioIntelligenceConfig:
     acoustic: AcousticConfig = field(default_factory=AcousticConfig)
     analysis: AnalysisConfig = field(default_factory=AnalysisConfig)
     scoring: ScoringConfig = field(default_factory=ScoringConfig)
+    #: Speaker labels. ``None`` (default) runs no diarization and leaves every stored
+    #: identity exactly as it was before the stage existed.
+    diarization: DiarizationConfig | None = None
 
     def measurements_fingerprint(self, identity: Mapping[str, str]) -> dict[str, JsonValue]:
         """Identity of the measured frames: analyzer versions + acoustic config + audio prep.
@@ -251,6 +258,7 @@ class AudioIntelligenceConfig:
         engine_version: str,
         identity: Mapping[str, str],
         scorer_identity: str,
+        diarizer_identity: Mapping[str, str] | None = None,
     ) -> dict[str, JsonValue]:
         """Identity of the whole timeline: speech + measurements + interpretation + scoring.
 
@@ -258,7 +266,7 @@ class AudioIntelligenceConfig:
         of serving them as if they were current. ``scorer_identity`` is the strategy that really
         scores (an injected scorer may differ from the one ``scoring`` configures).
         """
-        return {
+        key: dict[str, JsonValue] = {
             "transcription": self.transcription.fingerprint_config(engine_version),
             "measurements": self.measurements_fingerprint(identity),
             "analysis": self.analysis.to_config(),
@@ -270,4 +278,21 @@ class AudioIntelligenceConfig:
                 "measurements": MEASUREMENTS_VERSION,
                 "analysis": ANALYSIS_VERSION,
             },
+        }
+        if self.diarization is not None:  # absent when off: existing identities stay valid
+            key["diarization"] = {
+                **self.diarization_fingerprint(diarizer_identity or {}),
+                "version": DIARIZATION_VERSION,
+            }
+        return key
+
+    def diarization_fingerprint(self, identity: Mapping[str, str]) -> dict[str, JsonValue]:
+        """Identity of the speaker turns: model + parameters + the audio they were computed on."""
+        if self.diarization is None:
+            raise InvariantViolation("Diarization is not configured")
+        return {
+            "diarization": self.diarization.to_config(),
+            "engine": dict(sorted(identity.items())),
+            "preparation": self.transcription.preparation.to_config(),
+            "extraction_version": EXTRACTION_VERSION,
         }

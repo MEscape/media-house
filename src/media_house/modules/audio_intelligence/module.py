@@ -10,19 +10,25 @@ from media_house.core.modules import Container
 from media_house.modules.audio_intelligence.application.analyze_audio import AnalyzeAudio
 from media_house.modules.audio_intelligence.application.contracts import (
     AudioAnalyzer,
+    AudioCatalog,
     AudioEngine,
 )
 from media_house.modules.audio_intelligence.application.ports import (
     AcousticExtractor,
     AudioPreparer,
+    SpeakerDiarizer,
     TranscriptionEngine,
 )
+from media_house.modules.audio_intelligence.application.results import AudioResults
 from media_house.modules.audio_intelligence.application.transcribe_audio import TranscribeAudio
 from media_house.modules.audio_intelligence.infrastructure.acoustic_extractor import (
     AcousticExtractor as PraatAcousticExtractor,
 )
 from media_house.modules.audio_intelligence.infrastructure.ffmpeg_audio import (
     FfmpegAudioPreparer,
+)
+from media_house.modules.audio_intelligence.infrastructure.pyannote_diarizer import (
+    PyannoteDiarizer,
 )
 from media_house.modules.audio_intelligence.infrastructure.whisperx_engine import WhisperXEngine
 from media_house.modules.media_inspection.application.contracts import InspectionCatalog
@@ -53,6 +59,12 @@ class AudioIntelligenceModule:
         container.register_factory(AudioEngine, lambda c: c.resolve(TranscribeAudio))
         container.register_factory(AcousticExtractor, lambda _c: PraatAcousticExtractor())
         container.register_factory(
+            SpeakerDiarizer,
+            lambda c: PyannoteDiarizer(
+                c.resolve(AppPaths).cache_dir / "audio_intelligence" / "models"
+            ),
+        )
+        container.register_factory(
             AnalyzeAudio,
             lambda c: AnalyzeAudio(
                 c.resolve(MediaLibrary),
@@ -60,6 +72,9 @@ class AudioIntelligenceModule:
                 c.resolve(AcousticExtractor),
                 c.resolve(AppPaths),
                 c.resolve(Clock),
+                diarizer=c.resolve(SpeakerDiarizer),
             ),
         )
         container.register_factory(AudioAnalyzer, lambda c: c.resolve(AnalyzeAudio))
+        container.register_factory(AudioResults, lambda c: AudioResults(c.resolve(MediaLibrary)))
+        container.register_factory(AudioCatalog, lambda c: c.resolve(AudioResults))

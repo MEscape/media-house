@@ -18,9 +18,13 @@ from media_house.core.modules import Container
 from media_house.modules.media_inspection.application.contracts import MediaInspector
 from media_house.modules.media_library.application.contracts import MediaLibrary
 from media_house.modules.video_intelligence.application.analyze_video import AnalyzeVideo
-from media_house.modules.video_intelligence.application.contracts import VideoAnalyzer
+from media_house.modules.video_intelligence.application.contracts import (
+    VideoAnalyzer,
+    VideoCatalog,
+)
 from media_house.modules.video_intelligence.application.ports import FrameSource, SignalAnalyzer
 from media_house.modules.video_intelligence.application.resolver import UpstreamResolver
+from media_house.modules.video_intelligence.application.results import VideoResults
 from media_house.modules.video_intelligence.domain.values import AnalyzerId
 from media_house.modules.video_intelligence.infrastructure.clip_engines import (
     ClipAppearanceAnalyzer,
@@ -101,3 +105,5 @@ class VideoIntelligenceModule:
             ),
         )
         container.register_factory(VideoAnalyzer, lambda c: c.resolve(AnalyzeVideo))
+        container.register_factory(VideoResults, lambda c: VideoResults(c.resolve(MediaLibrary)))
+        container.register_factory(VideoCatalog, lambda c: c.resolve(VideoResults))

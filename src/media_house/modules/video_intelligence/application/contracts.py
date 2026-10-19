@@ -28,6 +28,7 @@ orientation. See the module README for the full contract.
 from typing import Protocol
 
 from media_house.core.domain import FrameTime, Rational, TimeRange
+from media_house.modules.media_library.application.contracts import MediaAssetDto, MediaError
 from media_house.modules.video_intelligence.application.analyze_video import (
     AnalyzeVideoCommand,
     AnalyzeVideoError,
@@ -154,6 +155,14 @@ class VideoAnalyzer(Protocol):
     ) -> Result[VideoAnalysisResult, AnalyzeVideoError]: ...
 
 
+class VideoCatalog(Protocol):
+    """Read stored analyses. Nothing is computed."""
+
+    def latest(
+        self, asset_id: str, profile: str | None = None
+    ) -> Result[tuple[VideoAnalysis, MediaAssetDto] | None, MediaError]: ...
+
+
 __all__ = [
     "ANALYZERS",
     "CONTENT_PROFILES",
@@ -250,6 +259,7 @@ __all__ = [
     "VideoAnalysis",
     "VideoAnalysisResult",
     "VideoAnalyzer",
+    "VideoCatalog",
     "VideoIntelligenceError",
     "VisualMeaningObservation",
     "analysis_from_json",

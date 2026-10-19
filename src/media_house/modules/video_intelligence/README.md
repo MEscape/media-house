@@ -167,13 +167,19 @@ the bar; OpenCV is installed transitively by MediaPipe and RapidOCR but never im
 
 ```python
 from media_house.modules.video_intelligence.application.contracts import (
-    AnalyzeVideoCommand, VideoAnalyzer, find_shots, ShotFilter, RankBy, ScoreName)
+    AnalyzeVideoCommand,
+    VideoAnalyzer,
+    find_shots,
+    ShotFilter,
+    RankBy,
+    ScoreName,
+)
 
-result = analyzer.execute(AnalyzeVideoCommand(asset_id, "standard"), ctx)   # blocking: run as a job
-analysis = result.value.analysis                                            # typed, never raw JSON
+result = analyzer.execute(AnalyzeVideoCommand(asset_id, "standard"), ctx)  # blocking: run as a job
+analysis = result.value.analysis  # typed, never raw JSON
 shot = analysis.shot_at(frame=240)
-start, end = shot.range.start, shot.range.end                               # FrameTime: frame + pts + timebase
-usable = shot.score(ScoreName.TECHNICAL_USABILITY)                          # value, reasons, confidence, rubric
+start, end = shot.range.start, shot.range.end  # FrameTime: frame + pts + timebase
+usable = shot.score(ScoreName.TECHNICAL_USABILITY)  # value, reasons, confidence, rubric
 ```
 
 Other modules must reuse `curves`, keyframe times and `embeddings` rather than recompute them, and
@@ -217,3 +223,14 @@ must treat any state other than `ok` as "not known", never as zero.
 * Resume is per analyzer, not within one; analyzers run one after another after the single decode.
 * Timeline / render mode: see above (blocked by the brief's gate).
 * Black/frozen-frame findings are not available: `media_inspection` does not provide them.
+
+## Reading a stored analysis
+
+`VideoCatalog.latest(asset_id, profile=None)` (in `application/contracts.py`) returns the newest stored
+analysis, optionally of one profile, or `None`. It reads the library and never decodes, measures or
+runs a model. Consumers that must not compute (for example Audio-Visual Alignment) use it instead of
+`VideoAnalyzer.execute`, which computes on a miss.
+
+**Time origin.** `FrameTime` seconds are the decoder's presentation timestamps as FFmpeg reports them.
+They are container-relative for MP4, MOV and MKV (measured), but a consumer that mixes them with
+audio seconds must check them against the inspection: see Audio-Visual Alignment's README.

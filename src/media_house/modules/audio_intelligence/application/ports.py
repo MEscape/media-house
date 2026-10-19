@@ -7,6 +7,10 @@ from typing import Protocol
 
 from media_house.modules.audio_intelligence.domain.analysis.acoustic import AcousticMeasurements
 from media_house.modules.audio_intelligence.domain.analysis.config import AcousticConfig
+from media_house.modules.audio_intelligence.domain.diarization import (
+    DiarizationConfig,
+    SpeakerTurn,
+)
 from media_house.modules.audio_intelligence.domain.raw import RawTranscription
 from media_house.modules.audio_intelligence.domain.values import (
     PreparationConfig,
@@ -103,5 +107,29 @@ class AcousticExtractor(Protocol):
 
         Decodes once and runs independent analyzers concurrently. Raises ``ExternalSystemError``
         when an analyzer fails; absence of speech or pitch is NOT an error (the frames say so).
+        """
+        ...
+
+
+class SpeakerDiarizer(Protocol):
+    """Finds who speaks when in prepared audio, behind an engine-neutral interface."""
+
+    def identity(self, config: DiarizationConfig) -> dict[str, str]:
+        """``{name: version}`` of the engine and model. Cheap: loads nothing."""
+        ...
+
+    def unavailable(self, config: DiarizationConfig) -> str | None:
+        """Why it cannot run now (library, model files, access), else ``None``."""
+        ...
+
+    def diarize(
+        self,
+        audio: Path,
+        config: DiarizationConfig,
+        cancellation: CancellationToken,
+    ) -> tuple[SpeakerTurn, ...]:
+        """Blocking and heavy. Times are seconds from the start of ``audio``.
+
+        Raises ``ExternalSystemError`` for a failure of the model runtime.
         """
         ...

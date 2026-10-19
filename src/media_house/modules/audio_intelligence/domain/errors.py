@@ -66,3 +66,19 @@ class InvalidTimeline(AudioIntelligenceError):
             "Audio analysis produced an inconsistent timeline: " + "; ".join(findings),
             user_message="The audio analysis result was inconsistent and was discarded.",
         )
+
+
+class DiarizationUnavailable(AudioIntelligenceError):
+    """Speaker labels were asked for but cannot be produced (model, library or access missing)."""
+
+    code = "audio_intelligence.diarization_unavailable"
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(
+            f"Speaker diarization unavailable: {reason}",
+            user_message=(
+                f"Speaker labels are not available: {reason} "
+                "The transcript and measurements are stored; run again once this is resolved, "
+                "or analyse without diarization."
+            ),
+        )

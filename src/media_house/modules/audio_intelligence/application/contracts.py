@@ -118,6 +118,7 @@ from media_house.modules.audio_intelligence.domain.values import (
     PreparationConfig,
     TranscriptionConfig,
 )
+from media_house.modules.media_library.application.contracts import MediaAssetDto, MediaError
 from media_house.shared.concurrency import JobContext
 from media_house.shared.errors import Result
 
@@ -150,6 +151,14 @@ class AudioAnalyzer(Protocol):
     ) -> Result[AnalysisResult, AnalyzeError]: ...
 
 
+class AudioCatalog(Protocol):
+    """Read stored timelines. Nothing is computed."""
+
+    def latest(
+        self, asset_id: str
+    ) -> Result[tuple[AudioIntelligenceTimeline, MediaAssetDto] | None, MediaError]: ...
+
+
 __all__ = [
     "ALIGNMENT_FORCED",
     "ALIGNMENT_NONE",
@@ -180,6 +189,7 @@ __all__ = [
     "AnalyzeAudioCommand",
     "AnalyzeError",
     "AudioAnalyzer",
+    "AudioCatalog",
     "AudioEngine",
     "AudioEvent",
     "AudioIntelligenceConfig",

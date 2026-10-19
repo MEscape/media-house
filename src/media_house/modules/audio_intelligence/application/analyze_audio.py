@@ -21,7 +21,10 @@ from media_house.core.application.ports import Clock
 from media_house.modules.audio_intelligence.application.derived_documents import (
     require_audio_or_video,
 )
-from media_house.modules.audio_intelligence.application.ports import AcousticExtractor
+from media_house.modules.audio_intelligence.application.ports import (
+    AcousticExtractor,
+    SpeakerDiarizer,
+)
 from media_house.modules.audio_intelligence.application.transcribe_audio import (
     TranscribeAudio,
     TranscribeAudioCommand,
@@ -51,7 +54,18 @@ from media_house.modules.audio_intelligence.domain.analysis.serialization import
 from media_house.modules.audio_intelligence.domain.analysis.timeline import (
     AudioIntelligenceTimeline,
 )
-from media_house.modules.audio_intelligence.domain.errors import AudioIntelligenceError
+from media_house.modules.audio_intelligence.domain.diarization import (
+    DIARIZATION_OPERATION,
+    DIARIZATION_VERSION,
+    Diarization,
+    assign_speakers,
+    diarization_from_json,
+    diarization_to_json,
+)
+from media_house.modules.audio_intelligence.domain.errors import (
+    AudioIntelligenceError,
+    DiarizationUnavailable,
+)
 from media_house.modules.media_library.application.contracts import (
     DerivedDocuments,
     DocumentSpec,
@@ -97,6 +111,15 @@ class _Measured:
     reused: bool
 
 
+@dataclass(frozen=True, slots=True)
+class _DiarizationPlan:
+    """What the speaker stage will do: its identity, and the stored turns when they exist."""
+
+    spec: DocumentSpec
+    fingerprint: str
+    cached: tuple[Diarization, MediaAssetDto] | None
+
+
 class AnalyzeAudio:
     """One audio asset in, one canonical timeline out; reuse at every stage."""
 
@@ -108,6 +131,7 @@ class AnalyzeAudio:
         paths: AppPaths,
         clock: Clock,
         scorer_factory: Callable[[ScoringConfig], Scorer] = HeuristicScorer,
+        diarizer: SpeakerDiarizer | None = None,
     ) -> None:
         self._library = library
         self._transcriber = transcriber
@@ -115,6 +139,7 @@ class AnalyzeAudio:
         self._paths = paths
         self._clock = clock
         self._scorer_factory = scorer_factory
+        self._diarizer = diarizer
         self._documents = DerivedDocuments(library, paths)
 
     def execute(
@@ -133,10 +158,17 @@ class AnalyzeAudio:
         identity = self._extractor.identity(config.acoustic)
         engine_version = self._transcriber.engine_version(config.transcription)
         scorer = self._scorer_factory(config.scoring)
+        diarizer_identity: dict[str, str] | None = None
+        if config.diarization is not None:
+            if self._diarizer is None:
+                return Err(DiarizationUnavailable("no diarization engine is installed"))
+            diarizer_identity = self._diarizer.identity(config.diarization)
         spec = DocumentSpec(
             ANALYSIS_OPERATION,
             ANALYSIS_VERSION,
-            config.timeline_fingerprint(engine_version, identity, scorer.identity),
+            config.timeline_fingerprint(
+                engine_version, identity, scorer.identity, diarizer_identity
+            ),
         )
         fingerprint = self._documents.fingerprint(source.id, spec)
         if isinstance(fingerprint, Err):
@@ -147,6 +179,10 @@ class AnalyzeAudio:
             if reused is not None:
                 _log.info("Audio intelligence reused", asset_id=reused.asset.id, cache_hit=True)
                 return Ok(reused)
+
+        plan = self._plan_diarization(source, config, diarizer_identity)
+        if isinstance(plan, Err):
+            return plan
 
         ctx.raise_if_cancelled()
         ctx.progress.report(1, _STEPS, "Preparing audio")
@@ -162,12 +198,22 @@ class AnalyzeAudio:
         if isinstance(measured, Err):
             return measured
         transcription = speech.value
+        transcript = transcription.transcript
+        diarization_asset: MediaAssetDto | None = None
+        if plan.value is not None:
+            ctx.raise_if_cancelled()
+            ctx.progress.report(3, _STEPS, "Finding the speakers")
+            diarized = self._diarize(plan.value, source, audio_path, config, diarizer_identity, ctx)
+            if isinstance(diarized, Err):
+                return diarized
+            turns, diarization_asset = diarized.value
+            transcript = assign_speakers(transcript, turns, audio_info.audio_offset)
 
         ctx.raise_if_cancelled()
         ctx.progress.report(4, _STEPS, "Fusing timeline")
         try:
             timeline = build_timeline(
-                transcript=transcription.transcript,
+                transcript=transcript,
                 measurements=measured.value.measurements,
                 config=config,
                 scorer=scorer,
@@ -185,6 +231,7 @@ class AnalyzeAudio:
             audio_asset,
             transcription.asset,
             measured.value.asset,
+            diarization_asset,
         )
         if isinstance(stored, Err):
             return stored
@@ -278,6 +325,64 @@ class AnalyzeAudio:
             return stored
         return Ok(_Measured(measurements, stored.value, reused=False))
 
+    # --- speakers -----------------------------------------------------------------------------
+    def _plan_diarization(
+        self,
+        source: MediaAssetDto,
+        config: AudioIntelligenceConfig,
+        identity: dict[str, str] | None,
+    ) -> Result[_DiarizationPlan | None, AnalyzeError]:
+        """Decide before any heavy work whether the speaker stage can run, and what it can reuse.
+
+        Stored turns need no engine. Without them an engine that cannot run fails the analysis now
+        (the speaker labels were asked for) instead of after minutes of transcription; transcript
+        and measurements are stored by their own stages, so a retry repeats neither.
+        """
+        if config.diarization is None or self._diarizer is None or identity is None:
+            return Ok(None)
+        spec = DocumentSpec(
+            DIARIZATION_OPERATION,
+            DIARIZATION_VERSION,
+            config.diarization_fingerprint(identity),
+        )
+        fingerprint = self._documents.fingerprint(source.id, spec)
+        if isinstance(fingerprint, Err):
+            return fingerprint
+        cached = self._documents.load(source.id, fingerprint.value, diarization_from_json)
+        if cached is None:
+            why = self._diarizer.unavailable(config.diarization)
+            if why is not None:
+                return Err(DiarizationUnavailable(why))
+        return Ok(_DiarizationPlan(spec, fingerprint.value, cached))
+
+    def _diarize(
+        self,
+        plan: _DiarizationPlan,
+        source: MediaAssetDto,
+        audio_path: Path,
+        config: AudioIntelligenceConfig,
+        identity: dict[str, str] | None,
+        ctx: JobContext,
+    ) -> Result[tuple[Diarization, MediaAssetDto], AnalyzeError]:
+        if plan.cached is not None:
+            _log.info("Speaker turns reused", asset_id=plan.cached[1].id)
+            return Ok(plan.cached)
+        if config.diarization is None or self._diarizer is None or identity is None:
+            return Err(DiarizationUnavailable("speaker labels were not configured"))
+        turns = self._diarizer.diarize(audio_path, config.diarization, ctx.cancellation)
+        result = Diarization(turns, dict(identity))
+        stored = self._documents.store(
+            source,
+            diarization_to_json(result),
+            filename="diarization.json",
+            spec=plan.spec,
+            display_name=f"{source.display_name} (speaker turns)",
+            metadata={"turns": len(turns), "speakers": len(result.speakers)},
+        )
+        if isinstance(stored, Err):
+            return stored
+        return Ok((result, stored.value))
+
     # --- persistence -------------------------------------------------------------------------
     def _store(
         self,
@@ -287,6 +392,7 @@ class AnalyzeAudio:
         audio_asset: MediaAssetDto,
         transcript_asset: MediaAssetDto,
         measurements_asset: MediaAssetDto,
+        diarization_asset: MediaAssetDto | None = None,
     ) -> Result[MediaAssetDto, AnalyzeError]:
         return self._documents.store(
             source,
@@ -298,6 +404,7 @@ class AnalyzeAudio:
                 "audio_asset_id": audio_asset.id,
                 "transcript_asset_id": transcript_asset.id,
                 "measurements_asset_id": measurements_asset.id,
+                **({"diarization_asset_id": diarization_asset.id} if diarization_asset else {}),
                 "language": timeline.language,
                 "scoring": timeline.metadata.scoring,
                 "word_count": len(timeline.words),

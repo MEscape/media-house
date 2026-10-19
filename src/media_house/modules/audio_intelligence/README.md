@@ -73,9 +73,13 @@ get `int8`. Explicit unsupported choices raise `ConfigurationError`; the model i
 swapped. Models are cached inside the single `WhisperXEngine` and inference is serialised, so
 batch processing reuses one loaded model and cannot exhaust GPU memory with parallel copies.
 
-First use of a model downloads its weights (e.g. large-v3 ≈ 3 GB, wav2vec2 aligner ≈ 400 MB) to
-the Hugging Face / torch caches; later runs are offline. torch is installed from the CUDA 12.8
-index on Windows/Linux (see `pyproject.toml`).
+A run never downloads a model unless `TranscriptionConfig(allow_model_download=True)`. By default
+only models already on disk are used (speech model: Hugging Face cache; aligners: Hugging Face
+cache or torch hub) and a missing one fails fast with the command that fetches it:
+`python scripts/fetch_models.py --speech large-v3 --speech-language en` (large-v3 ≈ 3 GB,
+wav2vec2 aligner ≈ 400 MB). `allow_model_download` does not change a transcript, so it is not part
+of its identity. torch is installed from the CUDA 12.8 index on Windows/Linux (see
+`pyproject.toml`).
 
 ## Example (from another module)
 
@@ -227,14 +231,14 @@ its models are shared, so batch work cannot multiply GPU memory.
 
 ```python
 tl = result.value.timeline
-word = tl.word_at(12.43)        # TimelineWord: .pitch .energy .rate .pitch_change .emphasis_score ...
-tl.explain_word(word)           # {"emphasis": {"score": 0.91, "energy_level": ..., ...}, ...}
-tl.acoustic_at(12.43)           # frame with f0, relative_pitch_st, relative_energy_db, ...
+word = tl.word_at(12.43)  # TimelineWord: .pitch .energy .rate .pitch_change .emphasis_score ...
+tl.explain_word(word)  # {"emphasis": {"score": 0.91, "energy_level": ..., ...}, ...}
+tl.acoustic_at(12.43)  # frame with f0, relative_pitch_st, relative_energy_db, ...
 tl.events_between(10, 15, kinds=["pitch_rise"])
-pause = tl.pause_after(word)    # raw duration, kind short/medium/long, silence_ratio
-tl.moment_at(42.1)              # EditingSignal(score, contributors) for the spoken word
+pause = tl.pause_after(word)  # raw duration, kind short/medium/long, silence_ratio
+tl.moment_at(42.1)  # EditingSignal(score, contributors) for the spoken word
 tl.signals_between(0, 60, "music_break")
-tl.signal_curve("moment", hop=0.1)   # (time, score); uncovered instants omitted
+tl.signal_curve("moment", hop=0.1)  # (time, score); uncovered instants omitted
 ```
 
 Editing signals are evidence aggregates (`kind, start, end, score, contributors, anchor`), never
@@ -248,3 +252,33 @@ makes fusion raise `InvalidTimeline`; `AnalyzeAudio` returns it as an `Err` and 
 Not yet defined: partial failure. A failing event detector or acoustic analyzer fails the whole
 analysis. Add an explicit per-analyzer availability field (and keep such a result out of the
 cache) together with the first detector that ships.
+
+## Speaker diarization (opt-in)
+
+`AudioIntelligenceConfig(diarization=DiarizationConfig())` adds speaker turns and fills `speaker` on
+every word and segment of the timeline. It is a **separate stage with its own stored document**
+(`operation = diarization`, keyed by model, speaker-count parameters, engine versions and the prepared
+audio): it never changes the words, their times or the transcript's identity, so asking for speakers
+never transcribes or measures again, and changing a diarization setting recomputes only the turns and
+the fused timeline.
+
+* **Default is off** (`diarization=None`): no key is added to the timeline fingerprint, so every
+  stored timeline stays valid and `speaker` stays `None` exactly as before (pinned by a test).
+* A word takes the speaker whose turns overlap it most (ties: the label that sorts first), else the
+  nearest turn within 0.5 s, else `None`; a segment takes the speaker of most of its word seconds.
+  Turns are in prepared-audio time and shifted by `audio_offset` exactly once.
+* `device` and `allow_model_download` are not part of the identity. Nothing is downloaded during a run.
+* If speaker labels are asked for and cannot be produced (no engine, library, or model on disk), the
+  analysis fails **before any transcription** with `DiarizationUnavailable` and the command that fixes
+  it; stored turns need no engine. No speaker-less timeline is ever stored under a diarization identity.
+* Engine: pyannote through WhisperX's `DiarizationPipeline` (`infrastructure/pyannote_diarizer.py`, the
+  only file that imports it). No new dependency. The default model
+  `pyannote/speaker-diarization-community-1` is **gated on Hugging Face** (checked 2026-10-19 on the
+  public model metadata: `gated: auto`, so accepting the terms with an account token is enough; licence
+  CC-BY-4.0, which requires attribution; not private): `uv run python scripts/fetch_models.py --diarization`. **This adapter has not been run against
+  a real model here** (none cached, no token); the stage is tested with a fake at the port.
+* The authorised smoke test of the real adapter is `tests/integration/audio_intelligence/test_pyannote_real.py`
+  (opt-in; its docstring lists the exact steps: accept the model terms, `HF_TOKEN`, the fetch command,
+  `MEDIA_HOUSE_DIARIZATION_SAMPLE`). It checks loading from disk, turns, speakers, determinism and the
+  hand-over to words; it does not judge accuracy.
+* `AudioCatalog.latest(asset_id)` (read-only, never computes) is the public lookup of a stored timeline.
