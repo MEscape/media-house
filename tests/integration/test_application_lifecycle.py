@@ -22,6 +22,12 @@ from media_house.modules.media_inspection.application.contracts import (
 )
 from media_house.modules.media_inspection.application.inspect_media import InspectMedia
 from media_house.modules.media_inspection.application.related_media import FindRelatedMedia
+from media_house.modules.proxy_manager.application.contracts import (
+    ProxyCatalog,
+    ProxyMaintenance,
+    ProxyManager,
+)
+from media_house.modules.proxy_manager.application.ensure_proxy import EnsureProxy
 from media_house.modules.video_improvement.application.calibration import CalibrateProfile
 from media_house.modules.video_improvement.application.contracts import (
     VideoCalibration,
@@ -76,6 +82,7 @@ def test_starts_with_default_modules_and_wires_everything(tmp_path: Path) -> Non
             "video_intelligence",
             "content_intelligence",
             "audio_visual_alignment",
+            "proxy_manager",
         }
         # the real composition root wires both audio subsystems and their public contracts
         assert container.resolve(AudioImprover) is container.resolve(ImproveAudio)
@@ -93,6 +100,10 @@ def test_starts_with_default_modules_and_wires_everything(tmp_path: Path) -> Non
         assert container.resolve(AudioVisualAligner) is container.resolve(AlignAudioVisual)
         for catalog in (AudioCatalog, VideoCatalog, AlignmentCatalog):
             assert container.resolve(catalog) is not None
+        # proxy manager is wired on the library and inspection contracts, with its own store
+        assert container.resolve(ProxyManager) is container.resolve(EnsureProxy)
+        assert container.resolve(ProxyCatalog) is not None
+        assert container.resolve(ProxyMaintenance) is not None
         assert (tmp_path / "data").is_dir()
     finally:
         application.shutdown()

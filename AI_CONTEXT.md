@@ -517,6 +517,21 @@ every format), never from a signal. Speaker labels exist only when `AudioIntelli
 is set (opt-in, gated model, separate stored document, never re-transcribes). Content Intelligence
 exposes its multilingual embedding engine to other modules as `TextEncoder`; nobody loads a second one.
 
+`proxy_manager` makes the lower-cost DERIVATIVES of a video (see its README): a proxy is a library derived asset
+(`operation="proxy"`, role `PREVIEW`, so default searches do not list it) and NEVER the source. The source id is the
+identity and never changes; the proxy's asset id can, so store the source id and ask `ProxyCatalog` (never keep a proxy
+id). `ProxyManager.execute(EnsureProxyCommand, ctx)` is blocking; it resolves the source facts from a stored inspection
+(else one probe), builds a deterministic `ResolvedSpec` whose canonical JSON is the library derivation config (so the
+library fingerprint IS the generation fingerprint and the cache), and reuses a valid stored proxy with no encoding and no
+write. A proxy is published only after an independent look at the finished file; its verdict states its EVIDENCE
+(`packets` = complete and consistent, NOT proven decodable; `decoded` = decoded to the end). The module owns only
+`proxy_manager.db` (which proxy each `(source, profile)` slot serves, attempt history, verdicts), never bytes or
+checksums. A newer REQUEST wins a slot (fencing by attempt sequence), the last good proxy is served throughout, and an
+unusable library asset is replaced only if the module provably created it. An identical request already running is WAITED for (its stored result is shared; a dead owner, one past its heartbeat
+lease, is taken over). `ProxyMaintenance.remove/prune` delete only artifacts the module's own records prove it created, in
+two phases, and only when no slot serves them and no request for their slot is running. Read
+`read_proxy_provenance(asset.metadata)` to learn how a proxy was made.
+
 ---------------------------------------------------------------------------------------------------
 
 ## 12. Task template (fill in and send together with this document)
