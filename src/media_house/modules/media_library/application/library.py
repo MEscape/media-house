@@ -26,7 +26,7 @@ from media_house.modules.media_library.application.thumbnails import (
     Thumbnails,
 )
 from media_house.modules.media_library.domain.query import MediaQuery, Page
-from media_house.modules.media_library.domain.values import JsonValue, SourceType
+from media_house.modules.media_library.domain.values import AssetRole, JsonValue, SourceType
 from media_house.shared.errors import ConflictError, NotFoundError, Result, ValidationError
 
 type _Error = ValidationError | NotFoundError | ConflictError
@@ -123,6 +123,7 @@ class MediaLibraryService:
         version: int = 1,
         display_name: str | None = None,
         metadata: Mapping[str, JsonValue] | None = None,
+        role: AssetRole = AssetRole.DERIVED,
     ) -> Result[DerivedAssetResultDto, _Error]:
         return self._derived.execute(
             RegisterDerivedCommand(
@@ -133,6 +134,7 @@ class MediaLibraryService:
                 version=version,
                 display_name=display_name,
                 metadata=metadata or {},
+                role=role,
             ),
         )
 
