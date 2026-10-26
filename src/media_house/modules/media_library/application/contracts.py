@@ -118,7 +118,14 @@ class MediaLibrary(Protocol):
         version: int = 1,
         display_name: str | None = None,
         metadata: Mapping[str, JsonValue] | None = None,
-    ) -> Result[DerivedAssetResultDto, MediaError]: ...
+        role: AssetRole = AssetRole.DERIVED,
+    ) -> Result[DerivedAssetResultDto, MediaError]:
+        """Store ``path`` as a derivative of the source, or return the identical existing one.
+
+        ``role`` is ``DERIVED`` (listed with the library) or ``PREVIEW`` (kept out of default
+        searches: thumbnails, playback proxies). ``ORIGINAL`` is refused.
+        """
+        ...
 
     def list_derived(self, source_asset_id: str) -> list[MediaAssetDto]: ...
 

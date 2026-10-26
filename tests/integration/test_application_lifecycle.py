@@ -6,6 +6,18 @@ from media_house.bootstrap.application import Application, StartupOptions
 from media_house.bootstrap.lifecycle import StartupError, StartupPhase
 from media_house.core.application.ports import Clock, ProcessRunner
 from media_house.core.modules import Container
+from media_house.modules.asset_relationships.application.contracts import (
+    RelationshipCatalog,
+    RelationshipEditor,
+    RelationshipMaintenance,
+)
+from media_house.modules.asset_relationships.application.editing import RelationshipEditing
+from media_house.modules.asset_relationships.application.query_relationships import (
+    QueryRelationships,
+)
+from media_house.modules.asset_relationships.application.reconciliation import (
+    ReconcileRelationships,
+)
 from media_house.modules.audio_improvement.application.contracts import AudioImprover, AudioMixing
 from media_house.modules.audio_improvement.application.improve_audio import ImproveAudio
 from media_house.modules.audio_improvement.application.mix_audio import MixAudio
@@ -22,6 +34,12 @@ from media_house.modules.media_inspection.application.contracts import (
 )
 from media_house.modules.media_inspection.application.inspect_media import InspectMedia
 from media_house.modules.media_inspection.application.related_media import FindRelatedMedia
+from media_house.modules.proxy_manager.application.contracts import (
+    ProxyCatalog,
+    ProxyMaintenance,
+    ProxyManager,
+)
+from media_house.modules.proxy_manager.application.ensure_proxy import EnsureProxy
 from media_house.modules.video_improvement.application.calibration import CalibrateProfile
 from media_house.modules.video_improvement.application.contracts import (
     VideoCalibration,
@@ -76,6 +94,8 @@ def test_starts_with_default_modules_and_wires_everything(tmp_path: Path) -> Non
             "video_intelligence",
             "content_intelligence",
             "audio_visual_alignment",
+            "proxy_manager",
+            "asset_relationships",
         }
         # the real composition root wires both audio subsystems and their public contracts
         assert container.resolve(AudioImprover) is container.resolve(ImproveAudio)
@@ -93,6 +113,16 @@ def test_starts_with_default_modules_and_wires_everything(tmp_path: Path) -> Non
         assert container.resolve(AudioVisualAligner) is container.resolve(AlignAudioVisual)
         for catalog in (AudioCatalog, VideoCatalog, AlignmentCatalog):
             assert container.resolve(catalog) is not None
+        # proxy manager is wired on the library and inspection contracts, with its own store
+        assert container.resolve(ProxyManager) is container.resolve(EnsureProxy)
+        assert container.resolve(ProxyCatalog) is not None
+        assert container.resolve(ProxyMaintenance) is not None
+        # asset relationships keep their own claims and read assets through the library contract
+        assert container.resolve(RelationshipCatalog) is container.resolve(QueryRelationships)
+        assert container.resolve(RelationshipEditor) is container.resolve(RelationshipEditing)
+        assert container.resolve(RelationshipMaintenance) is container.resolve(
+            ReconcileRelationships
+        )
         assert (tmp_path / "data").is_dir()
     finally:
         application.shutdown()
