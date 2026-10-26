@@ -532,6 +532,32 @@ lease, is taken over). `ProxyMaintenance.remove/prune` delete only artifacts the
 two phases, and only when no slot serves them and no request for their slot is running. Read
 `read_proxy_provenance(asset.metadata)` to learn how a proxy was made.
 
+`asset_relationships` answers how library assets relate (see its README and
+`docs/superpowers/specs/2026-10-26-asset-relationships-design.md`) with two kinds of answer. STORED CLAIMS
+(`temporally_overlaps_with`, `alternate_take_of`) carry typed evidence in its own `asset_relationships.db`;
+a claim is a proposal until a person confirms it, its `grade` is ordinal (`corroborated` / `indicated` /
+`suggestive`), never a probability, and never makes it trusted lineage. RECORDED LINEAGE (`exact_duplicate_of`,
+`proxy_of`, `derived_from`) belongs to the library and `proxy_manager`: it is PROJECTED at read time from
+`MediaLibrary` (search by source, `find_by_checksum`) and `read_proxy_provenance` / `ProxyCatalog`, and is
+never stored or copied. A proxy needs the derivation record and the provenance to agree; documents
+(`MediaType.OTHER`), previews and `excluded_operations` (default `audio_extraction`) are not lineage;
+`serving` says whether a proxy's slot serves it now. `exact_duplicate_of` is directed (duplicate ->
+original); from an original, discovery is partial and the page carries
+`Limitation.EXACT_DUPLICATE_REVERSE_PARTIAL` even when empty, and `truncated` says the derivative scan hit its
+cap: never read an empty answer as exhaustive. Assets are referenced by library id only. A decision
+(`confirm`/`reject`) is never changed by automation. Cross-asset time is exact `Fraction` seconds on a named
+clock. `media_inspection.MediaRelations` is a separate, stateless heuristic helper, not this module's
+source of truth. Built: claims, decisions, lineage projection, reconciliation. Not built: detectors.
+Reconciliation (`RelationshipMaintenance.reconcile`, caller-driven: no timer, no startup hook) walks the
+module's own claims by id in bounded, resumable batches and checks their endpoints against the live library: a
+claim whose endpoint is gone gets `endpoint_missing_since` (not a status), is purged after 7 days if undecided
+or 365 days if decided (one `purge_log` row, no evidence), and a library FAILURE is never an absence (retries,
+backoff, a suspicious-library guard that writes nothing for the suspicious batch). It never changes a human
+decision, never stores or reads lineage, and cannot be atomic across the library database: an endpoint that
+returns just before a purge commits is still purged. A page also reports `findings` (`source_missing`,
+`untrusted_provenance`) and the limitations `proxy_state_unavailable` and `lineage_changed_while_paging`
+(a changed derivative total between pages; an unchanged total is NOT a stable snapshot).
+
 ---------------------------------------------------------------------------------------------------
 
 ## 12. Task template (fill in and send together with this document)

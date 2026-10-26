@@ -3,6 +3,7 @@
 from collections.abc import Sequence
 
 from media_house.core.modules import ApplicationModule
+from media_house.modules.asset_relationships.module import AssetRelationshipsModule
 from media_house.modules.audio_improvement.module import AudioImprovementModule
 from media_house.modules.audio_intelligence.module import AudioIntelligenceModule
 from media_house.modules.audio_visual_alignment.module import AudioVisualAlignmentModule
@@ -29,4 +30,5 @@ def installed_modules() -> Sequence[ApplicationModule]:
         ContentIntelligenceModule(),
         AudioVisualAlignmentModule(),
         ProxyManagerModule(),
+        AssetRelationshipsModule(),
     )
