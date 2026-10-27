@@ -232,6 +232,8 @@ class FakeAssetLookup:
             if (query.source_asset_id is None or _source_of(a) == query.source_asset_id)
             and (not query.roles or a.role in query.roles)
             and (not query.statuses or a.status in query.statuses)
+            and (not query.media_types or a.media_type in query.media_types)
+            and (query.created_from is None or a.created_at >= query.created_from)
         ]
         matching.sort(key=lambda a: (a.created_at, a.id))
         return Page(

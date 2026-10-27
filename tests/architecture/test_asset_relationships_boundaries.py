@@ -1,7 +1,8 @@
 """Asset Relationships sits beside the library, inspection and proxy modules; it owns only claims.
 
 * It reaches other modules only through their public contracts, and only from application code and
-  wiring: the library, and the proxy manager (for proxy provenance and which proxy is served).
+  wiring: the library, the proxy manager (for proxy provenance and which proxy is served) and
+  media inspection (stored inspections, read only, for detection).
 * It depends on no processing module, and nobody reaches into it.
 * The library, inspection and proxy modules do not know about it.
 * Databases stay in infrastructure: the domain and application layers are plain Python.
@@ -17,11 +18,13 @@ SRC = Path(__file__).resolve().parents[2] / "src"
 REL = "media_house.modules.asset_relationships"
 LIBRARY_CONTRACT = "media_house.modules.media_library.application.contracts"
 PROXY_CONTRACT = "media_house.modules.proxy_manager.application.contracts"
+INSPECTION_CONTRACT = "media_house.modules.media_inspection.application.contracts"
 REL_CONTRACT = f"{REL}.application.contracts"
-#: Seam and the one contract it may reach. Inspection is added here only when a slice uses it.
+#: Seam and the one contract it may reach.
 SEAMS = {
     "media_house.modules.media_library": LIBRARY_CONTRACT,
     "media_house.modules.proxy_manager": PROXY_CONTRACT,
+    "media_house.modules.media_inspection": INSPECTION_CONTRACT,
 }
 OTHERS = (
     "media_house.modules.audio_improvement",
@@ -29,7 +32,6 @@ OTHERS = (
     "media_house.modules.audio_visual_alignment",
     "media_house.modules.content_intelligence",
     "media_house.modules.image_adjustment",
-    "media_house.modules.media_inspection",
     "media_house.modules.video_improvement",
     "media_house.modules.video_intelligence",
     "media_house.modules.workspace",
@@ -180,3 +182,67 @@ def test_reconciliation_uses_the_shared_job_context_and_builds_no_scheduler() ->
             assert not any(
                 i.target.endswith(("ThreadPoolJobScheduler", "JobScheduler")) for i in info.imports
             ), name
+
+
+DETECTION = (
+    f"{REL}.application.detect_relationships",
+    f"{REL}.application.inspection_facts",
+    f"{REL}.domain.detection",
+    f"{REL}.domain.detection_store",
+    f"{REL}.infrastructure.sqlite_detection_store",
+)
+
+
+def test_detection_proposes_only_and_never_decides_or_reads_lineage() -> None:
+    modules = scan(SRC)
+
+    forbidden = (
+        f"{REL}.application.decide_relationship",
+        f"{REL}.application.lineage_projection",
+        f"{REL}.domain.lineage",
+        "media_house.modules.proxy_manager",
+        "media_house.modules.media_library.infrastructure",
+    )
+    for name in DETECTION:
+        assert name in modules, name
+        for found in modules[name].imports:
+            assert not found.target.startswith(forbidden), (name, found.target)
+
+
+def test_detection_and_reconciliation_do_not_know_each_other() -> None:
+    modules = scan(SRC)
+
+    for name in RECONCILIATION:
+        assert not any(
+            i.target.startswith(f"{REL}.application.detect") for i in modules[name].imports
+        )
+    for name in DETECTION:
+        assert not any(
+            i.target.startswith(
+                (f"{REL}.application.reconciliation", f"{REL}.domain.reconciliation")
+            )
+            for i in modules[name].imports
+        ), name
+
+
+def test_detectors_and_the_store_port_see_no_other_module() -> None:
+    modules = scan(SRC)
+
+    for name in (f"{REL}.domain.detection", f"{REL}.domain.detection_store"):
+        others = [
+            i.target
+            for i in modules[name].imports
+            if i.target.startswith("media_house.modules") and not i.target.startswith(REL)
+        ]
+        assert others == [], name
+
+
+def test_nothing_in_the_claim_aggregate_reads_marks_or_facts() -> None:
+    modules = scan(SRC)
+
+    for name in (
+        f"{REL}.domain.relationship",
+        f"{REL}.domain.assessment",
+        f"{REL}.domain.evidence",
+    ):
+        assert not any("detection" in i.target for i in modules[name].imports), name

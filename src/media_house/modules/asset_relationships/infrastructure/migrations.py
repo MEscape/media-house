@@ -156,5 +156,48 @@ _V2_RECONCILIATION = Migration(
     ),
 )
 
-MIGRATIONS: tuple[Migration, ...] = (_V1_INITIAL, _V2_RECONCILIATION)
+_V3_DETECTION = Migration(
+    version=3,
+    name="detection: analysis marks and observed facts (both derived and disposable)",
+    statements=(
+        # "Has detector D looked at asset A on these inputs, and what came out". A cache of work
+        # done: deleting every row costs re-analysis, never a claim or a decision.
+        """
+        CREATE TABLE analysis_marks (
+            asset_id         TEXT NOT NULL,
+            detector         TEXT NOT NULL,
+            detector_version TEXT NOT NULL,
+            input_identity   TEXT NOT NULL,
+            outcome          TEXT NOT NULL
+                CHECK (outcome IN ('found', 'none', 'unavailable', 'capped')),
+            candidates_found INTEGER NOT NULL DEFAULT 0 CHECK (candidates_found >= 0),
+            analyzed_at      TEXT NOT NULL,
+            PRIMARY KEY (asset_id, detector)
+        ) WITHOUT ROWID
+        """,
+        # The few values copied from an inspection so candidates are found by an indexed query.
+        """
+        CREATE TABLE observed_facts (
+            asset_id      TEXT NOT NULL,
+            detector      TEXT NOT NULL,
+            kind          TEXT NOT NULL CHECK (kind IN ('wall_span', 'production_tags')),
+            group_key     TEXT NOT NULL DEFAULT '',
+            start_us      INTEGER,
+            end_us        INTEGER,
+            identity      TEXT NOT NULL,
+            inspection_id TEXT NOT NULL,
+            detail        TEXT NOT NULL,
+            PRIMARY KEY (asset_id, detector),
+            CHECK ((start_us IS NULL) = (end_us IS NULL)
+                   AND (start_us IS NULL OR start_us < end_us))
+        ) WITHOUT ROWID
+        """,
+        "CREATE INDEX ix_observed_span ON observed_facts (detector, start_us) "
+        "WHERE start_us IS NOT NULL",
+        "CREATE INDEX ix_observed_group ON observed_facts (detector, group_key) "
+        "WHERE group_key <> ''",
+    ),
+)
+
+MIGRATIONS: tuple[Migration, ...] = (_V1_INITIAL, _V2_RECONCILIATION, _V3_DETECTION)
 LATEST_VERSION = MIGRATIONS[-1].version

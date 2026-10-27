@@ -9,8 +9,8 @@ editorial.
 Design: `docs/superpowers/specs/2026-10-26-asset-relationships-design.md` and, for reconciliation,
 `docs/superpowers/specs/2026-10-26-asset-relationships-slice3-reconciliation-design.md`.
 
-Status: **Slice 3** (Slice 1: domain, store, claims and decisions; Slice 2: recorded lineage projection;
-Slice 3: reconciliation). What is not built yet is listed under [Not built yet](#not-built-yet); nothing below claims more than the
+Status: **Slice 4, lean** (Slice 1: domain, store, claims and decisions; Slice 2: recorded lineage projection;
+Slice 3: reconciliation; Slice 4: detection from stored inspections, see [Detection](#detection)). What is not built yet is listed under [Not built yet](#not-built-yet); nothing below claims more than the
 tests show.
 
 ## What owns what
@@ -20,7 +20,8 @@ tests show.
 | Asset identity, checksum, derivation records, deletion | Media Library, read through `MediaLibrary` |
 | Proxy provenance, which proxy a slot serves now | Proxy Manager, read through `read_proxy_provenance` and `ProxyCatalog` |
 | Stored claims, their evidence, statuses and the history of status changes | this module (`asset_relationships.db`) |
-| Technical facts, production tags | `media_inspection` (not read yet) |
+| Technical facts, production tags | `media_inspection`, read through `InspectionCatalog` (stored inspections only, never probed) |
+| Which assets a detector has looked at, and the few values it indexes | this module (`analysis_marks`, `observed_facts`; derived, disposable) |
 
 The database stores **no** checksum, path or copy of upstream data, and **no recorded lineage**: only
 library asset ids, the claim, and the few measured values that explain it. Endpoints are checked against
@@ -191,8 +192,71 @@ not recorded. A new sweep waits `min_sweep_interval` (24 h) after the last one; 
 never the failure backoff. All numbers are provisional and configurable (`ReconciliationSettings`).
 
 Reconciliation never reads or stores recorded lineage (an architecture test forbids it). Version invalidation
-takes `BasisCheck` ports; production wires none yet, so nothing is invalidated by version until a detector
-exists.
+takes `BasisCheck` ports; production wires `DetectorVersions`.
+
+## Detection
+
+`RelationshipDetection` (contract) PROPOSES claims from facts inspection already recorded. It never
+probes, never grades, never confirms, rejects or deletes anything, and runs only when a caller names the
+detectors: there is no hidden "enabled" setting (`DETECTOR_IDS` lists what exists). Every proposal goes
+through `ProposeRelationship`, so the protection of human decisions is the one claims already have, and
+the grade is `assess(type, evidence)`, an ordinal function of the evidence.
+
+| Detector | Proposes | Evidence | Deterministic? |
+| --- | --- | --- | --- |
+| `wall_clock_overlap` v1 | `temporally_overlaps_with` | aware `creation_time` + duration; overlap must exceed twice the 1 s timestamp margin (strictly: exactly 2 s is not an overlap); skipped, never guessed, for a naive time, a time before 2000-01-01 UTC (an unset clock writes 1904 or 1970), a time that cannot be expressed in UTC, and a duration that is NaN, infinite, not positive or over 48 h; the evidence records `overlap_us`, `margin_us` and `evidence_scope: timestamp_overlap_only` (file times overlap; it is not proof of one event); `clock_trust` is `same_device` only for an equal, non-blank `device`, else `unverified` | rule, yes; the input is the camera's clock, so grade stays `suggestive` across devices and `creation_time` is assumed to be the START (said in the evidence) |
+| `production_tag_takes` v1 | `alternate_take_of` | same scene tag (case-folded), different take tag, AND the same device or reel; two different named devices contradict it (even with one reel), and device names are compared exactly; the evidence keeps the tags as written | rule, yes; most consumer footage has no such tags, so it proposes nothing there |
+
+Not detectors, on purpose: timecode (many cameras restart it at zero on every clip, so it would link every
+clip to every other), filename, duration, size, visual or transcript similarity (no admissible evidence kind
+exists for them).
+
+* `analyze(asset)`: one asset (the unit of work, also the pipeline's `relationships` task). Order: read the
+  stored inspection (none: mark `unavailable`, touch no claim, never "found nothing"); skip if the mark
+  already records this detector version and inspection identity; commit this asset's fact; find candidates
+  with an indexed query (at most `max_candidates_per_asset` = 25, longest overlap first, then id; more is
+  outcome `capped`); propose; flag claims it no longer proposes (see below); write the mark LAST.
+* `detect(detectors, full=False)`: a bounded, resumable walk over active audio/video originals in
+  `(created_at, id)` order (`DetectOutcome`: `completed`, `partial` with `budget` or `tie_group_too_large`,
+  `interrupted`, `failed`, `superseded`; counters; cursors). The FEED cursor only moves forward, so a job after
+  new imports visits just the new assets; the first complete feed pass counts as the first sweep. A full SWEEP
+  restarts from the beginning every 24 h (or `full=True`) to find what the feed cannot: a late commit with an
+  older timestamp, a restored asset, a changed inspection. Call it again until it reports `completed`.
+* A failing asset does not block the walk: an `InfrastructureError` while analysing one asset is counted
+  (`DetectOutcome.failed`, `first_error`), the asset is left WITHOUT a mark and the job ends `partial` with
+  reason `asset_failures`; a failure before the first complete pass stops that pass counting as a sweep, so the
+  next job sweeps again and retries it. Three failures in a row mean an outage: the job fails (recorded
+  `failed`), the cursor stays where it was and nothing is skipped. Later failures are retried by the next
+  full sweep (24 h) or by `analyze`. There is no automatic retry or backoff beyond that.
+* Concurrency: the cursor moves by compare-and-set (a rival job is `superseded`, its work already done is
+  idempotent); proposals and flags are atomic read-modify-writes, so two ends analysed at once make one
+  claim and a decision made meanwhile is never lost. This is tested with threads over one SQLite file, not
+  with separate processes.
+* Pairs are found from either end: facts are committed before candidates are searched, so whichever of two
+  assets is analysed second finds the other.
+* A claim a new analysis no longer proposes becomes `stale` (undecided) or gets `outdated_since` (decided)
+  only if THIS asset's inspection changed since the claim was made; otherwise it still holds on what it was
+  built from. Nothing is deleted. A rejected pair is never revived; detection appends fresher evidence and
+  sets `outdated_since` so a person can look again.
+* `DetectorVersions` is the real `BasisCheck`: a detector's version bump makes reconciliation mark its
+  undecided claims `stale` and flag decided ones, whether or not a run enabled it.
+* Marks and facts are derived: deleting both costs re-analysis and never changes a claim or a decision (a
+  test does exactly that). Migration 3 (`user_version` 2 -> 3) creates them and touches no existing row;
+  code at version 2 refuses a version-3 file.
+
+Settings (`DetectionSettings`, all provisional and unmeasured on a real library): 100 assets per commit,
+1 000 per job, 24 h between sweeps, 25 candidates per asset. The 2 s overlap, the 2000-01-01 and 48 h
+guards are heuristics to check against ground truth, not tuned values.
+
+### Measuring the detectors on real footage
+
+`uv run python scratch/evaluate_relationships.py --media DIR --truth truth.json [--out report.json]` imports
+the footage into a THROWAWAY library (it copies the bytes there; originals are untouched; nothing leaves the
+machine, no model runs), runs both detectors and scores the proposals against YOUR labelled pairs (format in
+the script's docstring): per detector true/false positives and negatives, precision, recall, the list of
+mistakes, and an explicit "not statistically meaningful" under 20 labelled positives or negatives. It
+confirms nothing. Until it has been run on real footage, the detectors are validated on synthetic and
+FFmpeg-tagged files only.
 
 ## Time
 
@@ -234,11 +298,16 @@ generation, backoff and last outcome) and `purge_log` (one small append-only row
 
 ## Not built yet
 
-* Detectors (temporal overlap, production-tag takes), audio fingerprints, visual or semantic similarity,
-  subject identity, scenes, locations, projects - none exist; the design lists what each needs first.
-* The library change feed for detectors (find new or changed assets) is specified in the Slice 3 design and
-  built with the first detector, as is the "analysed, found nothing" marker table.
-* Anything that triggers reconciliation automatically, and any real `BasisCheck`.
+* Audio fingerprints, visual or semantic similarity, timecode detection, subject identity, scenes,
+  locations, projects - none exist; the design lists what each needs first.
+* From the Slice 4 design, NOT built: library-failure retries and backoff in the detection walk (a library
+  error fails the job and the cursor stays), end-of-sweep removal of marks and facts of vanished assets
+  (they are harmless and disposable), the age-based retry of `unavailable` assets outside a sweep, and the
+  real-process concurrency tests (two ends analysed at once rely on SQLite's `BEGIN IMMEDIATE` and idempotent
+  proposals, tested in one process only).
+* Detector precision on real footage has not been measured: the rules are tested on synthetic cases and on
+  FFmpeg-tagged test files only. Their defaults are provisional.
+* Anything that triggers reconciliation or detection automatically (no timer, no startup hook).
 * Complete reverse discovery of duplicates, and derived-to-derived duplicates: they need a checksum lookup
   across roles in the library (design item C2), which is not approved.
 * No UI and no domain events: nothing consumes them yet.

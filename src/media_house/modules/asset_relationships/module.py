@@ -10,11 +10,16 @@ from media_house.core.application.ports import Clock
 from media_house.core.modules import Container
 from media_house.modules.asset_relationships.application.contracts import (
     RelationshipCatalog,
+    RelationshipDetection,
     RelationshipEditor,
     RelationshipMaintenance,
 )
 from media_house.modules.asset_relationships.application.decide_relationship import (
     DecideRelationship,
+)
+from media_house.modules.asset_relationships.application.detect_relationships import (
+    DetectionSettings,
+    DetectRelationships,
 )
 from media_house.modules.asset_relationships.application.editing import RelationshipEditing
 from media_house.modules.asset_relationships.application.lineage_projection import (
@@ -31,14 +36,20 @@ from media_house.modules.asset_relationships.application.reconciliation import (
     ReconcileRelationships,
     ReconciliationSettings,
 )
+from media_house.modules.asset_relationships.domain.detection import DetectorVersions
+from media_house.modules.asset_relationships.domain.detection_store import DetectionStore
 from media_house.modules.asset_relationships.domain.reconciliation import ReconciliationStore
 from media_house.modules.asset_relationships.domain.repository import RelationshipRepository
+from media_house.modules.asset_relationships.infrastructure.sqlite_detection_store import (
+    SqliteDetectionStore,
+)
 from media_house.modules.asset_relationships.infrastructure.sqlite_reconciliation_store import (
     SqliteReconciliationStore,
 )
 from media_house.modules.asset_relationships.infrastructure.sqlite_repository import (
     SqliteRelationshipRepository,
 )
+from media_house.modules.media_inspection.application.contracts import InspectionCatalog
 from media_house.modules.media_library.application.contracts import MediaLibrary
 from media_house.modules.proxy_manager.application.contracts import ProxyCatalog
 from media_house.shared.filesystem import AppPaths
@@ -92,17 +103,34 @@ class AssetRelationshipsModule:
                 c.resolve(AppPaths).data_dir / "asset_relationships.db"
             ),
         )
-        # no detector exists yet, so no check: nothing is invalidated by version in production
+        # a detector's version bump invalidates its old claims, whether or not a run enabled it
         container.register_factory(
             ReconcileRelationships,
             lambda c: ReconcileRelationships(
                 c.resolve(ReconciliationStore),
                 c.resolve(MediaLibrary),
                 c.resolve(Clock),
-                (),
+                (DetectorVersions(),),
                 ReconciliationSettings(),
             ),
         )
+        container.register_factory(
+            DetectionStore,
+            lambda c: SqliteDetectionStore(c.resolve(AppPaths).data_dir / "asset_relationships.db"),
+        )
+        container.register_factory(
+            DetectRelationships,
+            lambda c: DetectRelationships(
+                c.resolve(DetectionStore),
+                c.resolve(InspectionCatalog),
+                c.resolve(MediaLibrary),
+                c.resolve(ProposeRelationship),
+                c.resolve(RelationshipRepository),
+                c.resolve(Clock),
+                DetectionSettings(),
+            ),
+        )
+        container.register_factory(RelationshipDetection, lambda c: c.resolve(DetectRelationships))
         container.register_factory(
             RelationshipMaintenance, lambda c: c.resolve(ReconcileRelationships)
         )

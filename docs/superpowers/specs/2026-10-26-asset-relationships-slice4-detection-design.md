@@ -1,7 +1,12 @@
 # Asset Relationships - Slice 4: change feed, analysis marks and rule-based detectors
 
-Status: **draft for review, 2026-10-26. Nothing in this document is built, migrated or committed.** Slice 4 is not
-authorized. This document asks for decisions (section 12); it does not make them silently.
+Status: **built in a lean form, 2026-10-27** on the owner's instruction to complete the module and use it where it
+makes sense. The recommended decisions D1-D15 were followed, with these deviations (the README states the
+resulting behaviour): ONE cursor walk (the feed cursor, plus a periodic full re-walk) instead of two lanes sharing
+budget; detectors are chosen per call (`DetectCommand.detectors`) instead of a global `enabled_detectors` setting,
+so nothing runs unless asked; no library-failure retries or backoff; no end-of-sweep garbage collection of marks
+and facts; `observed_facts` also stores `identity` and `inspection_id`. The detectors have NOT been evaluated on
+real footage (section 9.7 remains open). The text below is the original draft.
 
 Evidence tags used throughout: **[V]** verified in the repository while writing this document; **[P]** a proposal of
 this design; **[U]** unverified, to be settled before or during the slice; **[A]** needs your explicit approval.

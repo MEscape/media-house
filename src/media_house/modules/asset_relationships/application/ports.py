@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from typing import Protocol
 
 from media_house.modules.asset_relationships.domain.basis import Basis
+from media_house.modules.media_inspection.application.contracts import InspectionResult
 from media_house.modules.media_library.application.contracts import (
     MediaAssetDto,
     MediaError,
@@ -43,3 +44,15 @@ class BasisCheck(Protocol):
         call back into this module's store.
         """
         ...
+
+
+class InspectionSource(Protocol):
+    """Stored inspections, read only (``InspectionCatalog`` satisfies it). Never probes."""
+
+    def find(self, asset_id: str) -> InspectionResult | None: ...
+
+
+class LibrarySearch(Protocol):
+    """The part of ``MediaLibrary`` that the detection walk needs."""
+
+    def search(self, query: MediaQuery | None = None) -> Page[MediaAssetDto]: ...

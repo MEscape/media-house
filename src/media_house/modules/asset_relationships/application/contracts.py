@@ -11,10 +11,14 @@ and never makes it trusted lineage.
 * ``RelationshipEditor`` writes claims and human decisions. Asserting the same pair again refreshes
   its evidence; a decided relationship keeps its status.
 
-Only stored claims (``temporally_overlaps_with``, ``alternate_take_of``) are available. Recorded
-lineage (``exact_duplicate_of``, ``proxy_of``, ``derived_from``) is in the vocabulary but is not
-returned yet. When it is, ``exact_duplicate_of`` is directed (duplicate -> original) and a page
-for an original carries ``Limitation.EXACT_DUPLICATE_REVERSE_PARTIAL`` even when nothing is found.
+Stored claims (``temporally_overlaps_with``, ``alternate_take_of``) come with a ``status`` and a
+``grade``; recorded lineage (``exact_duplicate_of``, ``proxy_of``, ``derived_from``) is projected
+from the library and proxy provenance at read time, has no status and grade ``recorded``.
+``exact_duplicate_of`` is directed (duplicate -> original) and a page for an original carries
+``Limitation.EXACT_DUPLICATE_REVERSE_PARTIAL`` even when nothing is found.
+
+* ``RelationshipDetection`` PROPOSES claims from stored inspections (never probes, never confirms
+  or rejects anything). Nothing runs unless a caller names the detectors.
 """
 
 from typing import Protocol
@@ -23,6 +27,16 @@ from media_house.modules.asset_relationships.application.commands import (
     EvidenceSubmission,
     ProposeRelationshipCommand,
     RelationshipQuery,
+)
+from media_house.modules.asset_relationships.application.detect_relationships import (
+    AnalyzeAssetCommand,
+    AssetAnalysis,
+    DetectCommand,
+    DetectionSettings,
+    DetectorResult,
+    DetectOutcome,
+    DetectReason,
+    DetectStatus,
 )
 from media_house.modules.asset_relationships.application.dto import (
     EndpointState,
@@ -41,6 +55,8 @@ from media_house.modules.asset_relationships.application.reconciliation import (
     ReconcileOutcome,
 )
 from media_house.modules.asset_relationships.domain.basis import Basis
+from media_house.modules.asset_relationships.domain.detection import DETECTORS
+from media_house.modules.asset_relationships.domain.detection_store import MarkOutcome
 from media_house.modules.asset_relationships.domain.intervals import (
     ClockOffset,
     TimeCoordinates,
@@ -109,10 +125,42 @@ class RelationshipMaintenance(Protocol):
         ...
 
 
+class RelationshipDetection(Protocol):
+    """Propose claims from stored inspections. Caller-driven; nothing runs by itself.
+
+    ``analyze`` looks at one asset; ``detect`` walks the library's originals under a budget and
+    resumes where it stopped (call it again until it reports ``COMPLETED``). Both are blocking:
+    run them as jobs. A detector is only run when named, ``detector_ids`` lists the ones that exist.
+    """
+
+    def detector_ids(self) -> tuple[str, ...]: ...
+
+    def analyze(
+        self, command: AnalyzeAssetCommand, ctx: JobContext
+    ) -> Result[AssetAnalysis, ValidationError]: ...
+
+    def detect(
+        self, command: DetectCommand, ctx: JobContext
+    ) -> Result[DetectOutcome, ValidationError]: ...
+
+    def last_run(self) -> DetectOutcome | None: ...
+
+
+DETECTOR_IDS: tuple[str, ...] = tuple(sorted(DETECTORS))
+
 __all__ = [
+    "DETECTOR_IDS",
+    "AnalyzeAssetCommand",
+    "AssetAnalysis",
     "Basis",
     "ClockDomain",
     "ClockOffset",
+    "DetectCommand",
+    "DetectOutcome",
+    "DetectReason",
+    "DetectStatus",
+    "DetectionSettings",
+    "DetectorResult",
     "EndpointState",
     "EvidenceDto",
     "EvidenceKind",
@@ -123,6 +171,7 @@ __all__ = [
     "JsonValue",
     "Limitation",
     "LineageFinding",
+    "MarkOutcome",
     "OffsetDto",
     "OffsetOrigin",
     "OutcomeReason",
@@ -131,6 +180,7 @@ __all__ = [
     "ReconcileCommand",
     "ReconcileOutcome",
     "RelationshipCatalog",
+    "RelationshipDetection",
     "RelationshipDto",
     "RelationshipEditor",
     "RelationshipError",

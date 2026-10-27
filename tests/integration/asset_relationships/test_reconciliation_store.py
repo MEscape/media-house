@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 from media_house.modules.asset_relationships.domain.basis import Basis
+from media_house.modules.asset_relationships.domain.detection_store import Mark, MarkOutcome
 from media_house.modules.asset_relationships.domain.errors import CorruptClaim
 from media_house.modules.asset_relationships.domain.reconciliation import (
     ClaimVerdict,
@@ -38,6 +39,9 @@ from media_house.modules.asset_relationships.domain.values import (
 from media_house.modules.asset_relationships.infrastructure.migrations import (
     LATEST_VERSION,
     MIGRATIONS,
+)
+from media_house.modules.asset_relationships.infrastructure.sqlite_detection_store import (
+    SqliteDetectionStore,
 )
 from media_house.modules.asset_relationships.infrastructure.sqlite_reconciliation_store import (
     SqliteReconciliationStore,
@@ -527,7 +531,7 @@ class TestSqliteSchemaAndMigration:
         SqliteReconciliationStore(sqlite_path).load_state()  # opening migrates
 
         with closing(connect(sqlite_path)) as conn:
-            assert conn.execute("PRAGMA user_version").fetchone()[0] == LATEST_VERSION == 2
+            assert conn.execute("PRAGMA user_version").fetchone()[0] == LATEST_VERSION == 3
             row = conn.execute("SELECT * FROM relationships").fetchone()
             assert (row["relationship_id"], row["status"], row["endpoint_missing_since"]) == (
                 "r1",
@@ -544,6 +548,71 @@ class TestSqliteSchemaAndMigration:
             }
         assert {"scan_state", "purge_log"} <= tables
         assert {"ix_relationships_missing", "ix_purge_log_assets"} <= indexes
+
+    def test_a_version_2_database_gains_the_detection_tables_and_loses_nothing(
+        self, sqlite_path: Path
+    ) -> None:
+        with closing(connect(sqlite_path)) as conn:
+            for migration in MIGRATIONS[:2]:
+                for statement in migration.statements:
+                    conn.execute(statement)
+            conn.execute("PRAGMA user_version = 2")
+            conn.execute(
+                "INSERT INTO relationships (relationship_id, type, symmetric, asset_a, asset_b, "
+                "status, grade, origin, basis, created_at, updated_at) VALUES "
+                "('r2', 'alternate_take_of', 1, 'a', 'b', 'rejected', 'indicated', 'detector', "
+                '\'{"detector":"production_tag_takes","inputs":{},"version":"1"}\', '
+                "'2026-01-01T12:00:00.000000+00:00', '2026-01-02T12:00:00.000000+00:00')"
+            )
+            conn.execute("INSERT INTO scan_state (key, value) VALUES ('claim_cursor', 'r1')")
+            conn.execute(
+                "INSERT INTO purge_log (relationship_id, type, asset_a, asset_b, final_status, "
+                "endpoint_missing_since, purged_at, reason) VALUES ('gone', 'alternate_take_of', "
+                "'x', 'y', 'confirmed', '2026-01-01T00:00:00+00:00', '2026-02-01T00:00:00+00:00', "
+                "'retention_expired')"
+            )
+            conn.commit()
+
+        store = SqliteDetectionStore(sqlite_path)  # opening migrates
+        store.put_mark(
+            Mark("a", "wall_clock_overlap", "1", "i:f", MarkOutcome.NONE, 0),
+            analyzed_at="2026-03-01T00:00:00+00:00",
+        )
+
+        with closing(connect(sqlite_path)) as conn:
+            assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
+            kept = conn.execute("SELECT status FROM relationships").fetchall()
+            assert [r["status"] for r in kept] == ["rejected"]  # a decision survives
+            assert conn.execute("SELECT value FROM scan_state").fetchone()[0] == "r1"
+            assert conn.execute("SELECT COUNT(*) FROM purge_log").fetchone()[0] == 1
+            tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master")}
+        assert {
+            "analysis_marks",
+            "observed_facts",
+            "ix_observed_span",
+            "ix_observed_group",
+        } <= tables
+        assert store.get_mark("a", "wall_clock_overlap") is not None
+
+    def test_a_fresh_database_has_the_detection_tables_and_they_can_be_emptied(
+        self, sqlite_path: Path
+    ) -> None:
+        repository = SqliteRelationshipRepository(sqlite_path)
+        claim = make_claim()
+        repository.update(claim.id, lambda _existing: claim)
+        store = SqliteDetectionStore(sqlite_path)
+        store.put_mark(
+            Mark("a", "wall_clock_overlap", "1", "i:f", MarkOutcome.FOUND, 1),
+            analyzed_at="2026-03-01T00:00:00+00:00",
+        )
+
+        with closing(connect(sqlite_path)) as conn:
+            conn.execute("DELETE FROM analysis_marks")
+            conn.execute("DELETE FROM observed_facts")
+            conn.commit()
+
+        assert store.get_mark("a", "wall_clock_overlap") is None
+        assert SqliteRelationshipRepository(sqlite_path).get(claim.id) is not None
 
     def test_a_migrated_claim_is_readable_and_healthy(self, sqlite_path: Path) -> None:
         repository = SqliteRelationshipRepository(sqlite_path)
