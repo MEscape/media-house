@@ -558,6 +558,19 @@ returns just before a purge commits is still purged. A page also reports `findin
 `untrusted_provenance`) and the limitations `proxy_state_unavailable` and `lineage_changed_while_paging`
 (a changed derivative total between pages; an unchanged total is NOT a stable snapshot).
 
+`media_pipeline` ORCHESTRATES the modules above as one dependency graph (see its README). It computes and stores
+nothing: each task is a thin executor over the owner's `application.contracts`, and the Media Library stays the only
+cache, so a rerun reports `reused`. The stage table in `domain/plan.py` is the only place that says what a task
+`needs` (skip it if missing) or `wants` (wait for it, run regardless); inspection joins every run as a `want`, so no
+stage guesses which streams exist (only a USABLE inspection that lists no audio stream skips audio work; an
+`error` verdict FAILS the inspection task). `GraphRunner` starts a task when its prerequisites are final and its
+lane (`light`/`cpu`/`gpu`, capacity-limited, plus an optional `max_running` cap) has a slot. Owners with an exact,
+side-effect-free reuse check (`peek`: inspection, thumbnail, `ProxyManager.peek`) are asked BEFORE a task queues,
+so a stored result never waits behind heavy work; a `None` peek means "ask `execute`", never "absent". Identical
+in-flight tasks of concurrent runs in one process are computed once (`SingleFlight`). Results travel to dependents
+in memory as typed payloads (`TaskJob.payload_as`). Use `MediaPipeline.execute(RunPipelineCommand, ctx)`; try it with
+`uv run python scratch/run_pipeline.py --input <file> [--dry-run] [--cpu-only]`. Analyses run on the original.
+
 ---------------------------------------------------------------------------------------------------
 
 ## 12. Task template (fill in and send together with this document)
