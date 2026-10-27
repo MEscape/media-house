@@ -254,6 +254,32 @@ class EnsureProxy:
             )
         return result
 
+    def peek(self, command: EnsureProxyCommand) -> ProxyDto | None:
+        """The proxy ``execute`` would reuse without writing, or ``None``. Never probes, encodes
+        or writes: it needs a stored inspection for the source facts, and answers ``None``
+        (meaning "ask ``execute``") when anything is missing, so a ``None`` is never a verdict."""
+        try:
+            profile = resolve_profile(command.profile, command.overrides)
+        except ProxyError:
+            return None
+        source = self._library.get(command.source_asset_id)
+        if isinstance(source, Err) or source.value.media_type is not MediaType.VIDEO:
+            return None
+        facts = known_source_facts(self._inspections, source.value.id)
+        if facts is None:
+            return None
+        fingerprint = self._library.fingerprint(
+            source.value.id, PROXY_OPERATION, resolve_spec(profile, facts).to_config(), SPEC_VERSION
+        )
+        if isinstance(fingerprint, Err):
+            return None
+        return self._lookup.served(
+            source.value.id,
+            profile.name,
+            fingerprint.value,
+            decoded=profile.full_decode_validation,
+        )
+
     # ----------------------------------------------------------------------------------------
     def _ensure_waiting(
         self, asset: MediaAssetDto, source_path: Path, profile: ProxyProfile, ctx: JobContext

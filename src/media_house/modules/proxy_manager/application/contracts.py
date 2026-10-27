@@ -66,6 +66,14 @@ class ProxyManager(Protocol):
         self, command: EnsureProxyCommand, ctx: JobContext
     ) -> Result[ProxyDto, ProxyManagerError]: ...
 
+    def peek(self, command: EnsureProxyCommand) -> ProxyDto | None:
+        """The proxy ``execute`` would reuse without any write, or ``None`` ("ask ``execute``").
+
+        A pure read that never probes the source: cheap enough to call before queueing for a
+        slot. ``None`` is not a verdict that no proxy exists.
+        """
+        ...
+
 
 class ProxyMaintenance(Protocol):
     """Take proxies out of service, and delete what nothing serves any more."""

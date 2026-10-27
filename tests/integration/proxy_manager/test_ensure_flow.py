@@ -780,3 +780,34 @@ def test_cancelling_while_the_proxy_is_being_verified_publishes_nothing(env: Env
     assert attempts(env) == [("cancelled", "cancelled")]
     assert env.library.list_derived(source) == [] and scratch_dirs(env) == []
     assert env.catalog.find(source, "analysis") is None
+
+
+# --- peek: the pure-read reuse check other modules may run before queueing ----------------------
+def test_peek_answers_only_what_execute_would_reuse_and_writes_nothing(env: Env) -> None:
+    source = clip(env)
+    env.inspect(source)
+    use_case, encoder, _ = env.scripted(FACTS, with_inspections=True)
+    command = EnsureProxyCommand(source, "analysis")
+
+    assert use_case.peek(command) is None  # nothing stored yet
+    made = env.ok(use_case, source)
+    before = db_rows(env, "SELECT * FROM attempts")
+
+    peeked = use_case.peek(command)
+
+    assert peeked is not None and peeked.reused
+    assert peeked.proxy_asset_id == made.proxy_asset_id
+    assert use_case.peek(replace(command, overrides={"max_long_edge": 160})) is None  # other spec
+    assert use_case.peek(EnsureProxyCommand("no-such-asset", "analysis")) is None
+    assert len(encoder.calls) == 1
+    assert db_rows(env, "SELECT * FROM attempts") == before
+
+
+def test_peek_without_a_stored_inspection_says_ask_execute_and_never_probes(env: Env) -> None:
+    source = clip(env)
+    use_case, _, probe = env.scripted(FACTS)  # no inspection catalog
+    env.ok(use_case, source)
+    probes = len(probe.output_probes)
+
+    assert use_case.peek(EnsureProxyCommand(source, "analysis")) is None
+    assert len(probe.output_probes) == probes
