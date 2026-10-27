@@ -157,6 +157,21 @@ class TextEncoder(Protocol):
     def embed(self, texts: list[str], cancellation: CancellationToken) -> list[list[float]]: ...
 
 
+class TextGenerator(Protocol):
+    """A grounded-prompt chat model for other modules (the engine Content Intelligence uses).
+
+    ``unavailable`` says why it cannot run now (library, model files), else ``None``. Nothing is
+    ever downloaded; ``identity`` names the engine and model for cache keys. Blocking. Decoding is
+    deterministic. Raises ``ExternalSystemError`` for a failure of the model runtime.
+    """
+
+    def identity(self) -> str: ...
+
+    def unavailable(self) -> str | None: ...
+
+    def generate(self, system: str, user: str, cancellation: CancellationToken) -> str: ...
+
+
 __all__ = [
     "PROCESSING_VERSION",
     "PROFILES",
@@ -216,6 +231,7 @@ __all__ = [
     "StageState",
     "Summary",
     "TextEncoder",
+    "TextGenerator",
     "Thresholds",
     "TimeBasis",
     "Topic",

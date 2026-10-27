@@ -126,6 +126,9 @@ reason.
   prompt, same reply), fp16 on GPU, bfloat16 on CPU (very slow, logged). A model whose weights plus
   headroom exceed the free GPU memory is **refused** with a clear message instead of silently paging
   through system memory.
+* **Offered to other modules** as `TextGenerator` (`application/generation.py`): the same engine and model
+  folders, default `Qwen/Qwen2.5-1.5B-Instruct`, greedy decoding, nothing downloaded. `story_architecture` uses it
+  to reword a plan; nobody loads a second copy.
 * **Language model, served** (`infrastructure/loopback_llm.py`): set `LlmSettings(endpoint=...)` to
   use an OpenAI-compatible server (Ollama, llama.cpp, vLLM). The endpoint must be on this machine
   unless `allow_remote_endpoint=True` (transcripts then leave the machine). No API key is sent.

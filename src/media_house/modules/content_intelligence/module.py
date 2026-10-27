@@ -19,8 +19,12 @@ from media_house.modules.content_intelligence.application.contracts import (
     ContentAnalyzer,
     ContentCatalog,
     TextEncoder,
+    TextGenerator,
 )
 from media_house.modules.content_intelligence.application.encoding import SemanticTextEncoder
+from media_house.modules.content_intelligence.application.generation import (
+    ConfiguredTextGenerator,
+)
 from media_house.modules.content_intelligence.application.ports import (
     LanguageModel,
     SemanticEngine,
@@ -78,4 +82,7 @@ class ContentIntelligenceModule:
         container.register_factory(ContentCatalog, lambda c: c.resolve(ContentResults))
         container.register_factory(
             TextEncoder, lambda c: SemanticTextEncoder(c.resolve(SemanticEngine))
+        )
+        container.register_factory(
+            TextGenerator, lambda c: ConfiguredTextGenerator(c.resolve(LanguageModel))
         )
