@@ -50,6 +50,7 @@ DEFAULT_STAGES: frozenset[TaskKind] = frozenset(
         TaskKind.VIDEO_ANALYSIS,
         TaskKind.CONTENT_ANALYSIS,
         TaskKind.ALIGNMENT,
+        TaskKind.STORY,
     }
 )
 

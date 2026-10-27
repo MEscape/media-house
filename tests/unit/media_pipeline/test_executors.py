@@ -29,6 +29,8 @@ class Recorder:
         self.commands.append(command)
         return self.answer
 
+    analyze = execute  # RelationshipDetection answers a single asset with ``analyze``
+
 
 def executors(settings: StageSettings | None = None, **owners: Any) -> ModuleExecutors:
     fail = Recorder(Err(ValidationError("unexpected call")))
@@ -43,6 +45,8 @@ def executors(settings: StageSettings | None = None, **owners: Any) -> ModuleExe
         video_analyzer=owners.get("video_analyzer", fail),
         content_analyzer=owners.get("content_analyzer", fail),
         aligner=owners.get("aligner", fail),
+        story_planner=owners.get("story_planner", fail),
+        relationships=owners.get("relationships", fail),
         settings=settings,
     )
 
@@ -181,7 +185,7 @@ def test_content_receives_the_upstream_timeline_only_when_one_was_delivered() ->
 
 
 def test_peeks_exist_only_for_owners_with_an_exact_side_effect_free_check() -> None:
-    assert set(executors().peeks()) == {K.INSPECT, K.THUMBNAIL, K.PROXY}
+    assert set(executors().peeks()) == {K.INSPECT, K.THUMBNAIL, K.PROXY}  # story has none yet
 
 
 def test_a_damaged_media_verdict_fails_the_inspection_task_with_the_evidence() -> None:
@@ -214,3 +218,120 @@ def test_a_sound_inspection_is_delivered_with_its_payload() -> None:
     fresh = executors(inspector=owner).inspect(job(K.INSPECT))
 
     assert fresh.status is TaskStatus.SUCCEEDED and fresh.payload is sound
+
+
+# --- story ------------------------------------------------------------------------------------
+def story_result(*stages: tuple[str, str], created: bool = True):  # type: ignore[no-untyped-def]
+    from media_house.modules.story_architecture.application.contracts import (
+        StageState,
+        StoryResult,
+    )
+    from media_house.modules.story_architecture.domain.model import StageReport
+    from tests.support.ci_texts import BATTERIES
+    from tests.support.story_fakes import facts_for, plan_of
+
+    plan = plan_of(facts_for(BATTERIES))
+    plan = replace(plan, stages=tuple(StageReport(stage=n, state=StageState(s)) for n, s in stages))
+    return StoryResult(plan, make_asset("story-doc"), created=created)
+
+
+def test_story_is_handed_the_upstream_results_and_never_asked_to_compute_them() -> None:
+    from tests.support.ci_texts import BATTERIES
+    from tests.support.story_fakes import analysis_for
+
+    analysis = analysis_for(BATTERIES, ASSET)
+    owner = Recorder(Ok(story_result(("sections", "ok"))))
+    ex = executors(StageSettings(story_format="review", story_llm=True), story_planner=owner)
+
+    result = ex.story(
+        job(
+            K.STORY,
+            (K.CONTENT_ANALYSIS, TaskResult(TaskStatus.SUCCEEDED, payload=analysis)),
+            (K.ALIGNMENT, TaskResult(TaskStatus.FAILED, payload=object())),
+        )
+    )
+
+    [command] = owner.commands
+    assert command.asset_ids == (ASSET,)
+    assert command.content_analyses == {ASSET: analysis}
+    assert (
+        command.alignments == {}
+    )  # a failed alignment delivered nothing; the planner reads the store
+    assert command.acquire.value == "stored"  # the pipeline never asks the planner to analyse
+    assert command.config.format == "review" and command.llm is True
+    assert result.status is TaskStatus.SUCCEEDED
+    assert result.payload is not None and result.facts["story_asset_id"] == "story-doc"
+
+
+def test_a_stored_plan_is_reported_as_reused() -> None:
+    owner = Recorder(Ok(story_result(("sections", "ok"), created=False)))
+
+    result = executors(story_planner=owner).story(job(K.STORY))
+
+    assert result.status is TaskStatus.REUSED
+
+
+def test_a_missing_picture_side_is_not_a_degradation_but_a_failed_stage_is() -> None:
+    absent = Recorder(Ok(story_result(("visuals", "not_available"))))
+    failed = Recorder(Ok(story_result(("refinement", "failed"))))
+    declined = Recorder(Ok(story_result(("refinement", "not_available"))))
+
+    assert executors(story_planner=absent).story(job(K.STORY)).status is TaskStatus.SUCCEEDED
+    broken = executors(story_planner=failed).story(job(K.STORY))
+    assert broken.status is TaskStatus.PARTIAL and broken.warnings == ("refinement: failed",)
+    assert executors(story_planner=declined).story(job(K.STORY)).status is TaskStatus.PARTIAL
+
+
+def test_a_story_error_is_a_failed_task_with_the_reason() -> None:
+    result = executors(story_planner=Recorder(FAILING)).story(job(K.STORY))
+
+    assert result.status is TaskStatus.FAILED and "Cannot decode" in result.detail
+
+
+# --- relationships ----------------------------------------------------------------------------
+def analysis_of(*results, available: bool = True):  # type: ignore[no-untyped-def]
+    from media_house.modules.asset_relationships.application.contracts import (
+        AssetAnalysis,
+        DetectorResult,
+        MarkOutcome,
+    )
+
+    return AssetAnalysis(
+        ASSET,
+        available,
+        tuple(DetectorResult(name, MarkOutcome.NONE, **flags) for name, flags in results),
+    )
+
+
+def test_relationships_ask_for_every_detector_on_this_asset_only() -> None:
+    from media_house.modules.asset_relationships.application.contracts import DETECTOR_IDS
+
+    owner = Recorder(Ok(analysis_of(("wall_clock_overlap", {"proposed": 2}))))
+
+    result = executors(relationships=owner).relationships(job(K.RELATIONSHIPS))
+
+    [command] = owner.commands
+    assert command.asset_id == ASSET and command.detectors == frozenset(DETECTOR_IDS)
+    assert result.status is TaskStatus.SUCCEEDED and result.facts["proposed"] == 2
+
+
+def test_an_unchanged_analysis_is_reused_and_a_missing_inspection_is_skipped_not_probed() -> None:
+    unchanged = Recorder(Ok(analysis_of(("wall_clock_overlap", {"unchanged": True}))))
+    absent = Recorder(Ok(analysis_of(available=False)))
+
+    assert (
+        executors(relationships=unchanged).relationships(job(K.RELATIONSHIPS)).status
+        is TaskStatus.REUSED
+    )
+    skipped = executors(relationships=absent).relationships(job(K.RELATIONSHIPS))
+    assert skipped.status is TaskStatus.SKIPPED_UNAVAILABLE and "not probed" in skipped.detail
+
+
+def test_a_capped_asset_is_partial_and_says_so() -> None:
+    owner = Recorder(Ok(analysis_of(("wall_clock_overlap", {"proposed": 25, "capped": 3}))))
+
+    result = executors(relationships=owner).relationships(job(K.RELATIONSHIPS))
+
+    assert result.status is TaskStatus.PARTIAL and result.warnings == (
+        "wall_clock_overlap: capped",
+    )

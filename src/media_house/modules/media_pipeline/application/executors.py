@@ -10,6 +10,11 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 from media_house.core.application.ports import Clock
+from media_house.modules.asset_relationships.application.contracts import (
+    DETECTOR_IDS,
+    AnalyzeAssetCommand,
+    RelationshipDetection,
+)
 from media_house.modules.audio_improvement.application.contracts import (
     AudioImprover,
     ImproveAudioCommand,
@@ -24,6 +29,7 @@ from media_house.modules.audio_intelligence.application.contracts import (
 from media_house.modules.audio_visual_alignment.application.contracts import (
     Acquire,
     AlignCommand,
+    AlignmentDocument,
     AudioVisualAligner,
 )
 from media_house.modules.content_intelligence.application.contracts import (
@@ -51,6 +57,15 @@ from media_house.modules.proxy_manager.application.contracts import (
     EnsureProxyCommand,
     ProxyDto,
     ProxyManager,
+)
+from media_house.modules.story_architecture.application.contracts import (
+    Acquire as StoryAcquire,
+)
+from media_house.modules.story_architecture.application.contracts import (
+    PlanStoryCommand,
+    StageState,
+    StoryConfig,
+    StoryPlanner,
 )
 from media_house.modules.video_improvement.application.contracts import (
     ImproveVideoCommand,
@@ -80,6 +95,10 @@ class StageSettings:
     audio_improvement_profile: str | None = None
     video_source_profile: str | None = None
     video_processing_profile: str | None = None
+    #: A story format name (``review``, ``tutorial`` ...); ``None`` keeps the planner's default.
+    story_format: str | None = None
+    #: Let a language model reword the story plan (off: the plan is fully deterministic).
+    story_llm: bool = False
     #: Never use the GPU. Only the device settings change; results keep their identity because
     #: the owners leave the device out of their cache keys.
     cpu_only: bool = False
@@ -143,6 +162,8 @@ class ModuleExecutors:
         video_analyzer: VideoAnalyzer,
         content_analyzer: ContentAnalyzer,
         aligner: AudioVisualAligner,
+        story_planner: StoryPlanner,
+        relationships: RelationshipDetection,
         settings: StageSettings | None = None,
     ) -> None:
         self._library = library
@@ -155,6 +176,8 @@ class ModuleExecutors:
         self._video_analyzer = video_analyzer
         self._content_analyzer = content_analyzer
         self._aligner = aligner
+        self._story_planner = story_planner
+        self._relationships = relationships
         self._settings = settings or StageSettings()
 
     def table(self) -> Mapping[TaskKind, TaskExecutor]:
@@ -168,6 +191,8 @@ class ModuleExecutors:
             TaskKind.VIDEO_ANALYSIS: self.analyze_video,
             TaskKind.CONTENT_ANALYSIS: self.analyze_content,
             TaskKind.ALIGNMENT: self.align,
+            TaskKind.STORY: self.story,
+            TaskKind.RELATIONSHIPS: self.relationships,
         }
 
     def peeks(self) -> Mapping[TaskKind, TaskPeek]:
@@ -380,6 +405,77 @@ class ModuleExecutors:
                     "some stages did not run" if degraded else "",
                     warnings=degraded,
                     facts=base.facts,
+                    payload=result.document,
+                )
+            case Err(error):
+                return _from_error(error)
+
+    def relationships(self, job: TaskJob) -> TaskResult:
+        """Propose claims for this asset from its STORED inspection (nothing is probed).
+
+        Detection proposes only; a person decides. The result is the claims' business, not this
+        task's: it reports how many were proposed or refreshed and whether the asset was new.
+        """
+        match self._relationships.analyze(
+            AnalyzeAssetCommand(job.id.asset_id, frozenset(DETECTOR_IDS)), job.ctx
+        ):
+            case Ok(analysis):
+                if not analysis.inspection_available:
+                    return TaskResult(
+                        TaskStatus.SKIPPED_UNAVAILABLE, "no stored inspection to read (not probed)"
+                    )
+                fresh = [r for r in analysis.results if not r.unchanged]
+                base = _outcome(
+                    bool(fresh),
+                    proposed=sum(r.proposed for r in analysis.results),
+                    made_stale=sum(r.made_stale for r in analysis.results),
+                    capped=sum(r.capped for r in analysis.results),
+                )
+                capped = tuple(f"{r.detector}: capped" for r in analysis.results if r.capped)
+                return TaskResult(
+                    TaskStatus.PARTIAL if capped else base.status,
+                    "more candidates than the cap allows" if capped else "",
+                    warnings=capped,
+                    facts=base.facts,
+                )
+            case Err(error):
+                return _from_error(error)
+
+    def story(self, job: TaskJob) -> TaskResult:
+        asset_id = job.id.asset_id
+        content = self._upstream(job, TaskKind.CONTENT_ANALYSIS, ContentAnalysis)
+        alignment = self._upstream(job, TaskKind.ALIGNMENT, AlignmentDocument)
+        command = PlanStoryCommand(
+            (asset_id,),
+            config=StoryConfig(self._settings.story_format or StoryConfig().format),
+            acquire=StoryAcquire.STORED,
+            llm=self._settings.story_llm,
+            content_analyses={} if content is None else {asset_id: content},
+            alignments={} if alignment is None else {asset_id: alignment},
+        )
+        match self._story_planner.execute(command, job.ctx):
+            case Ok(result):
+                # The picture side is optional (an audio-only recording has none), so only a
+                # stage that FAILED, or a model that was asked for and did not deliver, is a gap.
+                degraded = tuple(
+                    f"{s.stage}: {s.state.value}"
+                    for s in result.plan.stages
+                    if s.state is StageState.FAILED
+                    or (s.stage == "refinement" and s.state is not StageState.OK)
+                )
+                base = _outcome(
+                    result.created,
+                    story_asset_id=result.asset.id,
+                    plan_version=result.plan.plan_version,
+                    sections=len(result.plan.sections),
+                    issues=len(result.plan.completeness_issues),
+                )
+                return TaskResult(
+                    TaskStatus.PARTIAL if degraded else base.status,
+                    "some stages did not run" if degraded else "",
+                    warnings=degraded,
+                    facts=base.facts,
+                    payload=result.plan,
                 )
             case Err(error):
                 return _from_error(error)

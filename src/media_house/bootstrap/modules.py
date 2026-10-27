@@ -13,6 +13,7 @@ from media_house.modules.media_inspection.module import MediaInspectionModule
 from media_house.modules.media_library.module import MediaLibraryModule
 from media_house.modules.media_pipeline.module import MediaPipelineModule
 from media_house.modules.proxy_manager.module import ProxyManagerModule
+from media_house.modules.story_architecture.module import StoryArchitectureModule
 from media_house.modules.video_improvement.module import VideoImprovementModule
 from media_house.modules.video_intelligence.module import VideoIntelligenceModule
 from media_house.modules.workspace.module import WorkspaceModule
@@ -33,4 +34,5 @@ def installed_modules() -> Sequence[ApplicationModule]:
         ProxyManagerModule(),
         AssetRelationshipsModule(),
         MediaPipelineModule(),
+        StoryArchitectureModule(),
     )

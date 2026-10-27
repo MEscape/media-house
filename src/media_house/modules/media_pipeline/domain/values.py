@@ -18,6 +18,8 @@ class TaskKind(StrEnum):
     VIDEO_ANALYSIS = "video_analysis"
     CONTENT_ANALYSIS = "content_analysis"
     ALIGNMENT = "alignment"
+    STORY = "story"
+    RELATIONSHIPS = "relationships"
 
 
 class Lane(StrEnum):

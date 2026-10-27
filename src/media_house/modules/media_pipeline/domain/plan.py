@@ -10,6 +10,10 @@ owning module, not guessed:
   only when the run asks for video context.
 * ``audio_visual_alignment`` relates audio and video analyses, so it NEEDS both and WANTS the
   content analysis, which it merely refines with.
+* ``asset_relationships`` detection reads the STORED inspection of the asset, so it WANTS the
+  inspection (it never probes) and nothing else: it is opt-in and no other stage waits for it.
+* ``story_architecture`` plans the story from the content analysis, so it NEEDS that, and WANTS
+  the alignment (it only attaches shots to visual opportunities, and reads a stored one itself).
 * Inspection joins every non-empty run (see ``plan_asset``): it is cheap, cached, and the only
   authority on which streams exist. A stage only WANTS it, so a failed inspection never blocks.
 * Improvement stages create new assets nothing downstream reads: analyses run on the original,
@@ -50,6 +54,13 @@ STAGES: Mapping[TaskKind, Stage] = {
         needs=_k(TaskKind.AUDIO_ANALYSIS, TaskKind.VIDEO_ANALYSIS),
         wants=_k(TaskKind.CONTENT_ANALYSIS, TaskKind.INSPECT),
         needs_video=True,
+        needs_audio=True,
+    ),
+    TaskKind.RELATIONSHIPS: Stage(Lane.LIGHT, wants=_k(TaskKind.INSPECT)),
+    TaskKind.STORY: Stage(
+        Lane.LIGHT,
+        needs=_k(TaskKind.CONTENT_ANALYSIS),
+        wants=_k(TaskKind.ALIGNMENT),
         needs_audio=True,
     ),
 }

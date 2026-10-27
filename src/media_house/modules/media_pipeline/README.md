@@ -17,7 +17,8 @@ input again reports `reused`. Public API: `application/contracts.py` (`MediaPipe
 | shots, tracks, quality, per-analyzer signals | `video_intelligence` | one FFmpeg decode per asset, per-analyzer signal cache |
 | topics, key items, scores | `content_intelligence` | derived document; accepts upstream results as given |
 | speech-to-picture relations | `audio_visual_alignment` | derived document; accepts upstream results as given |
-| relationship claims | `asset_relationships` | not a pipeline task: no detectors exist yet |
+| story plan (order, openings, priorities, issues) | `story_architecture` | derived document keyed by every input; accepts upstream results as given; a changed key adds a plan version |
+| relationship claims | `asset_relationships` | opt-in `relationships` task: `RelationshipDetection.analyze` from the STORED inspection (never probes); marks make a repeat a no-op |
 
 There is deliberately no pipeline cache or artifact registry: the library already is the single
 store, and a second one would be a competing source of truth. Cache validity (source identity,
@@ -37,6 +38,8 @@ inspect (joins every run)   thumbnail                       (light lane)
       content_analysis (gpu)           |
           | wants                      |
           +-----> alignment (light) <--+ needs audio_analysis + video_analysis
+          |                  |
+          +-> story (light) <+   needs content_analysis, wants alignment
 ```
 
 * Inspection is the only authority on which streams exist, so it is always in the graph. Audio
@@ -51,6 +54,13 @@ inspect (joins every run)   thumbnail                       (light lane)
 * `content_analysis` waits for `video_analysis` only with `--content-uses-video`; by default it
   would sit behind a long video decode for optional context.
 * `alignment` runs with `Acquire.STORED` and the in-memory upstream results.
+* `relationships` (opt-in, not in the default stages) wants only the inspection and nothing waits for it. It proposes
+  claims for this asset against the assets already indexed; it is `reused` when nothing changed, `skipped_unavailable`
+  when no inspection is stored, `partial` when the candidate cap was hit.
+* `story` runs after `content_analysis` (and after `alignment` when that is in the graph) with the in-memory
+  results, `Acquire.STORED` (it never asks the planner to analyse) and no language model unless `--story-llm`.
+  It is `partial` only when one of its stages failed or a model that was asked for did not deliver; the missing
+  picture side of an audio-only recording is not a degradation. Audio-only media get a story and no alignment.
 * Requesting a stage pulls in what it needs (`implied` in the report). A stage the media cannot
   support (picture stages on audio-only media) is `skipped_unavailable`, not a failure.
 
@@ -93,7 +103,7 @@ uv run pytest tests/unit/media_pipeline tests/integration/media_pipeline tests/a
 
 `pipeline.toml` keys: `stages`, `content_uses_video`, `cpu_only`, `gpu_slots`, `cpu_slots`,
 `light_slots`, `video_analysis_profile`, `proxy_profile`, `audio_improvement_profile`,
-`video_source_profile`, `video_processing_profile` (unknown keys are errors; the command line
+`video_source_profile`, `video_processing_profile`, `story_format`, `story_llm` (unknown keys are errors; the command line
 wins). Ctrl+C once finishes cleanly, twice stops now. The report is written atomically.
 
 Not offered, on purpose: `--force` / `--no-cache`. The owners expose no common way to recompute, so

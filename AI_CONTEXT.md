@@ -547,7 +547,11 @@ original); from an original, discovery is partial and the page carries
 cap: never read an empty answer as exhaustive. Assets are referenced by library id only. A decision
 (`confirm`/`reject`) is never changed by automation. Cross-asset time is exact `Fraction` seconds on a named
 clock. `media_inspection.MediaRelations` is a separate, stateless heuristic helper, not this module's
-source of truth. Built: claims, decisions, lineage projection, reconciliation. Not built: detectors.
+source of truth. Built: claims, decisions, lineage projection, reconciliation, detection. Detection
+(`RelationshipDetection`, caller-driven, detectors named per call) PROPOSES claims from STORED inspections only:
+`wall_clock_overlap` (aware creation time + duration, overlap > 2 s, `suggestive` across devices) and
+`production_tag_takes` (same scene, different take, same device or reel). It never probes, never grades, never
+decides; marks and indexed facts are derived and disposable; `DetectorVersions` is the real `BasisCheck`.
 Reconciliation (`RelationshipMaintenance.reconcile`, caller-driven: no timer, no startup hook) walks the
 module's own claims by id in bounded, resumable batches and checks their endpoints against the live library: a
 claim whose endpoint is gone gets `endpoint_missing_since` (not a status), is purged after 7 days if undecided
@@ -570,6 +574,30 @@ so a stored result never waits behind heavy work; a `None` peek means "ask `exec
 in-flight tasks of concurrent runs in one process are computed once (`SingleFlight`). Results travel to dependents
 in memory as typed payloads (`TaskJob.payload_as`). Use `MediaPipeline.execute(RunPipelineCommand, ctx)`; try it with
 `uv run python scratch/run_pipeline.py --input <file> [--dry-run] [--cpu-only]`. Analyses run on the original.
+
+`story_architecture` PLANS the story from what the modules above decided (see its README): content analysis (+ the
+alignment, when one exists) in, one `StoryPlan` out, stored as one derived library document of the first source
+asset. It reads through `ContentCatalog` / `AlignmentCatalog` (`Acquire.STORED` default; `REQUEST` lets the owner
+compute a missing content analysis) and never transcribes, segments, probes or aligns. The plan RECOMMENDS and
+explains (recommended order with the reason for each move, openings with risks, priorities, ordering constraints,
+context dependencies, evidence links, completeness issues, visual opportunities, durations, alternatives); it never
+cuts or times: exact keep/cut/timing decisions belong to the editing stage, which reads the plan instead of
+repeating the reasoning (no editing module exists yet). Every beat/opening/claim names a `SourceRef` (asset,
+segments, sentences, seconds); `Basis.INFERRED` marks what rests on structure, not a passage. Claims are always
+`unverified`; "unsupported" means no supporting passage in the recordings. The recorded order is kept unless the
+format allows reordering and a hard dependency points forward. A format (`StoryConfig("review")`) is a data entry in
+`domain/profile.py`. A language model (`llm=True`, off by default) may only reword section purposes and the main
+message, through `content_intelligence.TextGenerator`, and only what passes the grounding checks. The cache key is the
+identity of every input + configuration + model + versions; a changed key makes a NEW plan with `plan_version` and
+`supersedes` (history is kept). In the pipeline it is the `story` task (needs `content_analysis`, wants
+`alignment`, on by default; `--story-format`, `--story-llm` in `scratch/run_pipeline.py`).
+For a story of SEVERAL recordings it also reads how they relate from `RelationshipCatalog` (read only; a catalog that
+cannot answer costs the relations, not the plan) and uses each in proportion to its certainty: RECORDED lineage (an
+exact copy, a derivative) makes the copy's sections redundant candidates; a person-CONFIRMED take or overlap is
+flagged (`use one` / `parallel coverage`) and nothing is dropped; a detected claim is only NOTED and changes neither
+order nor priority; rejected or stale claims are listed as `not_used`. `StoryPlan.asset_relations` keeps certainty,
+grade, evidence and the treatment; the relation revision is part of the plan's cache key, so a decision replans.
+The pipeline's opt-in `relationships` task (`--stages relationships`) runs detection for the asset after inspection.
 
 ---------------------------------------------------------------------------------------------------
 

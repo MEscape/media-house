@@ -19,7 +19,8 @@ recompute, so a flag here could only pretend. Use a fresh ``--home`` to recomput
 A configuration file (``--config``, TOML or JSON) may set: ``stages``, ``content_uses_video``,
 ``cpu_only``, ``gpu_slots``, ``cpu_slots``, ``light_slots``, ``video_analysis_profile``,
 ``proxy_profile``, ``audio_improvement_profile``, ``video_source_profile``,
-``video_processing_profile``. Command-line options win over the file.
+``video_processing_profile``, ``story_format``, ``story_llm``. Command-line options win over
+the file.
 """
 
 import argparse
@@ -90,6 +91,8 @@ class RunConfig(BaseModel):
     audio_improvement_profile: str | None = None
     video_source_profile: str | None = None
     video_processing_profile: str | None = None
+    story_format: str | None = None
+    story_llm: bool | None = None
 
 
 class ConsoleObserver:
@@ -215,6 +218,16 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="never use the GPU (audio, video and content models run on the CPU)",
     )
+    add(
+        "--story-format",
+        help="story format to plan for (generic, review, tutorial, interview, short ...)",
+    )
+    add(
+        "--story-llm",
+        action="store_true",
+        default=None,
+        help="let a local language model reword the story plan (grounded; off = deterministic)",
+    )
     add("--gpu-slots", type=positive, help="tasks that may use the GPU lane at once (default 1)")
     add("--cpu-slots", type=positive, help="tasks that may use the CPU lane at once (default 2)")
     add(
@@ -237,6 +250,8 @@ def settings_from(config: RunConfig) -> StageSettings:
         audio_improvement_profile=config.audio_improvement_profile,
         video_source_profile=config.video_source_profile,
         video_processing_profile=config.video_processing_profile,
+        story_format=config.story_format,
+        story_llm=bool(config.story_llm),
         cpu_only=bool(config.cpu_only),
     )
 
@@ -333,7 +348,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     merged = config.model_copy(
         update={
             key: getattr(args, key)
-            for key in ("cpu_only", "content_uses_video", "gpu_slots", "cpu_slots", "light_slots")
+            for key in (
+                "cpu_only",
+                "content_uses_video",
+                "gpu_slots",
+                "cpu_slots",
+                "light_slots",
+                "story_format",
+                "story_llm",
+            )
             if getattr(args, key) is not None
         }
     )

@@ -115,8 +115,24 @@ def test_audio_only_asset_drops_picture_stages_and_their_dependents() -> None:
         K.AUDIO_IMPROVEMENT,
         K.AUDIO_ANALYSIS,
         K.CONTENT_ANALYSIS,
+        K.STORY,
+        K.RELATIONSHIPS,
     }
     assert {K.THUMBNAIL, K.PROXY, K.VIDEO_ANALYSIS, K.ALIGNMENT} <= plan.not_applicable
+
+
+def test_story_needs_the_content_analysis_and_only_wants_the_alignment() -> None:
+    plan = plan_asset("a", has_video=True, has_audio=True, requested={K.STORY})
+    story = next(s for s in plan.specs if s.id.kind is K.STORY)
+
+    assert story.needs == {tid(K.CONTENT_ANALYSIS)}
+    assert story.wants == frozenset()  # alignment was not requested, so it is not in the graph
+    assert {K.CONTENT_ANALYSIS, K.AUDIO_ANALYSIS, K.INSPECT} <= plan.implied
+
+    both = plan_asset("a", has_video=True, has_audio=True, requested={K.STORY, K.ALIGNMENT})
+    story = next(s for s in both.specs if s.id.kind is K.STORY)
+    assert tid(K.ALIGNMENT) in story.wants
+    assert tid(K.ALIGNMENT) not in story.needs
 
 
 def test_silent_video_drops_audio_stages_and_alignment() -> None:
@@ -125,6 +141,7 @@ def test_silent_video_drops_audio_stages_and_alignment() -> None:
     assert K.ALIGNMENT in plan.not_applicable
     assert K.AUDIO_ANALYSIS in plan.not_applicable
     assert K.CONTENT_ANALYSIS in plan.not_applicable
+    assert K.STORY in plan.not_applicable
     assert K.VIDEO_ANALYSIS in kinds(plan.specs)
 
 
@@ -139,3 +156,15 @@ def test_every_stage_in_the_table_plans_into_a_valid_graph() -> None:
     for kind in STAGES:
         plan = plan_asset("a", has_video=True, has_audio=True, requested={kind})
         PipelineGraph(plan.specs)  # raises on a cycle or an unknown dependency
+
+
+def test_relationship_detection_is_opt_in_and_only_waits_for_the_inspection() -> None:
+    from media_house.modules.media_pipeline.application.run_pipeline import DEFAULT_STAGES
+
+    plan = plan_asset("a", has_video=True, has_audio=True, requested={K.RELATIONSHIPS})
+    spec = next(s for s in plan.specs if s.id.kind is K.RELATIONSHIPS)
+
+    assert K.RELATIONSHIPS not in DEFAULT_STAGES
+    assert spec.needs == frozenset() and spec.wants == {tid(K.INSPECT)}
+    assert kinds(plan.specs) == {K.INSPECT, K.RELATIONSHIPS}
+    assert not any(tid(K.RELATIONSHIPS) in s.upstream for s in plan.specs)  # nothing waits for it

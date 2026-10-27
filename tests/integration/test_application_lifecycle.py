@@ -97,6 +97,7 @@ def test_starts_with_default_modules_and_wires_everything(tmp_path: Path) -> Non
             "proxy_manager",
             "asset_relationships",
             "media_pipeline",
+            "story_architecture",
         }
         # the real composition root wires both audio subsystems and their public contracts
         assert container.resolve(AudioImprover) is container.resolve(ImproveAudio)
