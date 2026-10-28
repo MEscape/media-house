@@ -33,7 +33,11 @@ from media_house.modules.editing_intelligence.domain.coverage import plan_covera
 from media_house.modules.editing_intelligence.domain.cutpoints import CutContext, cut_in, cut_out
 from media_house.modules.editing_intelligence.domain.effects import plan_effects, unit_starts
 from media_house.modules.editing_intelligence.domain.errors import NothingToEdit
-from media_house.modules.editing_intelligence.domain.facts import AssetEvidence, StoryFacts
+from media_house.modules.editing_intelligence.domain.facts import (
+    AssetEvidence,
+    PacingFacts,
+    StoryFacts,
+)
 from media_house.modules.editing_intelligence.domain.hooks import Hooks
 from media_house.modules.editing_intelligence.domain.judge import (
     JudgeContext,
@@ -50,6 +54,7 @@ from media_house.modules.editing_intelligence.domain.model import (
     InputRecord,
     Issue,
     ManualOverride,
+    PacingNote,
     Placement,
     Provenance,
     Signal,
@@ -155,6 +160,7 @@ def plan_edit(
     config: EditConfig,
     meta: PlanMeta,
     hooks: Hooks | None = None,
+    pacing: PacingFacts | None = None,
 ) -> EditPlan:
     hooks = hooks or Hooks()
     profile = config.resolve(story.target_format)
@@ -167,7 +173,8 @@ def plan_edit(
     )
     indexes = {a: AudioIndex(e.audio) for a, e in evidence.items() if e.audio is not None}
     contexts = {
-        a: CutContext(e.source, indexes.get(a), e.video, profile) for a, e in evidence.items()
+        a: CutContext(e.source, indexes.get(a), e.video, profile, pacing)
+        for a, e in evidence.items()
     }
     units = collect_units(story, evidence, indexes)
     if not units:
@@ -184,6 +191,7 @@ def plan_edit(
             for s in r.affected_sections
         ),
         overrides={o.decision_id: o for o in meta.overrides},
+        pacing_tighten=pacing.tighten_sections() if pacing else frozenset(),
     )
     decisions = judge(units, jc)
     close_dependencies(units, decisions, jc)
@@ -263,13 +271,17 @@ def plan_edit(
         final.setdefault(d.decision_id, d)
     effects = sorted([*effects, *coverage.effects], key=lambda r: (r.at.value, r.request_id))
     notes = plan_pacing(
-        story, [p for p in built.pieces if p.role is PlacementRole.MAIN], hooks, note_id
+        story,
+        [p for p in built.pieces if p.role is PlacementRole.MAIN],
+        note_id,
+        sections=pacing is None,
     )
+    notes += _pacing_notes(pacing, built.asm.pacing_notes, note_id)
 
     issues = [*coverage.issues, *continuity_issues, *_evidence_issues(story, evidence, issue_id)]
     issues.extend(_story_issues(story, final, issue_id))
     issues.extend(_unresolved_decisions(final, issue_id))
-    stages = [*meta.stages, *_stages(evidence, hooks, built)]
+    stages = [*meta.stages, *_stages(evidence, hooks, pacing)]
 
     essential = sum(
         (u.extent.seconds for u in units if u.priority == "essential" and u.extent is not None),
@@ -726,8 +738,38 @@ def _unresolved_decisions(
     ]
 
 
+def _pacing_notes(
+    pacing: PacingFacts | None, kept: Sequence[str], note_id: Callable[[], str]
+) -> list[PacingNote]:
+    """The pacing analysis' advice, shown as notes: the editor applies what it can safely (pause
+    verdicts, holds, which sections to tighten first) and passes the rest on, ranked."""
+    if pacing is None:
+        return []
+    out = [
+        PacingNote(note_id=note_id(), level="pacing", subject="pause", detail=text) for text in kept
+    ]
+    shown = ("tighten_pause", "preserve_pause")
+    for advice in sorted(
+        (a for a in pacing.advice if a.kind not in shown), key=lambda a: a.priority
+    )[:_MAX_PACING_NOTES]:
+        confidence = "" if advice.confidence is None else f" (confidence {advice.confidence:.2f})"
+        out.append(
+            PacingNote(
+                note_id=note_id(),
+                level="pacing",
+                subject=advice.section_id or advice.asset_id,
+                detail=f"{advice.kind.replace('_', ' ')}: {advice.proposal}{confidence}",
+                seconds=advice.delta_seconds,
+            )
+        )
+    return out
+
+
+_MAX_PACING_NOTES = 25
+
+
 def _stages(
-    evidence: Mapping[str, AssetEvidence], hooks: Hooks, built: _Built
+    evidence: Mapping[str, AssetEvidence], hooks: Hooks, pacing: PacingFacts | None
 ) -> list[StageReport]:
     video = any(e.video is not None for e in evidence.values())
     audio = any(e.audio is not None for e in evidence.values())
@@ -757,12 +799,17 @@ def _stages(
         ),
         StageReport(
             stage="advisors",
-            state=StageState.OK
-            if (hooks.coverage or hooks.continuity or hooks.pacing)
-            else StageState.SKIPPED,
+            state=StageState.OK if (hooks.coverage or hooks.continuity) else StageState.SKIPPED,
             detail=""
-            if (hooks.coverage or hooks.continuity or hooks.pacing)
+            if (hooks.coverage or hooks.continuity)
             else "none supplied: baseline rules only",
+        ),
+        StageReport(
+            stage="pacing",
+            state=StageState.OK if pacing is not None else StageState.NOT_AVAILABLE,
+            detail=""
+            if pacing is not None
+            else "no pacing analysis: the editor's baseline pacing notes apply",
         ),
     ]
 

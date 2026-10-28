@@ -39,6 +39,7 @@ from media_house.modules.editing_intelligence.application.views import (
     alignment_facts,
     audio_facts,
     content_facts,
+    pacing_facts,
     source_facts,
     story_facts,
     video_facts,
@@ -52,14 +53,16 @@ from media_house.modules.editing_intelligence.domain.errors import (
     MissingStoryPlan,
     NothingToEdit,
 )
-from media_house.modules.editing_intelligence.domain.facts import AssetEvidence, ShotChoice
+from media_house.modules.editing_intelligence.domain.facts import (
+    AssetEvidence,
+    PacingFacts,
+    ShotChoice,
+)
 from media_house.modules.editing_intelligence.domain.hooks import (
     ContinuityVerdict,
     CoverageQuery,
     CutQuery,
     Hooks,
-    PaceAdvice,
-    SectionPace,
 )
 from media_house.modules.editing_intelligence.domain.model import (
     EditPlan,
@@ -89,6 +92,10 @@ from media_house.modules.media_library.application.contracts import (
     MediaAssetDto,
     MediaError,
     MediaLibrary,
+)
+from media_house.modules.pacing_intelligence.application.contracts import (
+    PacingAnalysis,
+    PacingCatalog,
 )
 from media_house.modules.story_architecture.application.contracts import (
     Acquire as StoryAcquire,
@@ -143,25 +150,15 @@ class ContinuityAdvisor(Protocol):
     def assess(self, query: CutQuery) -> ContinuityVerdict | None: ...
 
 
-class PacingAdvisor(Protocol):
-    """Advises on the pace of sections (instead of the baseline words-per-minute notes)."""
-
-    def identity(self) -> str: ...
-
-    def advise(self, sections: Sequence[SectionPace]) -> Sequence[PaceAdvice]: ...
-
-
 @dataclass(frozen=True, slots=True)
 class Advisors:
     coverage: CoverageAdvisor | None = None
     continuity: ContinuityAdvisor | None = None
-    pacing: PacingAdvisor | None = None
 
     def hooks(self) -> Hooks:
         return Hooks(
             coverage=self.coverage.rank if self.coverage else None,
             continuity=self.continuity.assess if self.continuity else None,
-            pacing=self.pacing.advise if self.pacing else None,
         )
 
     def identities(self) -> tuple[tuple[str, str], ...]:
@@ -170,7 +167,6 @@ class Advisors:
             for name, advisor in (
                 ("coverage", self.coverage),
                 ("continuity", self.continuity),
-                ("pacing", self.pacing),
             )
             if advisor is not None
         )
@@ -200,6 +196,9 @@ class PlanEditCommand:
     audio_timelines: Mapping[str, AudioIntelligenceTimeline] = field(default_factory=dict)
     video_analyses: Mapping[str, VideoAnalysis] = field(default_factory=dict)
     alignments: Mapping[str, AlignmentDocument] = field(default_factory=dict)
+    #: A pacing analysis the caller holds (used as given), and whether to read a stored one.
+    pacing: PacingAnalysis | None = None
+    use_pacing: bool = True
 
 
 @dataclass(frozen=True, slots=True)
@@ -236,6 +235,7 @@ class PlanEdit:
         paths: AppPaths,
         clock: Clock,
         advisors: Advisors | None = None,
+        pacing: PacingCatalog | None = None,
     ) -> None:
         self._library = library
         self._planner = planner
@@ -247,6 +247,7 @@ class PlanEdit:
         self._inspections = inspections
         self._clock = clock
         self._advisors = advisors or Advisors()
+        self._pacing = pacing
         self._documents = DerivedDocuments(library, paths)
         self._results = EditResults(library)
 
@@ -285,6 +286,7 @@ class PlanEdit:
         if isinstance(gathered, Err):
             return gathered
         gathered.value.records.insert(0, story_record)
+        pacing = self._pacing_of(command, plan, gathered.value)
         complete = len(gathered.value.known) == len(plan.source_assets)
         problems = validate_plan(plan, gathered.value.known if complete else None)
         if problems:
@@ -295,7 +297,7 @@ class PlanEdit:
         assets = tuple(a.asset_id for a in plan.source_assets)
         overrides = self._overrides(command, anchor, profile.name, assets)
         advisors = self._advisors.identities()
-        key = self._cache_key(command, plan, gathered.value, overrides, advisors)
+        key = self._cache_key(command, plan, gathered.value, overrides, advisors, pacing)
         spec = DocumentSpec(RESULT_OPERATION, EDITOR_VERSION, key)
         fingerprint = self._documents.fingerprint(anchor, spec)
         if isinstance(fingerprint, Err):
@@ -337,6 +339,7 @@ class PlanEdit:
                 command.config,
                 meta,
                 self._advisors.hooks(),
+                pacing,
             )
         except NothingToEdit as exc:
             return Err(exc)
@@ -527,6 +530,35 @@ class PlanEdit:
         )
         return None
 
+    def _pacing_of(
+        self, command: PlanEditCommand, plan: StoryPlan, gathered: _Gathered
+    ) -> PacingFacts | None:
+        """The pacing analysis of THIS story's recordings, supplied or stored; else ``None``.
+
+        An analysis of other recordings, or of another story, is ignored and said so."""
+        assets = tuple(a.asset_id for a in plan.source_assets)
+        found: PacingAnalysis | None = None
+        how = InputHow.NOT_AVAILABLE
+        detail = "no pacing analysis (the editor's baseline pacing notes apply)"
+        if command.pacing is not None:
+            found, how = command.pacing, InputHow.SUPPLIED
+        elif command.use_pacing and self._pacing is not None:
+            stored = self._pacing.latest(assets[0], story_plan_id=plan.story_plan_id)
+            if isinstance(stored, Ok) and stored.value is not None:
+                found, how, detail = stored.value[0], InputHow.REUSED, stored.value[1].id
+        if found is not None and tuple(s.asset_id for s in found.sources) != assets:
+            found, how = None, InputHow.NOT_AVAILABLE
+            detail = "the pacing analysis is for other recordings"
+        gathered.records.append(
+            InputRecord(
+                kind="pacing_analysis",
+                how=how,
+                identity=None if found is None else found.pacing_analysis_id,
+                detail=detail if found is None or how is InputHow.REUSED else "",
+            )
+        )
+        return None if found is None else pacing_facts(found)
+
     # --- overrides, identity, history -------------------------------------------------
     def _overrides(
         self, command: PlanEditCommand, anchor: str, profile: str, assets: tuple[str, ...]
@@ -549,6 +581,7 @@ class PlanEdit:
         gathered: _Gathered,
         overrides: tuple[ManualOverride, ...],
         advisors: tuple[tuple[str, str], ...],
+        pacing: PacingFacts | None,
     ) -> Mapping[str, JsonValue]:
         """Everything that can change the plan and nothing that cannot (not time, job or device)."""
         return {
@@ -566,6 +599,7 @@ class PlanEdit:
             ),
             "overrides": [[o.decision_id, o.action.value, o.note] for o in overrides],
             "advisors": [list(a) for a in advisors],
+            "pacing": None if pacing is None else pacing.identity,
             "versions": {
                 "editor": EDITOR_VERSION,
                 "schema": SCHEMA_VERSION,
@@ -603,7 +637,6 @@ __all__ = [
     "ContinuityAdvisor",
     "CoverageAdvisor",
     "EditResult",
-    "PacingAdvisor",
     "PlanEdit",
     "PlanEditCommand",
     "PlanEditError",

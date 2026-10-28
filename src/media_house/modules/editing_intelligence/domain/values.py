@@ -24,9 +24,9 @@ from media_house.shared.errors import InvariantViolation
 
 SCHEMA_VERSION = 1
 #: Bump when any rule, threshold or formula changes so stored plans are not reused.
-EDITOR_VERSION = 1
+EDITOR_VERSION = 2
 #: Bump when a member is added to an enum below (readers refuse unknown members).
-VOCABULARY_VERSION = 1
+VOCABULARY_VERSION = 2
 DOCUMENT_TYPE = "edit_plan"
 RESULT_OPERATION = "edit_plan"
 
@@ -131,6 +131,7 @@ class EvidenceKind(StrEnum):
     ALIGNMENT_SPEECH = "alignment_speech"
     ALIGNMENT_MATCH = "alignment_match"
     INSPECTION = "inspection"
+    PACING_ANALYSIS = "pacing_analysis"
     PROFILE_RULE = "profile_rule"
     OVERRIDE = "override"
 

@@ -35,6 +35,7 @@ from media_house.modules.editing_intelligence.domain.values import (
     TrackKind,
 )
 from media_house.modules.media_library.application.contracts import MediaAssetDto
+from media_house.modules.pacing_intelligence.domain.model import PacingAnalysis
 from media_house.modules.story_architecture.application.contracts import (
     StoryConfig,
     StoryPlan,
@@ -54,6 +55,8 @@ from tests.support.asset_dto import make_asset
 from tests.support.ci_texts import lines_to_transcript
 from tests.support.edit_fakes import decision
 from tests.support.fakes import FixedClock
+from tests.support.pace_fakes import T, speak
+from tests.support.pace_fakes import analyse as analyse_pacing_of
 from tests.support.story_fakes import (
     FakeAlignmentCatalog,
     FakeContentCatalog,
@@ -127,7 +130,9 @@ class Catalog:
         self.stored = dict(stored or {})
         self.calls = 0
 
-    def latest(self, asset_id: str, *args: object) -> Ok[tuple[Any, MediaAssetDto] | None]:
+    def latest(
+        self, asset_id: str, *args: object, **kwargs: object
+    ) -> Ok[tuple[Any, MediaAssetDto] | None]:
         self.calls += 1
         found = self.stored.get(asset_id)
         return Ok(None if found is None else (found, make_asset(f"doc-{asset_id}")))
@@ -491,3 +496,102 @@ def test_advisors_are_part_of_the_identity_of_the_plan(tmp_path: Path) -> None:
     assert advised.value.plan.provenance.advisors == (("coverage", "ranker/1"),)
     assert plain.plan.provenance.advisors == ()
     assert DurationMode.SOFT  # imported for the public contract
+
+
+# --- the pacing analysis -------------------------------------------------------------------------
+def dense_pacing(asset_id: str = "a1", tokens: int = 22) -> PacingAnalysis:
+    sentence = T(" ".join(["token"] * tokens), density=0.85, requires=2)
+    return analyse_pacing_of(speak([sentence], asset_id=asset_id))
+
+
+def edit_with_pacing(rig: Rig, tmp_path: Path, catalog: Catalog) -> PlanEdit:
+    return PlanEdit(
+        duck(rig.library),
+        duck(rig.planner),
+        duck(rig.stories),
+        duck(rig.content),
+        duck(rig.audio),
+        duck(rig.video),
+        duck(rig.alignments),
+        duck(rig.inspections),
+        AppPaths.under_root(tmp_path / "app"),
+        FixedClock(),
+        pacing=duck(catalog),
+    )
+
+
+def test_a_stored_pacing_analysis_of_the_same_recordings_is_read_recorded_and_shown(
+    tmp_path: Path,
+) -> None:
+    rig = Rig(tmp_path)
+    catalog = Catalog({"a1": dense_pacing()})
+
+    result = edit_with_pacing(rig, tmp_path, catalog).execute(PlanEditCommand(("a1",)), CTX)
+
+    assert isinstance(result, Ok)
+    plan = result.value.plan
+    assert ("pacing_analysis", InputHow.REUSED) in {(i.kind, i.how) for i in plan.inputs}
+    assert next(s for s in plan.stages if s.stage == "pacing").state.value == "ok"
+    notes = [n for n in plan.pacing_notes if n.level == "pacing"]
+    assert notes and "allow processing time" in notes[0].detail
+
+
+def test_a_changed_pacing_analysis_makes_a_new_plan_and_an_unchanged_one_does_not(
+    tmp_path: Path,
+) -> None:
+    rig = Rig(tmp_path)
+    catalog = Catalog({"a1": dense_pacing()})
+    editor = edit_with_pacing(rig, tmp_path, catalog)
+
+    first = editor.execute(PlanEditCommand(("a1",)), CTX)
+    again = editor.execute(PlanEditCommand(("a1",)), CTX)
+    catalog.stored["a1"] = dense_pacing(tokens=30)
+    changed = editor.execute(PlanEditCommand(("a1",)), CTX)
+
+    assert isinstance(first, Ok) and isinstance(again, Ok) and isinstance(changed, Ok)
+    assert first.value.created and not again.value.created and changed.value.created
+    assert changed.value.plan.plan_version == first.value.plan.plan_version + 1
+
+
+def test_a_pacing_analysis_of_other_recordings_is_ignored_and_says_so(tmp_path: Path) -> None:
+    rig = Rig(tmp_path)
+    catalog = Catalog({"a1": dense_pacing(asset_id="zzz")})
+
+    result = edit_with_pacing(rig, tmp_path, catalog).execute(PlanEditCommand(("a1",)), CTX)
+
+    assert isinstance(result, Ok)
+    record = next(i for i in result.value.plan.inputs if i.kind == "pacing_analysis")
+    assert record.how is InputHow.NOT_AVAILABLE and "other recordings" in record.detail
+    assert (
+        next(s for s in result.value.plan.stages if s.stage == "pacing").state.value
+        == "not_available"
+    )
+
+
+def test_a_supplied_pacing_analysis_is_used_without_asking_the_catalog(tmp_path: Path) -> None:
+    rig = Rig(tmp_path)
+    catalog = Catalog({"a1": dense_pacing(tokens=40)})
+
+    result = edit_with_pacing(rig, tmp_path, catalog).execute(
+        PlanEditCommand(("a1",), pacing=dense_pacing()), CTX
+    )
+
+    assert isinstance(result, Ok) and catalog.calls == 0
+    assert ("pacing_analysis", InputHow.SUPPLIED) in {
+        (i.kind, i.how) for i in result.value.plan.inputs
+    }
+
+
+def test_pacing_can_be_switched_off_and_a_missing_catalog_is_not_an_error(tmp_path: Path) -> None:
+    rig = Rig(tmp_path)
+    catalog = Catalog({"a1": dense_pacing()})
+
+    off = edit_with_pacing(rig, tmp_path, catalog).execute(
+        PlanEditCommand(("a1",), use_pacing=False), CTX
+    )
+
+    assert isinstance(off, Ok) and catalog.calls == 0
+    assert (
+        next(i for i in off.value.plan.inputs if i.kind == "pacing_analysis").how
+        is InputHow.NOT_AVAILABLE
+    )

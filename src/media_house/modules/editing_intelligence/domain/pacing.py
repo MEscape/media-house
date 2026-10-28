@@ -12,7 +12,6 @@ from collections.abc import Callable, Sequence
 
 from media_house.modules.editing_intelligence.domain.assemble import Piece
 from media_house.modules.editing_intelligence.domain.facts import StoryFacts
-from media_house.modules.editing_intelligence.domain.hooks import Hooks, SectionPace
 from media_house.modules.editing_intelligence.domain.model import PacingNote
 
 _DENSE_WPM = 190.0
@@ -25,11 +24,11 @@ _MIN_CLIPS = 8
 def plan_pacing(
     story: StoryFacts,
     pieces: Sequence[Piece],
-    hooks: Hooks,
     note_id: Callable[[], str],
+    *,
+    sections: bool = True,
 ) -> list[PacingNote]:
     notes: list[PacingNote] = []
-    paces: list[SectionPace] = []
     seconds_of: dict[str, float] = {}
     words_of: dict[str, int] = {}
     for piece in pieces:
@@ -37,19 +36,11 @@ def plan_pacing(
             share = float(piece.duration) / len(piece.units)
             seconds_of[unit.section_id] = seconds_of.get(unit.section_id, 0.0) + share
             words_of[unit.section_id] = words_of.get(unit.section_id, 0) + unit.unit.words
-    for section in story.ordered_sections():
+    for section in story.ordered_sections() if sections else ():
         seconds = seconds_of.get(section.section_id, 0.0)
         words = words_of.get(section.section_id, 0)
         if seconds <= 0:
             continue
-        paces.append(
-            SectionPace(
-                section_id=section.section_id,
-                label=section.label,
-                seconds=round(seconds, 2),
-                words=words,
-            )
-        )
         if words < _MIN_WORDS:
             continue
         wpm = words / seconds * 60
@@ -85,16 +76,6 @@ def plan_pacing(
                         f"clip lengths are nearly uniform (variation {variation:.2f}): "
                         "the rhythm may feel mechanical"
                     ),
-                )
-            )
-    if hooks.pacing is not None:
-        for advice in hooks.pacing(paces) or ():
-            notes.append(
-                PacingNote(
-                    note_id=note_id(),
-                    level="section",
-                    subject=advice.section_id,
-                    detail=advice.detail,
                 )
             )
     return notes

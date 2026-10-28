@@ -89,6 +89,7 @@ def _next_batch(
     ]
     candidates.sort(
         key=lambda u: (
+            0 if u.section_id in jc.pacing_tighten else 1,
             _RANK[u.priority],
             decisions[u.decision_id].value(SignalName.KEEP) or 0.0,
             decisions[u.decision_id].value(SignalName.ENGAGEMENT) or 0.5,

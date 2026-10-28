@@ -366,6 +366,72 @@ class AlignmentFacts:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class PausePacing:
+    """What the pacing analysis made of one silence: evidence for the editor, not an order."""
+
+    asset_id: str
+    start: float
+    end: float
+    #: ``dead_air``, ``long``, ``meaningful`` or ``natural``.
+    verdict: str
+    #: What should remain of the silence if it is tightened; ``None`` = keep it.
+    keep: float | None
+    reasons: tuple[str, ...]
+    confidence: float | None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class PacingAdvice:
+    """One recommendation of the pacing analysis, reduced to what the editor can show or weigh."""
+
+    recommendation_id: str
+    kind: str
+    asset_id: str
+    section_id: str | None
+    beat_id: str | None
+    proposal: str
+    delta_seconds: float | None
+    #: For a hold: how long it should last in total.
+    duration: float | None
+    confidence: float | None
+    priority: int
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class PacingFacts:
+    analysis_id: str
+    profile: str
+    strategy: str
+    pauses: tuple[PausePacing, ...]
+    advice: tuple[PacingAdvice, ...]
+    identity: str
+
+    def pause_at(self, asset_id: str, start: float, end: float) -> PausePacing | None:
+        """The analysed silence that covers most of ``[start, end]``."""
+        best: tuple[float, PausePacing] | None = None
+        for p in self.pauses:
+            overlap = min(end, p.end) - max(start, p.start)
+            if p.asset_id == asset_id and overlap > 0 and (best is None or overlap > best[0]):
+                best = (overlap, p)
+        return None if best is None else best[1]
+
+    def reveal_hold(self, beat_id: str | None) -> float | None:
+        """How long the pacing analysis wants a reveal or payoff to be held, if it asked."""
+        for a in self.advice:
+            if a.kind == "hold_reveal" and a.beat_id == beat_id and a.duration is not None:
+                return a.duration
+        return None
+
+    def tighten_sections(self) -> frozenset[str]:
+        """Sections where it recommends shortening repetition or slow, empty delivery."""
+        return frozenset(
+            a.section_id
+            for a in self.advice
+            if a.section_id is not None and a.kind in ("reduce_repetition", "tighten_delivery")
+        )
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class AssetEvidence:
     """Everything known about one recording. Only ``source`` is always present."""
 

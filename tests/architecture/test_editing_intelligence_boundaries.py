@@ -4,7 +4,8 @@
 * Its domain imports no other module at all (the application maps upstream results into facts).
 * It computes no media result and touches no media: no process, file-system, database or numerical
   library, and no use of the owners' analysers (it only READS their stored results).
-* It names no timeline backend and depends on no module that does not exist yet.
+* It names no timeline backend and depends on no module that does not exist yet. The pacing
+  analysis is a real input, read through its catalog.
 * Only the pipeline (and the composition root) depend on it.
 """
 
@@ -21,7 +22,6 @@ MODULES_DIR = SRC / "media_house" / "modules"
 #: Responsibilities of modules that are planned but not built. Nothing may depend on them, and
 #: no empty package may reserve their names.
 FUTURE_MODULES = (
-    "pacing_intelligence",
     "broll_intelligence",
     "continuity_intelligence",
     "reframing_intelligence",

@@ -43,22 +43,7 @@ class ContinuityVerdict:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
-class SectionPace:
-    section_id: str
-    label: str
-    seconds: float
-    words: int
-
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class PaceAdvice:
-    section_id: str
-    detail: str
-
-
-@dataclass(frozen=True, slots=True, kw_only=True)
 class Hooks:
     #: Replaces the candidate list for a place that needs cover (best first); ``None`` = no opinion.
     coverage: Callable[[CoverageQuery], Sequence[ShotChoice] | None] | None = None
     continuity: Callable[[CutQuery], ContinuityVerdict | None] | None = None
-    pacing: Callable[[Sequence[SectionPace]], Sequence[PaceAdvice]] | None = None

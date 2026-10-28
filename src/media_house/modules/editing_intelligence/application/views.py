@@ -8,6 +8,7 @@ the plan's cache key notices a changed analysis.
 
 import hashlib
 from collections.abc import Sequence
+from dataclasses import asdict, replace
 from functools import partial
 
 from media_house.modules.audio_intelligence.application.contracts import AudioIntelligenceTimeline
@@ -34,7 +35,10 @@ from media_house.modules.editing_intelligence.domain.facts import (
     LinkFact,
     OpeningFact,
     OrderChangeFact,
+    PacingAdvice,
+    PacingFacts,
     PauseFact,
+    PausePacing,
     RefFact,
     RelationFact,
     SectionFact,
@@ -51,6 +55,7 @@ from media_house.modules.editing_intelligence.domain.facts import (
 )
 from media_house.modules.media_inspection.application.contracts import InspectionResult
 from media_house.modules.media_library.application.contracts import MediaAssetDto
+from media_house.modules.pacing_intelligence.application.contracts import PacingAnalysis
 from media_house.modules.story_architecture.application.contracts import SourceRef, StoryPlan
 from media_house.modules.video_intelligence.application.contracts import (
     AnalyzerState,
@@ -215,6 +220,46 @@ def story_facts(plan: StoryPlan, stored_as: str | None) -> StoryFacts:
         target_high=plan.estimated_duration.target_high,
         warnings=plan.warnings,
     )
+
+
+# --- the pacing analysis -------------------------------------------------------------------
+def pacing_facts(analysis: PacingAnalysis) -> PacingFacts:
+    """What the editor reads of the pacing analysis. Its identity covers all of it, so any change
+    the editor could notice (not only a new analysis id) misses the plan cache."""
+    facts = PacingFacts(
+        analysis_id=analysis.pacing_analysis_id,
+        profile=analysis.profile,
+        strategy=analysis.strategy.value,
+        pauses=tuple(
+            PausePacing(
+                asset_id=p.span.asset_id,
+                start=p.span.start.value,
+                end=p.span.end.value,
+                verdict=p.verdict.value,
+                keep=p.recommended_keep,
+                reasons=tuple(c.value for c in p.reason_codes),
+                confidence=p.confidence,
+            )
+            for p in analysis.pauses
+        ),
+        advice=tuple(
+            PacingAdvice(
+                recommendation_id=r.recommendation_id,
+                kind=r.type.value,
+                asset_id=r.target.asset_id,
+                section_id=r.section_id,
+                beat_id=r.beat_id,
+                proposal=r.proposal,
+                delta_seconds=r.delta_seconds,
+                duration=r.recommended_duration,
+                confidence=r.confidence,
+                priority=r.priority,
+            )
+            for r in analysis.recommendations
+        ),
+        identity="",
+    )
+    return replace(facts, identity=_digest(analysis.pacing_analysis_id, asdict(facts)))
 
 
 # --- content analysis ------------------------------------------------------------------------

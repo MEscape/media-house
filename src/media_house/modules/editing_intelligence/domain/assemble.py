@@ -94,6 +94,8 @@ class Assembly:
     boundaries: dict[str, list[float | None]] = field(default_factory=dict)
     #: Decisions made while assembling: holds (EXTEND) and kept reactions (REACTION).
     extra: list[Decision] = field(default_factory=list)
+    #: Silences the pacing analysis protected or asked to tighten, with what the editor did.
+    pacing_notes: list[str] = field(default_factory=list)
 
 
 def runs_of(kept: Sequence[EditUnit]) -> list[list[EditUnit]]:
@@ -154,6 +156,8 @@ def _run_pieces(
     if ctx.index is not None and profile.cut_fillers and not last.pure_filler:
         last_extent = _strip_edge(last_extent, ctx, last, asm, front=False)
     hold = profile.payoff_hold if last.function in _PAYOFF_FUNCTIONS else 0.0
+    if ctx.pacing is not None:
+        hold = max(hold, ctx.pacing.reveal_hold(last.beat_id) or 0.0)
     in_cp = cut_in(ctx, first_extent)
     out_cp = cut_out(ctx, last_extent, hold)
     _remember(asm, first, in_cp)
@@ -331,7 +335,21 @@ def _pause_cut(
     asm: Assembly,
 ) -> _Cut | None:
     gap = right.start - left.end
-    if gap < profile.pause_max:
+    advised = (
+        ctx.pacing.pause_at(ctx.source.asset_id, left.end, right.start) if ctx.pacing else None
+    )
+    if advised is not None and advised.verdict == "meaningful":
+        asm.pacing_notes.append(
+            f"kept the {gap:.2f} s silence at {left.end:.2f} s: the pacing analysis marks it "
+            f"meaningful ({', '.join(advised.reasons)})"
+        )
+        return None
+    threshold, keep = profile.pause_max, profile.pause_keep
+    if advised is not None and advised.verdict in ("dead_air", "long") and advised.keep:
+        # The pacing analysis calls this silence dead air or too long; the editor still decides,
+        # and every check below (payoff, reaction, emphasis, cut points) still applies.
+        threshold, keep = min(threshold, max(advised.keep * 1.5, 0.4)), advised.keep
+    if gap < threshold:
         return None
     if (right.emphasis or 0.0) >= profile.hold_before_emphasis:
         return None
@@ -345,7 +363,7 @@ def _pause_cut(
         return None
     pause = ctx.audio.pause_between(left.end, right.start)
     precision = Precision.WORD_ALIGNED if ctx.audio.audio.word_level else Precision.SEGMENT_ALIGNED
-    out_cp, in_cp = cut_pair(ctx, left, right, profile.pause_keep, precision)
+    out_cp, in_cp = cut_pair(ctx, left, right, keep, precision)
     out_t, in_t = to_fraction(out_cp.time), to_fraction(in_cp.time)
     if in_t - out_t < _MIN_REMOVED:
         return None
@@ -365,8 +383,13 @@ def _pause_cut(
         kind=TrimKind.PAUSE,
         range=make_range(ctx.source, out_t, in_t, out_cp.precision, in_cp.precision),
         reason=(
-            f"silence of {gap:.2f} s is longer than {profile.pause_max:.2f} s; "
-            f"{profile.pause_keep:.2f} s remain (silent for {ratio})"
+            f"silence of {gap:.2f} s is longer than {threshold:.2f} s; "
+            f"{keep:.2f} s remain (silent for {ratio})"
+            + (
+                " - the pacing analysis calls it " + advised.verdict.replace("_", " ")
+                if advised
+                else ""
+            )
         ),
         executability=Executability.EXECUTABLE if executable else Executability.NEEDS_REVIEW,
         evidence=(

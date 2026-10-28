@@ -30,7 +30,6 @@ from media_house.modules.editing_intelligence.application.plan_edit import (
     ContinuityAdvisor,
     CoverageAdvisor,
     EditResult,
-    PacingAdvisor,
     PlanEditCommand,
     PlanEditError,
 )
@@ -48,8 +47,6 @@ from media_house.modules.editing_intelligence.domain.hooks import (
     ContinuityVerdict,
     CoverageQuery,
     CutQuery,
-    PaceAdvice,
-    SectionPace,
 )
 from media_house.modules.editing_intelligence.domain.model import (
     AudioBridge,
@@ -208,8 +205,6 @@ __all__ = [
     "MissingStoryPlan",
     "NothingToEdit",
     "Origin",
-    "PaceAdvice",
-    "PacingAdvisor",
     "PacingNote",
     "Placement",
     "PlacementRole",
@@ -218,7 +213,6 @@ __all__ = [
     "PlanState",
     "Precision",
     "Provenance",
-    "SectionPace",
     "Severity",
     "ShotChoice",
     "Signal",

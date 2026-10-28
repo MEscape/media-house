@@ -107,7 +107,8 @@ forbids the owners' analysers and `ProcessRunner`).
 5. **Cover** (`coverage.py`): the story's visual opportunities; candidates must exist in the video analysis, not be
    the shot on screen, be usable, show no speaking face, be long enough; a passage that negates or doubts what it
    names (or a weak association) makes it a suggestion. **Continuity** (`continuity.py`): measured between neighbouring
-   shots, heuristic inside one shot, `None` elsewhere. **Effects** (`effects.py`) and **pacing** (`pacing.py`).
+   shots, heuristic inside one shot, `None` elsewhere. **Effects** (`effects.py`) and **pacing** (`pacing.py`): the baseline section notes, replaced by the ranked
+   recommendations of the stored pacing analysis when there is one (see "Pacing input").
 6. **Cold open**: the story's recommended opening plays first when it is not the natural start.
 
 ## Profiles (`domain/profile.py`)
@@ -142,13 +143,30 @@ means something with a chosen profile and target, so a default run does not stor
 when a hard constraint is not met. The pipeline is per asset, so it plans the edit of one recording's story; a story
 of several recordings is planned through `EditPlanner` directly (`story_plan=` with several source assets).
 
+## Pacing input (`pacing_intelligence`)
+
+The editor reads the stored pacing analysis for the story's anchor recording through `PacingCatalog` (or receives one in
+`PlanEditCommand.pacing`; `use_pacing=False` ignores it). It is evidence, never an order: `application/views.pacing_facts`
+reduces it to `PacingFacts` (pause verdicts with the length to keep, ranked advice, sections to tighten). An analysis of
+another recording is ignored and recorded as such. The facts' identity is part of the cache key, so a changed analysis
+makes a new plan version, and the input is recorded as `InputRecord(kind="pacing_analysis")`.
+
+* A pause the analysis calls *meaningful* is kept, with a note saying why.
+* A pause it calls *dead air* or *long* is tightened to the length it proposes, below the profile's own limit; the editor's
+  checks still apply (a pause before a payoff is never trimmed) and the trim is `needs_review` unless the editor confirms
+  the silence itself.
+* A reveal it wants held is extended where the recording has room (decision `extend`).
+* Sections it wants tightened are proposed for cutting first when a target length must be met.
+* The remaining advice is passed on as ranked `PacingNote`s (`level="pacing"`, at most 25); the baseline section notes are
+  then skipped. Stage `pacing` is `ok`, or `not_available` with the baseline in force.
+
 ## Future modules (not built)
 
-`pacing_intelligence`, `broll_intelligence`, `continuity_intelligence` may later answer three questions better than the
-baseline rules. The editor asks through optional, **unimplemented** `Advisors` (`CoverageAdvisor.rank`,
-`ContinuityAdvisor.assess`, `PacingAdvisor.advise`); an answer is validated like any other candidate, an advisor's
-identity is part of the cache key, and `None` means no opinion. No advisor is wired, no package reserves a name, and a
-plan without them is complete. Reframing, music and sound design, transitions, graphics, style, the compiler, the
+`broll_intelligence` and `continuity_intelligence` may later answer two questions better than the baseline rules. The
+editor asks through optional, **unimplemented** `Advisors` (`CoverageAdvisor.rank`, `ContinuityAdvisor.assess`); an answer
+is validated like any other candidate, an advisor's identity is part of the cache key, and `None` means no opinion. No
+advisor is wired, no package reserves a name, and a plan without them is complete. (The former `PacingAdvisor` was
+replaced by the pacing input above; `EDITOR_VERSION` and the vocabulary version are 2.) Reframing, music and sound design, transitions, graphics, style, the compiler, the
 timeline builder, the Resolve adapter, quality control and revision are other stages: the editor only *requests*
 effects and states intent. A future revision stage can consume findings by passing `ManualOverride`s and a changed
 configuration; nothing here compares a plan with a rendered result.
@@ -164,7 +182,8 @@ configuration; nothing here compares a plan with a rendered result.
 * Continuity is shot-level; identity, eyelines and pose are not exposed by video analysis and are not judged. Subject
   jumps within one shot are a heuristic.
 * Cover footage comes only from shots the alignment ranked for the story's opportunities; other footage and other
-  recordings' shots are not searched. Beat/music synchronisation is requested, not computed (no music analysis exists).
+  recordings' shots are not searched. Beat/music synchronisation is requested, not computed (no music analysis exists; the pacing analysis only has an
+  envelope-rhythm baseline).
 * The estimated length is the sum of clips; no timeline has been compiled to confirm it.
 * Planning 3 000 synthetic sentences takes about 1 s; its stored document is about 7.6 MB and reads back in about 1 s.
 

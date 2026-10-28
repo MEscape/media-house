@@ -24,6 +24,7 @@ from media_house.modules.editing_intelligence.domain.facts import (
     KeyInfoFact,
     LinkFact,
     OpeningFact,
+    PacingFacts,
     PauseFact,
     RefFact,
     RelationFact,
@@ -442,13 +443,16 @@ def edit(
     config: EditConfig | None = None,
     *,
     hooks: Hooks | None = None,
+    pacing: PacingFacts | None = None,
     **meta_changes: object,
 ) -> EditPlan:
     if isinstance(recordings, Recording):
         evidence = {recordings.evidence.source.asset_id: recordings.evidence}
     else:
         evidence = {k: v.evidence for k, v in recordings.items()}
-    return plan_edit(story_facts, evidence, config or EditConfig(), meta(**meta_changes), hooks)
+    return plan_edit(
+        story_facts, evidence, config or EditConfig(), meta(**meta_changes), hooks, pacing
+    )
 
 
 def decision(plan: EditPlan, decision_id: str) -> Decision:

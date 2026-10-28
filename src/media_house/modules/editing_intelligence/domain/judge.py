@@ -60,6 +60,8 @@ class JudgeContext:
     #: Sections that only repeat a recording whose copy is recorded lineage (a hard fact).
     recorded_copies: frozenset[str]
     overrides: Mapping[str, ManualOverride]
+    #: Sections the pacing analysis wants shortened first (repetition, slow empty delivery).
+    pacing_tighten: frozenset[str] = frozenset()
 
 
 def judge(units: Sequence[EditUnit], jc: JudgeContext) -> dict[str, Decision]:

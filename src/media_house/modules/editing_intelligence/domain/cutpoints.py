@@ -15,6 +15,7 @@ from fractions import Fraction
 from typing import TYPE_CHECKING
 
 from media_house.modules.editing_intelligence.domain.facts import (
+    PacingFacts,
     SourceFacts,
     VideoFacts,
     WordFact,
@@ -56,7 +57,9 @@ class CutContext:
         index: AudioIndex | None,
         video: VideoFacts | None,
         profile: EditingProfile,
+        pacing: PacingFacts | None = None,
     ) -> None:
+        self.pacing = pacing
         self.source = source
         self.index = index
         self.video = video
