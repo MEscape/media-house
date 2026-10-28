@@ -58,6 +58,7 @@ def test_only_the_pipeline_the_editing_stage_and_the_composition_root_depend_on_
     allowed = (
         "media_house.modules.media_pipeline",
         "media_house.modules.editing_intelligence",
+        "media_house.modules.pacing_intelligence",
         "media_house.bootstrap",
     )
     offenders = [
