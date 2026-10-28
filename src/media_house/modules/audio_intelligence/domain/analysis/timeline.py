@@ -26,6 +26,11 @@ from media_house.modules.audio_intelligence.domain.analysis.features import (
     WordAcoustics,
 )
 from media_house.modules.audio_intelligence.domain.analysis.pauses import Pause
+from media_house.modules.audio_intelligence.domain.analysis.rhythm import (
+    RhythmConfig,
+    RhythmWindow,
+    estimate_rhythm,
+)
 from media_house.modules.audio_intelligence.domain.analysis.scoring import (
     MOMENT,
     EditingSignal,
@@ -284,6 +289,12 @@ class AudioIntelligenceTimeline:
 
     def pause_before(self, word: TimelineWord | TranscriptWord) -> Pause | None:
         return next((p for p in self.pauses if p.after_word == word.index), None)
+
+    # --- rhythm ------------------------------------------------------------------------------
+    def energy_rhythm(self, config: RhythmConfig | None = None) -> tuple[RhythmWindow, ...]:
+        """Stretches without speech whose LEVEL pulses at a steady tempo (see ``rhythm``: a
+        baseline from the loudness envelope, not music analysis; derived on demand, not stored)."""
+        return estimate_rhythm(self.track, config)
 
     # --- editing signals ---------------------------------------------------------------------
     def signals_between(

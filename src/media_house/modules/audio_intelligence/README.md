@@ -179,6 +179,15 @@ Layers of meaning, never collapsed into one score:
 * **Not emotions:** terms are `arousal`, `expressiveness`, `emphasis`, `monotony` (acoustic
   descriptors). No happy/sad/angry, no irony claim; the evidence is kept for later layers.
 
+## Energy rhythm (`domain/analysis/rhythm.py`)
+
+`timeline.energy_rhythm()` estimates a regular pulse from the loudness envelope (`rms_db`) in the stretches without
+speech: autocorrelation of the positive level rises over 60-180 BPM, per window, with a `strength` in [0, 1] and a
+beat grid. It is computed on demand from the stored frames (nothing new is stored) and is an **envelope baseline, not
+music analysis**: no key, downbeat or genre, and speech, a steady noise floor or an irregular bed give weak strength or
+no estimate (never a made-up tempo). `pacing_intelligence` reads it to judge cuts against a beat; it means nothing
+without non-speech material.
+
 ## Reuse and versions
 
 | Asset (operation) | Identity (fingerprint) |

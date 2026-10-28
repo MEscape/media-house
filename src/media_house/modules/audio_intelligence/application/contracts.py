@@ -58,6 +58,11 @@ from media_house.modules.audio_intelligence.domain.analysis.features import (
     WordAcoustics,
 )
 from media_house.modules.audio_intelligence.domain.analysis.pauses import Pause
+from media_house.modules.audio_intelligence.domain.analysis.rhythm import (
+    RhythmConfig,
+    RhythmWindow,
+    estimate_rhythm,
+)
 from media_house.modules.audio_intelligence.domain.analysis.scoring import (
     BROLL,
     CUT,
@@ -210,6 +215,8 @@ __all__ = [
     "PitchSummary",
     "PreparationConfig",
     "RateSummary",
+    "RhythmConfig",
+    "RhythmWindow",
     "ScoredSignal",
     "Scorer",
     "ScoringConfig",
@@ -230,6 +237,7 @@ __all__ = [
     "WordAcoustics",
     "WordSignals",
     "WordTiming",
+    "estimate_rhythm",
     "from_json",
     "timeline_from_json",
     "timeline_to_json",
