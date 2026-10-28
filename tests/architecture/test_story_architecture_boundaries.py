@@ -3,7 +3,7 @@
 * It reaches every other module only through that module's public contract.
 * Its domain imports no other module at all (the application maps upstream results into facts).
 * It computes no media result: no process, file-system, database or numerical-library access.
-* Only the pipeline (and the composition root) depends on it.
+* Only the pipeline, the editing stage that reads the plan, and the composition root depend on it.
 """
 
 from pathlib import Path
@@ -54,8 +54,12 @@ def test_story_does_no_analysis_or_storage_of_its_own() -> None:
     assert offenders == []
 
 
-def test_only_the_pipeline_and_the_composition_root_depend_on_story() -> None:
-    allowed = ("media_house.modules.media_pipeline", "media_house.bootstrap")
+def test_only_the_pipeline_the_editing_stage_and_the_composition_root_depend_on_story() -> None:
+    allowed = (
+        "media_house.modules.media_pipeline",
+        "media_house.modules.editing_intelligence",
+        "media_house.bootstrap",
+    )
     offenders = [
         name
         for name, info in scan(SRC).items()
