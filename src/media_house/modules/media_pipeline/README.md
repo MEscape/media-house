@@ -19,6 +19,7 @@ input again reports `reused`. Public API: `application/contracts.py` (`MediaPipe
 | speech-to-picture relations | `audio_visual_alignment` | derived document; accepts upstream results as given |
 | story plan (order, openings, priorities, issues) | `story_architecture` | derived document keyed by every input; accepts upstream results as given; a changed key adds a plan version |
 | edit plan (keep/cut/shorten/cover decisions as exact source ranges on a neutral timeline) | `editing_intelligence` | derived document keyed by the story's facts, every analysis, configuration and overrides; opt-in `edit_plan` task; a changed key adds a plan version |
+| pacing analysis (rhythm findings and recommendations per scale) | `pacing_intelligence` | derived document keyed by every input identity, the story's facts, profile, strategy and target; default-on `pacing` task (a pure read); a changed key adds a version |
 | relationship claims | `asset_relationships` | opt-in `relationships` task: `RelationshipDetection.analyze` from the STORED inspection (never probes); marks make a repeat a no-op |
 
 There is deliberately no pipeline cache or artifact registry: the library already is the single
@@ -42,7 +43,9 @@ inspect (joins every run)   thumbnail                       (light lane)
           |                  |
           +-> story (light) <+   needs content_analysis, wants alignment
                 |
-          edit_plan (light, opt-in)   needs story, wants alignment, video_analysis, inspection
+          pacing (light)   needs audio_analysis, wants content_analysis, video_analysis, alignment,
+                |          story, inspect (nothing waits for it except edit_plan)
+          edit_plan (light, opt-in)   needs story, wants alignment, video_analysis, inspection, pacing
 ```
 
 * Inspection is the only authority on which streams exist, so it is always in the graph. Audio
@@ -64,6 +67,12 @@ inspect (joins every run)   thumbnail                       (light lane)
   results, `Acquire.STORED` (it never asks the planner to analyse) and no language model unless `--story-llm`.
   It is `partial` only when one of its stages failed or a model that was asked for did not deliver; the missing
   picture side of an audio-only recording is not a degradation. Audio-only media get a story and no alignment.
+* `pacing` (default-on) reads the stored analyses and the story plan of the run and measures rhythm; it needs only
+  `audio_analysis` and waits for the other analyses and the story when they are in the graph. It never plans a story
+  and asks no producer for anything; it is `partial` when the analysis is (an input was missing), `reused` when the
+  identical analysis is stored, and absent for media without audio. `--pacing-profile` and `--pacing-strategy` choose
+  its profile and strategy; `--edit-target` also sets the target length it ranks against. It is on by default because
+  it only reads and decides nothing, so a default run stores one small document at most.
 * `edit_plan` (opt-in, `--stages edit_plan`) runs after `story` with the in-memory story plan and analyses and
   `Acquire.STORED`. It is not in the default stages: it is a decision that needs a chosen profile (`--edit-profile`) and
   target length (`--edit-target`, `--edit-target-hard`), and the default run stores nothing nobody asked for. It is

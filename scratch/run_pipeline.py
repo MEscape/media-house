@@ -20,7 +20,7 @@ A configuration file (``--config``, TOML or JSON) may set: ``stages``, ``content
 ``cpu_only``, ``gpu_slots``, ``cpu_slots``, ``light_slots``, ``video_analysis_profile``,
 ``proxy_profile``, ``audio_improvement_profile``, ``video_source_profile``,
 ``video_processing_profile``, ``story_format``, ``story_llm``, ``edit_profile``,
-``edit_target_seconds``, ``edit_target_hard``. Command-line options win over
+``edit_target_seconds``, ``edit_target_hard``, ``pacing_profile``, ``pacing_strategy``. Command-line options win over
 the file.
 """
 
@@ -97,6 +97,8 @@ class RunConfig(BaseModel):
     edit_profile: str | None = None
     edit_target_seconds: float | None = None
     edit_target_hard: bool | None = None
+    pacing_profile: str | None = None
+    pacing_strategy: str | None = None
 
 
 class ConsoleObserver:
@@ -243,6 +245,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="target length of the edit in seconds (an upper bound; a preference unless --edit-target-hard)",
     )
     add(
+        "--pacing-profile",
+        help="pacing profile (talking_head, tutorial, documentary, shorts_reels ...); default: by story format",
+    )
+    add(
+        "--pacing-strategy",
+        choices=["concise", "balanced", "detailed", "high_energy", "cinematic"],
+        help="how tight the pacing recommendations are (default balanced)",
+    )
+    add(
         "--edit-target-hard",
         action="store_true",
         default=None,
@@ -275,6 +286,8 @@ def settings_from(config: RunConfig) -> StageSettings:
         edit_profile=config.edit_profile,
         edit_target_seconds=config.edit_target_seconds,
         edit_target_hard=bool(config.edit_target_hard),
+        pacing_profile=config.pacing_profile,
+        pacing_strategy=config.pacing_strategy,
         cpu_only=bool(config.cpu_only),
     )
 
@@ -382,6 +395,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "edit_profile",
                 "edit_target_seconds",
                 "edit_target_hard",
+                "pacing_profile",
+                "pacing_strategy",
             )
             if getattr(args, key) is not None
         }

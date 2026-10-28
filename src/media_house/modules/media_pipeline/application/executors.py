@@ -64,6 +64,19 @@ from media_house.modules.media_pipeline.application.tasks import (
     TaskResult,
 )
 from media_house.modules.media_pipeline.domain.values import TaskId, TaskKind, TaskStatus
+from media_house.modules.pacing_intelligence.application.contracts import (
+    AnalyzePacingCommand,
+    PacingAnalysis,
+    PacingAnalyzer,
+    PacingConfig,
+    Strategy,
+)
+from media_house.modules.pacing_intelligence.application.contracts import (
+    ResultState as PacingState,
+)
+from media_house.modules.pacing_intelligence.application.contracts import (
+    TargetDuration as PacingTarget,
+)
 from media_house.modules.proxy_manager.application.contracts import (
     EnsureProxyCommand,
     ProxyDto,
@@ -118,9 +131,17 @@ class StageSettings:
     edit_target_seconds: float | None = None
     #: Treat the target as a hard constraint instead of a preference.
     edit_target_hard: bool = False
+    #: A pacing profile name (``tutorial``, ``talking_head`` ...); ``None`` = by the story's format.
+    pacing_profile: str | None = None
+    #: ``concise``, ``balanced``, ``detailed``, ``high_energy`` or ``cinematic``.
+    pacing_strategy: str | None = None
     #: Never use the GPU. Only the device settings change; results keep their identity because
     #: the owners leave the device out of their cache keys.
     cpu_only: bool = False
+
+
+def _given[T](asset_id: str, result: T | None) -> dict[str, T]:
+    return {} if result is None else {asset_id: result}
 
 
 def _outcome(created: bool, detail: str = "", **facts: JsonValue) -> TaskResult:
@@ -182,6 +203,7 @@ class ModuleExecutors:
         content_analyzer: ContentAnalyzer,
         aligner: AudioVisualAligner,
         story_planner: StoryPlanner,
+        pacing_analyzer: PacingAnalyzer,
         edit_planner: EditPlanner,
         relationships: RelationshipDetection,
         settings: StageSettings | None = None,
@@ -197,6 +219,7 @@ class ModuleExecutors:
         self._content_analyzer = content_analyzer
         self._aligner = aligner
         self._story_planner = story_planner
+        self._pacing_analyzer = pacing_analyzer
         self._edit_planner = edit_planner
         self._relationships = relationships
         self._settings = settings or StageSettings()
@@ -213,6 +236,7 @@ class ModuleExecutors:
             TaskKind.CONTENT_ANALYSIS: self.analyze_content,
             TaskKind.ALIGNMENT: self.align,
             TaskKind.STORY: self.story,
+            TaskKind.PACING: self.pacing,
             TaskKind.EDIT_PLAN: self.edit_plan,
             TaskKind.RELATIONSHIPS: self.relationships,
         }
@@ -502,6 +526,57 @@ class ModuleExecutors:
             case Err(error):
                 return _from_error(error)
 
+    def pacing(self, job: TaskJob) -> TaskResult:
+        """Analyse the rhythm from the in-memory upstream results (nothing is recomputed). The
+        story plan is read when one was made; pacing never asks for it. A target length given for
+        the edit is the pacing target's maximum."""
+        asset_id = job.id.asset_id
+        seconds = self._settings.edit_target_seconds
+        command = AnalyzePacingCommand(
+            (asset_id,),
+            config=PacingConfig(
+                profile=self._settings.pacing_profile,
+                strategy=Strategy(self._settings.pacing_strategy or Strategy.BALANCED.value),
+                target=None if seconds is None else PacingTarget(maximum=seconds),
+            ),
+            story_format=self._settings.story_format,
+            story_plan=self._upstream(job, TaskKind.STORY, StoryPlan),
+            audio_timelines=_given(
+                asset_id, self._upstream(job, TaskKind.AUDIO_ANALYSIS, AudioIntelligenceTimeline)
+            ),
+            content_analyses=_given(
+                asset_id, self._upstream(job, TaskKind.CONTENT_ANALYSIS, ContentAnalysis)
+            ),
+            video_analyses=_given(
+                asset_id, self._upstream(job, TaskKind.VIDEO_ANALYSIS, VideoAnalysis)
+            ),
+            alignments=_given(asset_id, self._upstream(job, TaskKind.ALIGNMENT, AlignmentDocument)),
+        )
+        match self._pacing_analyzer.execute(command, job.ctx):
+            case Ok(result):
+                analysis = result.analysis
+                partial = analysis.state is PacingState.PARTIAL
+                base = _outcome(
+                    result.created,
+                    pacing_asset_id=result.asset.id,
+                    analysis_version=analysis.analysis_version,
+                    profile=analysis.profile,
+                    recommendations=len(analysis.recommendations),
+                )
+                return TaskResult(
+                    TaskStatus.PARTIAL if partial else base.status,
+                    "an input a whole level needs was missing" if partial else "",
+                    warnings=tuple(
+                        i.detail for i in analysis.issues if i.severity.value == "unresolved"
+                    )[:5]
+                    if partial
+                    else (),
+                    facts=base.facts,
+                    payload=analysis,
+                )
+            case Err(error):
+                return _from_error(error)
+
     def edit_plan(self, job: TaskJob) -> TaskResult:
         """Plan the edit from the story plan and the in-memory upstream results (nothing is
         recomputed). A hard target the material cannot meet is PARTIAL: a plan exists, a hard
@@ -531,6 +606,7 @@ class ModuleExecutors:
             audio_timelines={} if audio is None else {asset_id: audio},
             video_analyses={} if video is None else {asset_id: video},
             alignments={} if alignment is None else {asset_id: alignment},
+            pacing=self._upstream(job, TaskKind.PACING, PacingAnalysis),
         )
         match self._edit_planner.execute(command, job.ctx):
             case Ok(result):

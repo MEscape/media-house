@@ -615,10 +615,23 @@ tutorial documentary short ...`) are data. A person's `ManualOverride` (keep/cut
 (`Severity.ERROR`) mean the plan is never stored; checks that cannot be made from a proposal are `not_checked`, never
 passed. The cache key covers the story's facts, every analysis identity, configuration, overrides, advisors and versions;
 a changed key adds a plan version (`supersedes`). In the pipeline it is the OPT-IN `edit_plan` task (needs `story`;
-`--stages edit_plan`, `--edit-profile`, `--edit-target`, `--edit-target-hard`). `Advisors` (coverage, continuity,
-pacing) are optional contracts for future specialised modules; none exists or is wired. Not built: tracking identity or
-eyelines, music beat analysis, cover footage from other recordings, anything after the plan (compiler, timeline builder,
-Resolve adapter, quality control, revision).
+`--stages edit_plan`, `--edit-profile`, `--edit-target`, `--edit-target-hard`). The `Advisors` for coverage and
+continuity are optional contracts for future modules; none is wired. Pacing is no longer an advisor: the editor reads the
+stored `pacing_intelligence` analysis (`PacingCatalog`, or the pipeline payload) as evidence and still applies its own
+checks. Not built: tracking identity or eyelines, music analysis, cover footage from other recordings, anything after the
+plan (compiler, timeline builder, Resolve adapter, quality control, revision).
+
+`pacing_intelligence` MEASURES rhythm and RECOMMENDS (see its README); it decides no edit. It reads the STORED audio,
+content, video, alignment, inspection results and story plan through their catalogs (never runs a producer, never plans
+a story) and writes one `PacingAnalysis` as a derived library document of the first recording (`document_type:
+pacing_analysis`). Findings exist at word/pause, passage, shot/cut, section and whole-recording scale; each
+recommendation (14 types) carries exact `Rational` spans on the recording's own clock, evidence, confidence, benefit,
+trade-offs, limits and a safety class. Profiles (`generic top_10_ranking product_review unboxing talking_head tutorial
+interview_podcast documentary shorts_reels cinematic_montage`) and strategies (`concise balanced detailed high_energy
+cinematic`) are data; a target length ranks and reports, it forces nothing. Scores are heuristics with a stated basis, the
+attention curve is a prediction, and the audio energy rhythm (`AudioIntelligenceTimeline.energy_rhythm`) is an envelope
+baseline, not music analysis. In the pipeline it is the default-on `pacing` task (a pure read that needs `audio_analysis`;
+`--pacing-profile`, `--pacing-strategy`) and `edit_plan` waits for it.
 
 ---------------------------------------------------------------------------------------------------
 

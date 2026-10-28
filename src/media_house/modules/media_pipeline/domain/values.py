@@ -19,6 +19,7 @@ class TaskKind(StrEnum):
     CONTENT_ANALYSIS = "content_analysis"
     ALIGNMENT = "alignment"
     STORY = "story"
+    PACING = "pacing"
     EDIT_PLAN = "edit_plan"
     RELATIONSHIPS = "relationships"
 

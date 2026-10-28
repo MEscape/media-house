@@ -53,6 +53,7 @@ DEFAULT_STAGES: frozenset[TaskKind] = frozenset(
         TaskKind.CONTENT_ANALYSIS,
         TaskKind.ALIGNMENT,
         TaskKind.STORY,
+        TaskKind.PACING,
     }
 )
 
