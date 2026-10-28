@@ -14,6 +14,9 @@ owning module, not guessed:
   inspection (it never probes) and nothing else: it is opt-in and no other stage waits for it.
 * ``story_architecture`` plans the story from the content analysis, so it NEEDS that, and WANTS
   the alignment (it only attaches shots to visual opportunities, and reads a stored one itself).
+* ``edit_plan`` plans the edit from the story plan, so it NEEDS that; it WANTS the alignment, the
+  video analysis and the inspection (it reads stored ones itself, and only waits so they are not
+  missed). It is opt-in: see ``DEFAULT_STAGES``.
 * Inspection joins every non-empty run (see ``plan_asset``): it is cheap, cached, and the only
   authority on which streams exist. A stage only WANTS it, so a failed inspection never blocks.
 * Improvement stages create new assets nothing downstream reads: analyses run on the original,
@@ -57,6 +60,12 @@ STAGES: Mapping[TaskKind, Stage] = {
         needs_audio=True,
     ),
     TaskKind.RELATIONSHIPS: Stage(Lane.LIGHT, wants=_k(TaskKind.INSPECT)),
+    TaskKind.EDIT_PLAN: Stage(
+        Lane.LIGHT,
+        needs=_k(TaskKind.STORY),
+        wants=_k(TaskKind.ALIGNMENT, TaskKind.VIDEO_ANALYSIS, TaskKind.INSPECT),
+        needs_audio=True,
+    ),
     TaskKind.STORY: Stage(
         Lane.LIGHT,
         needs=_k(TaskKind.CONTENT_ANALYSIS),

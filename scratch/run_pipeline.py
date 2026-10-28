@@ -19,7 +19,8 @@ recompute, so a flag here could only pretend. Use a fresh ``--home`` to recomput
 A configuration file (``--config``, TOML or JSON) may set: ``stages``, ``content_uses_video``,
 ``cpu_only``, ``gpu_slots``, ``cpu_slots``, ``light_slots``, ``video_analysis_profile``,
 ``proxy_profile``, ``audio_improvement_profile``, ``video_source_profile``,
-``video_processing_profile``, ``story_format``, ``story_llm``. Command-line options win over
+``video_processing_profile``, ``story_format``, ``story_llm``, ``edit_profile``,
+``edit_target_seconds``, ``edit_target_hard``. Command-line options win over
 the file.
 """
 
@@ -93,6 +94,9 @@ class RunConfig(BaseModel):
     video_processing_profile: str | None = None
     story_format: str | None = None
     story_llm: bool | None = None
+    edit_profile: str | None = None
+    edit_target_seconds: float | None = None
+    edit_target_hard: bool | None = None
 
 
 class ConsoleObserver:
@@ -228,6 +232,22 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="let a local language model reword the story plan (grounded; off = deterministic)",
     )
+    add(
+        "--edit-profile",
+        help="editing profile for --stages edit_plan (talking_head, tutorial, documentary, short ...)",
+    )
+    add(
+        "--edit-target",
+        dest="edit_target_seconds",
+        type=float,
+        help="target length of the edit in seconds (an upper bound; a preference unless --edit-target-hard)",
+    )
+    add(
+        "--edit-target-hard",
+        action="store_true",
+        default=None,
+        help="treat --edit-target as a hard constraint",
+    )
     add("--gpu-slots", type=positive, help="tasks that may use the GPU lane at once (default 1)")
     add("--cpu-slots", type=positive, help="tasks that may use the CPU lane at once (default 2)")
     add(
@@ -252,6 +272,9 @@ def settings_from(config: RunConfig) -> StageSettings:
         video_processing_profile=config.video_processing_profile,
         story_format=config.story_format,
         story_llm=bool(config.story_llm),
+        edit_profile=config.edit_profile,
+        edit_target_seconds=config.edit_target_seconds,
+        edit_target_hard=bool(config.edit_target_hard),
         cpu_only=bool(config.cpu_only),
     )
 
@@ -356,6 +379,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "light_slots",
                 "story_format",
                 "story_llm",
+                "edit_profile",
+                "edit_target_seconds",
+                "edit_target_hard",
             )
             if getattr(args, key) is not None
         }

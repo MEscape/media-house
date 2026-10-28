@@ -116,6 +116,7 @@ def test_audio_only_asset_drops_picture_stages_and_their_dependents() -> None:
         K.AUDIO_ANALYSIS,
         K.CONTENT_ANALYSIS,
         K.STORY,
+        K.EDIT_PLAN,
         K.RELATIONSHIPS,
     }
     assert {K.THUMBNAIL, K.PROXY, K.VIDEO_ANALYSIS, K.ALIGNMENT} <= plan.not_applicable

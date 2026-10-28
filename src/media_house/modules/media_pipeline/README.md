@@ -18,6 +18,7 @@ input again reports `reused`. Public API: `application/contracts.py` (`MediaPipe
 | topics, key items, scores | `content_intelligence` | derived document; accepts upstream results as given |
 | speech-to-picture relations | `audio_visual_alignment` | derived document; accepts upstream results as given |
 | story plan (order, openings, priorities, issues) | `story_architecture` | derived document keyed by every input; accepts upstream results as given; a changed key adds a plan version |
+| edit plan (keep/cut/shorten/cover decisions as exact source ranges on a neutral timeline) | `editing_intelligence` | derived document keyed by the story's facts, every analysis, configuration and overrides; opt-in `edit_plan` task; a changed key adds a plan version |
 | relationship claims | `asset_relationships` | opt-in `relationships` task: `RelationshipDetection.analyze` from the STORED inspection (never probes); marks make a repeat a no-op |
 
 There is deliberately no pipeline cache or artifact registry: the library already is the single
@@ -40,6 +41,8 @@ inspect (joins every run)   thumbnail                       (light lane)
           +-----> alignment (light) <--+ needs audio_analysis + video_analysis
           |                  |
           +-> story (light) <+   needs content_analysis, wants alignment
+                |
+          edit_plan (light, opt-in)   needs story, wants alignment, video_analysis, inspection
 ```
 
 * Inspection is the only authority on which streams exist, so it is always in the graph. Audio
@@ -61,6 +64,11 @@ inspect (joins every run)   thumbnail                       (light lane)
   results, `Acquire.STORED` (it never asks the planner to analyse) and no language model unless `--story-llm`.
   It is `partial` only when one of its stages failed or a model that was asked for did not deliver; the missing
   picture side of an audio-only recording is not a degradation. Audio-only media get a story and no alignment.
+* `edit_plan` (opt-in, `--stages edit_plan`) runs after `story` with the in-memory story plan and analyses and
+  `Acquire.STORED`. It is not in the default stages: it is a decision that needs a chosen profile (`--edit-profile`) and
+  target length (`--edit-target`, `--edit-target-hard`), and the default run stores nothing nobody asked for. It is
+  `partial` when a hard constraint (a hard target) cannot be met without removing essential material. It plans the
+  story of ONE recording (the pipeline is per asset); a story of several recordings goes through `EditPlanner`.
 * Requesting a stage pulls in what it needs (`implied` in the report). A stage the media cannot
   support (picture stages on audio-only media) is `skipped_unavailable`, not a failure.
 
@@ -103,7 +111,7 @@ uv run pytest tests/unit/media_pipeline tests/integration/media_pipeline tests/a
 
 `pipeline.toml` keys: `stages`, `content_uses_video`, `cpu_only`, `gpu_slots`, `cpu_slots`,
 `light_slots`, `video_analysis_profile`, `proxy_profile`, `audio_improvement_profile`,
-`video_source_profile`, `video_processing_profile`, `story_format`, `story_llm` (unknown keys are errors; the command line
+`video_source_profile`, `video_processing_profile`, `story_format`, `story_llm`, `edit_profile`, `edit_target_seconds`, `edit_target_hard` (unknown keys are errors; the command line
 wins). Ctrl+C once finishes cleanly, twice stops now. The report is written atomically.
 
 Not offered, on purpose: `--force` / `--no-cache`. The owners expose no common way to recompute, so

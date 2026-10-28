@@ -581,8 +581,8 @@ asset. It reads through `ContentCatalog` / `AlignmentCatalog` (`Acquire.STORED` 
 compute a missing content analysis) and never transcribes, segments, probes or aligns. The plan RECOMMENDS and
 explains (recommended order with the reason for each move, openings with risks, priorities, ordering constraints,
 context dependencies, evidence links, completeness issues, visual opportunities, durations, alternatives); it never
-cuts or times: exact keep/cut/timing decisions belong to the editing stage, which reads the plan instead of
-repeating the reasoning (no editing module exists yet). Every beat/opening/claim names a `SourceRef` (asset,
+cuts or times: exact keep/cut/timing decisions belong to `editing_intelligence`, which reads the plan instead of
+repeating the reasoning. Every beat/opening/claim names a `SourceRef` (asset,
 segments, sentences, seconds); `Basis.INFERRED` marks what rests on structure, not a passage. Claims are always
 `unverified`; "unsupported" means no supporting passage in the recordings. The recorded order is kept unless the
 format allows reordering and a hard dependency points forward. A format (`StoryConfig("review")`) is a data entry in
@@ -598,6 +598,27 @@ flagged (`use one` / `parallel coverage`) and nothing is dropped; a detected cla
 order nor priority; rejected or stale claims are listed as `not_used`. `StoryPlan.asset_relations` keeps certainty,
 grade, evidence and the treatment; the relation revision is part of the plan's cache key, so a decision replans.
 The pipeline's opt-in `relationships` task (`--stages relationships`) runs detection for the asset after inspection.
+
+`editing_intelligence` DECIDES the edit from the story plan (see its README): validated `StoryPlan` + the STORED content,
+audio, video, alignment and inspection results in (read through their catalogs; `Acquire.STORED` default, `REQUEST` only
+lets `StoryPlanner` plan a missing story), one `EditPlan` out, stored as one derived library document of the first
+recording (`document_type: edit_plan`). It cuts nothing, renders nothing and names no timeline backend: the plan is
+exact source ranges (`Rational` seconds; frames only for a known constant rate; `Precision` says where a time comes
+from, only a shot boundary is `frame_exact`) placed on a backend-neutral timeline (clips on layers, explicit J/L
+`AudioBridge`s, cover footage on layer 1, `EffectRequest`s for later stages). Per sentence it makes a decision from
+SEPARATE signals (`keep`, `cut`, `engagement`, `narrative_risk`, `cut_point_confidence`, `continuity_risk`,
+`cover_need`; missing is `None`, never 0). Hard constraints (key information and its qualifications, needed context,
+ordering, premise/payoff, the profile's protected functions) can never be traded away; a removal of content is only
+`executable` when meaning is not at stake (filler, a recorded copy), otherwise `needs_review`. A target length (soft or
+hard) never removes essential material: a miss is reported (`unmet_constraints`). Profiles (`generic talking_head
+tutorial documentary short ...`) are data. A person's `ManualOverride` (keep/cut) survives replans. Validation errors
+(`Severity.ERROR`) mean the plan is never stored; checks that cannot be made from a proposal are `not_checked`, never
+passed. The cache key covers the story's facts, every analysis identity, configuration, overrides, advisors and versions;
+a changed key adds a plan version (`supersedes`). In the pipeline it is the OPT-IN `edit_plan` task (needs `story`;
+`--stages edit_plan`, `--edit-profile`, `--edit-target`, `--edit-target-hard`). `Advisors` (coverage, continuity,
+pacing) are optional contracts for future specialised modules; none exists or is wired. Not built: tracking identity or
+eyelines, music beat analysis, cover footage from other recordings, anything after the plan (compiler, timeline builder,
+Resolve adapter, quality control, revision).
 
 ---------------------------------------------------------------------------------------------------
 

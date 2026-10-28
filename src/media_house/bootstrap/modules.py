@@ -8,6 +8,7 @@ from media_house.modules.audio_improvement.module import AudioImprovementModule
 from media_house.modules.audio_intelligence.module import AudioIntelligenceModule
 from media_house.modules.audio_visual_alignment.module import AudioVisualAlignmentModule
 from media_house.modules.content_intelligence.module import ContentIntelligenceModule
+from media_house.modules.editing_intelligence.module import EditingIntelligenceModule
 from media_house.modules.image_adjustment.module import ImageAdjustmentModule
 from media_house.modules.media_inspection.module import MediaInspectionModule
 from media_house.modules.media_library.module import MediaLibraryModule
@@ -35,4 +36,5 @@ def installed_modules() -> Sequence[ApplicationModule]:
         AssetRelationshipsModule(),
         MediaPipelineModule(),
         StoryArchitectureModule(),
+        EditingIntelligenceModule(),
     )

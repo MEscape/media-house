@@ -41,7 +41,9 @@ from media_house.shared.logging import get_logger
 _log = get_logger(__name__)
 
 #: What a run does when it is not told otherwise: everything that only READS or ANALYSES. The
-#: heavy derivatives (proxy, improvement) are opt-in because they write new files.
+#: heavy derivatives (proxy, improvement) are opt-in because they write new files. So is the
+#: edit plan (``edit_plan``): it is cheap, but it is a DECISION that only means something with a
+#: chosen profile and target length, so a default run does not store a plan nobody asked for.
 DEFAULT_STAGES: frozenset[TaskKind] = frozenset(
     {
         TaskKind.INSPECT,

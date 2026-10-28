@@ -40,6 +40,17 @@ from media_house.modules.content_intelligence.application.contracts import (
     ContentConfig,
     EmbeddingSettings,
 )
+from media_house.modules.editing_intelligence.application.contracts import (
+    Acquire as EditAcquire,
+)
+from media_house.modules.editing_intelligence.application.contracts import (
+    DurationMode,
+    EditConfig,
+    EditPlanner,
+    PlanEditCommand,
+    PlanState,
+    TargetDuration,
+)
 from media_house.modules.media_inspection.application.contracts import (
     InspectionResult,
     InspectMediaCommand,
@@ -65,6 +76,7 @@ from media_house.modules.story_architecture.application.contracts import (
     PlanStoryCommand,
     StageState,
     StoryConfig,
+    StoryPlan,
     StoryPlanner,
 )
 from media_house.modules.video_improvement.application.contracts import (
@@ -99,6 +111,13 @@ class StageSettings:
     story_format: str | None = None
     #: Let a language model reword the story plan (off: the plan is fully deterministic).
     story_llm: bool = False
+    #: An editing profile name (``talking_head``, ``tutorial`` ...); ``None`` = the one named like
+    #: the story's format.
+    edit_profile: str | None = None
+    #: A target length for the edit in seconds (an upper bound); ``None`` = the story's own.
+    edit_target_seconds: float | None = None
+    #: Treat the target as a hard constraint instead of a preference.
+    edit_target_hard: bool = False
     #: Never use the GPU. Only the device settings change; results keep their identity because
     #: the owners leave the device out of their cache keys.
     cpu_only: bool = False
@@ -163,6 +182,7 @@ class ModuleExecutors:
         content_analyzer: ContentAnalyzer,
         aligner: AudioVisualAligner,
         story_planner: StoryPlanner,
+        edit_planner: EditPlanner,
         relationships: RelationshipDetection,
         settings: StageSettings | None = None,
     ) -> None:
@@ -177,6 +197,7 @@ class ModuleExecutors:
         self._content_analyzer = content_analyzer
         self._aligner = aligner
         self._story_planner = story_planner
+        self._edit_planner = edit_planner
         self._relationships = relationships
         self._settings = settings or StageSettings()
 
@@ -192,6 +213,7 @@ class ModuleExecutors:
             TaskKind.CONTENT_ANALYSIS: self.analyze_content,
             TaskKind.ALIGNMENT: self.align,
             TaskKind.STORY: self.story,
+            TaskKind.EDIT_PLAN: self.edit_plan,
             TaskKind.RELATIONSHIPS: self.relationships,
         }
 
@@ -476,6 +498,63 @@ class ModuleExecutors:
                     warnings=degraded,
                     facts=base.facts,
                     payload=result.plan,
+                )
+            case Err(error):
+                return _from_error(error)
+
+    def edit_plan(self, job: TaskJob) -> TaskResult:
+        """Plan the edit from the story plan and the in-memory upstream results (nothing is
+        recomputed). A hard target the material cannot meet is PARTIAL: a plan exists, a hard
+        constraint is not met."""
+        asset_id = job.id.asset_id
+        story = self._upstream(job, TaskKind.STORY, StoryPlan)
+        content = self._upstream(job, TaskKind.CONTENT_ANALYSIS, ContentAnalysis)
+        audio = self._upstream(job, TaskKind.AUDIO_ANALYSIS, AudioIntelligenceTimeline)
+        video = self._upstream(job, TaskKind.VIDEO_ANALYSIS, VideoAnalysis)
+        alignment = self._upstream(job, TaskKind.ALIGNMENT, AlignmentDocument)
+        seconds = self._settings.edit_target_seconds
+        target = (
+            None
+            if seconds is None
+            else TargetDuration(
+                high=seconds,
+                mode=DurationMode.HARD if self._settings.edit_target_hard else DurationMode.SOFT,
+            )
+        )
+        command = PlanEditCommand(
+            (asset_id,),
+            config=EditConfig(profile=self._settings.edit_profile, target=target),
+            story_format=self._settings.story_format,
+            story_plan=story,
+            acquire=EditAcquire.STORED,
+            content_analyses={} if content is None else {asset_id: content},
+            audio_timelines={} if audio is None else {asset_id: audio},
+            video_analyses={} if video is None else {asset_id: video},
+            alignments={} if alignment is None else {asset_id: alignment},
+        )
+        match self._edit_planner.execute(command, job.ctx):
+            case Ok(result):
+                plan = result.plan
+                unmet = plan.state is PlanState.UNMET_CONSTRAINTS
+                base = _outcome(
+                    result.created,
+                    edit_plan_asset_id=result.asset.id,
+                    plan_version=plan.plan_version,
+                    profile=plan.profile,
+                    placements=len(plan.placements),
+                    decisions=len(plan.decisions),
+                    issues=len(plan.issues),
+                )
+                return TaskResult(
+                    TaskStatus.PARTIAL if unmet else base.status,
+                    "a hard constraint is not met" if unmet else "",
+                    warnings=tuple(
+                        i.detail for i in plan.issues if i.kind.value == "target_not_met"
+                    )
+                    if unmet
+                    else (),
+                    facts=base.facts,
+                    payload=plan,
                 )
             case Err(error):
                 return _from_error(error)
