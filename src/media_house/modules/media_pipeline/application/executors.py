@@ -101,6 +101,17 @@ from media_house.modules.proxy_manager.application.contracts import (
     ProxyDto,
     ProxyManager,
 )
+from media_house.modules.reframing_intelligence.application.contracts import (
+    AnalyzeReframingCommand,
+    ReframingAnalysis,
+    ReframingAnalyzer,
+    ReframingConfig,
+    SafeArea,
+    TargetFormat,
+)
+from media_house.modules.reframing_intelligence.application.contracts import (
+    ResultState as ReframingState,
+)
 from media_house.modules.story_architecture.application.contracts import (
     Acquire as StoryAcquire,
 )
@@ -123,9 +134,15 @@ from media_house.modules.video_intelligence.application.contracts import (
     VideoAnalysis,
     VideoAnalyzer,
 )
-from media_house.shared.errors import Err, Ok
+from media_house.shared.errors import Err, InvariantViolation, Ok
 
-_UNAVAILABLE_CODES = ("no_audio_track", "no_video_stream", "nothing_to_cover", "nothing_to_judge")
+_UNAVAILABLE_CODES = (
+    "no_audio_track",
+    "no_video_stream",
+    "nothing_to_cover",
+    "nothing_to_judge",
+    "nothing_to_frame",
+)
 _DEGRADED = {"not_available", "failed"}
 _NO_AUDIO = TaskResult(TaskStatus.SKIPPED_UNAVAILABLE, "the inspection found no audio stream")
 
@@ -160,6 +177,17 @@ class StageSettings:
     continuity_profile: str | None = None
     #: 0.5 lenient .. 1.5 strict.
     continuity_strictness: float = 1.0
+    #: The output shape (``9:16``, ``16:9``, ``1:1`` or a custom ``W:H``) the reframing stage plans
+    #: crops for. There is no default: a crop means nothing without a chosen format, so the stage
+    #: is skipped (and says so) until one is given.
+    reframing_target: str | None = None
+    #: The output size in pixels (width, height); ``None`` = the standard size of the format.
+    reframing_resolution: tuple[int, int] | None = None
+    #: A reframing profile (``talking_head``, ``shorts_reels`` ...); ``None`` = by the story format.
+    reframing_profile: str | None = None
+    #: Reserved rectangles of the OUTPUT picture (captions, a title, an interface margin). Nothing
+    #: is assumed: with none listed there is no safe-area constraint.
+    reframing_safe_areas: tuple[SafeArea, ...] = ()
     #: Never use the GPU. Only the device settings change; results keep their identity because
     #: the owners leave the device out of their cache keys.
     cpu_only: bool = False
@@ -231,6 +259,7 @@ class ModuleExecutors:
         pacing_analyzer: PacingAnalyzer,
         broll_analyzer: BrollAnalyzer,
         continuity_analyzer: ContinuityAnalyzer,
+        reframing_analyzer: ReframingAnalyzer,
         edit_planner: EditPlanner,
         relationships: RelationshipDetection,
         settings: StageSettings | None = None,
@@ -249,6 +278,7 @@ class ModuleExecutors:
         self._pacing_analyzer = pacing_analyzer
         self._broll_analyzer = broll_analyzer
         self._continuity_analyzer = continuity_analyzer
+        self._reframing_analyzer = reframing_analyzer
         self._edit_planner = edit_planner
         self._relationships = relationships
         self._settings = settings or StageSettings()
@@ -268,6 +298,7 @@ class ModuleExecutors:
             TaskKind.PACING: self.pacing,
             TaskKind.BROLL: self.broll,
             TaskKind.CONTINUITY: self.continuity,
+            TaskKind.REFRAMING: self.reframing,
             TaskKind.EDIT_PLAN: self.edit_plan,
             TaskKind.RELATIONSHIPS: self.relationships,
         }
@@ -705,6 +736,57 @@ class ModuleExecutors:
             case Err(error):
                 return _from_error(error)
 
+    def reframing(self, job: TaskJob) -> TaskResult:
+        """Recommend a crop per shot for the chosen target format from the in-memory upstream
+        results (nothing is recomputed). The editing stage consumes the result of this run."""
+        asset_id = job.id.asset_id
+        s = self._settings
+        if s.reframing_target is None:
+            return TaskResult(
+                TaskStatus.SKIPPED_UNAVAILABLE,
+                "no target format chosen: framing means nothing without one (reframing_target)",
+            )
+        try:
+            width, height = s.reframing_resolution or (None, None)
+            target = TargetFormat.of(s.reframing_target, width=width, height=height)
+        except InvariantViolation as exc:
+            return TaskResult(TaskStatus.FAILED, exc.user_message)
+        command = AnalyzeReframingCommand(
+            (asset_id,),
+            target,
+            config=ReframingConfig(profile=s.reframing_profile, safe_areas=s.reframing_safe_areas),
+            story_format=s.story_format,
+            story_plan=self._upstream(job, TaskKind.STORY, StoryPlan),
+            video_analyses=_given(
+                asset_id, self._upstream(job, TaskKind.VIDEO_ANALYSIS, VideoAnalysis)
+            ),
+            alignments=_given(asset_id, self._upstream(job, TaskKind.ALIGNMENT, AlignmentDocument)),
+        )
+        match self._reframing_analyzer.execute(command, job.ctx):
+            case Ok(result):
+                analysis = result.analysis
+                partial = analysis.state is ReframingState.PARTIAL
+                base = _outcome(
+                    result.created,
+                    reframing_asset_id=result.asset.id,
+                    analysis_version=analysis.analysis_version,
+                    target=analysis.target.name,
+                    profile=analysis.profile,
+                    shots=analysis.metrics.shots,
+                    reused_shots=analysis.metrics.reused,
+                    unreframeable=analysis.metrics.unreframeable,
+                    uncertain=analysis.metrics.uncertain,
+                )
+                return TaskResult(
+                    TaskStatus.PARTIAL if partial else base.status,
+                    "some shots had no subject or quality evidence" if partial else "",
+                    warnings=tuple(r.reasons[0] for r in analysis.unreframeable() if r.reasons)[:3],
+                    facts=base.facts,
+                    payload=analysis,
+                )
+            case Err(error):
+                return _from_error(error)
+
     def edit_plan(self, job: TaskJob) -> TaskResult:
         """Plan the edit from the story plan and the in-memory upstream results (nothing is
         recomputed). A hard target the material cannot meet is PARTIAL: a plan exists, a hard
@@ -736,6 +818,8 @@ class ModuleExecutors:
             alignments={} if alignment is None else {asset_id: alignment},
             pacing=self._upstream(job, TaskKind.PACING, PacingAnalysis),
             broll=self._upstream(job, TaskKind.BROLL, BrollAnalysis),
+            reframing=self._upstream(job, TaskKind.REFRAMING, ReframingAnalysis),
+            reframing_target=self._settings.reframing_target,
         )
         match self._edit_planner.execute(command, job.ctx):
             case Ok(result):

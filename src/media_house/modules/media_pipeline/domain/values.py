@@ -22,6 +22,7 @@ class TaskKind(StrEnum):
     PACING = "pacing"
     BROLL = "broll"
     CONTINUITY = "continuity"
+    REFRAMING = "reframing"
     EDIT_PLAN = "edit_plan"
     RELATIONSHIPS = "relationships"
 

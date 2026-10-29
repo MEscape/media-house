@@ -49,6 +49,7 @@ def executors(settings: StageSettings | None = None, **owners: Any) -> ModuleExe
         pacing_analyzer=owners.get("pacing_analyzer", fail),
         broll_analyzer=owners.get("broll_analyzer", fail),
         continuity_analyzer=owners.get("continuity_analyzer", fail),
+        reframing_analyzer=owners.get("reframing_analyzer", fail),
         edit_planner=owners.get("edit_planner", fail),
         relationships=owners.get("relationships", fail),
         settings=settings,

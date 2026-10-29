@@ -21,6 +21,7 @@ input again reports `reused`. Public API: `application/contracts.py` (`MediaPipe
 | edit plan (keep/cut/shorten/cover decisions as exact source ranges on a neutral timeline) | `editing_intelligence` | derived document keyed by the story's facts, every analysis, configuration and overrides; opt-in `edit_plan` task; a changed key adds a plan version |
 | pacing analysis (rhythm findings and recommendations per scale) | `pacing_intelligence` | derived document keyed by every input identity, the story's facts, profile, strategy and target; default-on `pacing` task (a pure read); a changed key adds a version |
 | B-roll analysis (footage of the whole library for the passages that need it, gaps) | `broll_intelligence` | derived document keyed by the passages, the searched assets' indexes, encoders, scope and configuration; opt-in `broll` task (a library-wide read); a changed key adds a version |
+| framing recommendations (crop, keyframes, feasibility per shot for one target format) | `reframing_intelligence` | derived document keyed by every shot's evidence, the target format and resolution, the configuration and safe areas; opt-in `reframing` task (a pure read, skipped until a target is given); unchanged shots are carried over |
 | continuity analysis (issues at the cuts of a proposed edit, scores, repairs) | `continuity_intelligence` | derived document keyed by every cut's fingerprint, the plan, decisions and configuration; opt-in `continuity` task (a pure read); unchanged cuts are carried over |
 | relationship claims | `asset_relationships` | opt-in `relationships` task: `RelationshipDetection.analyze` from the STORED inspection (never probes); marks make a repeat a no-op |
 
@@ -49,7 +50,10 @@ inspect (joins every run)   thumbnail                       (light lane)
                 |          story, inspect (nothing waits for it except edit_plan)
           broll (light, opt-in)   needs content_analysis, wants story, alignment, audio_analysis,
                 |         video_analysis, pacing, inspect
-          edit_plan (light, opt-in)   needs story, wants alignment, video_analysis, inspection, pacing, broll
+          reframing (light, opt-in)   needs video_analysis, wants story, alignment, inspect
+                |                     (skipped until --reframe-target names a format)
+          edit_plan (light, opt-in)   needs story, wants alignment, video_analysis, inspection, pacing, broll,
+                |                     reframing
                 |
           continuity (light, opt-in)  needs edit_plan, wants broll, alignment, audio_analysis,
                                       video_analysis, inspect
@@ -91,6 +95,11 @@ inspect (joins every run)   thumbnail                       (light lane)
   target length (`--edit-target`, `--edit-target-hard`), and the default run stores nothing nobody asked for. It is
   `partial` when a hard constraint (a hard target) cannot be met without removing essential material. It plans the
   story of ONE recording (the pipeline is per asset); a story of several recordings goes through `EditPlanner`.
+* `reframing` (opt-in, `--stages reframing --reframe-target 9:16`, `--reframe-resolution WxH`, `--reframe-profile`,
+  `--reframe-safe-area NAME=x0,y0,x1,y1` repeatable) recommends a crop per shot for ONE target format: light lane, needs
+  `video_analysis`, wants story, alignment and inspection. It is skipped (with the reason) until a target is chosen, since a crop
+  means nothing without a format. `edit_plan` wants it and is handed its payload (and the target), so within one run the editor
+  attaches its references to the clips; it does not want the continuity analysis (that runs after the plan) and reads a stored one.
 * `continuity` (opt-in, `--stages continuity`, `--continuity-profile`, `--continuity-strictness`) judges the cuts of the
   run's edit plan: `application/sequence.py` maps the plan to continuity's own `ProposedSequence` (source ranges, which
   cuts are covered, audio bridges, trimmed speech) and the analyzer reads the stored analyses. It needs `edit_plan` and

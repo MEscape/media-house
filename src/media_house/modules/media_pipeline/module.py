@@ -20,6 +20,7 @@ from media_house.modules.media_pipeline.application.executors import ModuleExecu
 from media_house.modules.media_pipeline.application.run_pipeline import RunPipeline
 from media_house.modules.pacing_intelligence.application.contracts import PacingAnalyzer
 from media_house.modules.proxy_manager.application.contracts import ProxyManager
+from media_house.modules.reframing_intelligence.application.contracts import ReframingAnalyzer
 from media_house.modules.story_architecture.application.contracts import StoryPlanner
 from media_house.modules.video_improvement.application.contracts import VideoImprover
 from media_house.modules.video_intelligence.application.contracts import VideoAnalyzer
@@ -48,6 +49,7 @@ class MediaPipelineModule:
                     pacing_analyzer=c.resolve(PacingAnalyzer),
                     broll_analyzer=c.resolve(BrollAnalyzer),
                     continuity_analyzer=c.resolve(ContinuityAnalyzer),
+                    reframing_analyzer=c.resolve(ReframingAnalyzer),
                     edit_planner=c.resolve(EditPlanner),
                     relationships=c.resolve(RelationshipDetection),
                     settings=settings,

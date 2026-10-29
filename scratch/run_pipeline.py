@@ -20,8 +20,9 @@ A configuration file (``--config``, TOML or JSON) may set: ``stages``, ``content
 ``cpu_only``, ``gpu_slots``, ``cpu_slots``, ``light_slots``, ``video_analysis_profile``,
 ``proxy_profile``, ``audio_improvement_profile``, ``video_source_profile``,
 ``video_processing_profile``, ``story_format``, ``story_llm``, ``edit_profile``,
-``edit_target_seconds``, ``edit_target_hard``, ``pacing_profile``, ``pacing_strategy``. Command-line options win over
-the file.
+``edit_target_seconds``, ``edit_target_hard``, ``pacing_profile``, ``pacing_strategy``,
+``reframing_target``, ``reframing_resolution``, ``reframing_profile``, ``reframing_safe_areas``.
+Command-line options win over the file.
 """
 
 import argparse
@@ -51,6 +52,7 @@ from media_house.modules.media_pipeline.application.contracts import (
     TaskReport,
     TaskStatus,
 )
+from media_house.modules.reframing_intelligence.application.contracts import SafeArea
 from media_house.shared.concurrency import CancellationToken, JobContext, JobProgress
 from media_house.shared.configuration import Environment
 from media_house.shared.errors import Err
@@ -102,6 +104,10 @@ class RunConfig(BaseModel):
     broll_profile: str | None = None
     continuity_profile: str | None = None
     continuity_strictness: float | None = None
+    reframing_target: str | None = None
+    reframing_resolution: str | None = None
+    reframing_profile: str | None = None
+    reframing_safe_areas: list[str] | None = None
 
 
 class ConsoleObserver:
@@ -265,6 +271,30 @@ def build_parser() -> argparse.ArgumentParser:
         help="0.5 lenient .. 1.5 strict (default 1.0)",
     )
     add(
+        "--reframe-target",
+        dest="reframing_target",
+        help="output shape for --stages reframing: 9:16, 16:9, 1:1 or any W:H (no default: a crop "
+        "means nothing without one)",
+    )
+    add(
+        "--reframe-resolution",
+        dest="reframing_resolution",
+        help="output size in pixels, WIDTHxHEIGHT (default: the standard size of the target)",
+    )
+    add(
+        "--reframe-profile",
+        dest="reframing_profile",
+        help="reframing profile (talking_head, interview_podcast, shorts_reels, cinematic ...); "
+        "default: by story format",
+    )
+    add(
+        "--reframe-safe-area",
+        dest="reframing_safe_areas",
+        action="append",
+        help="a reserved rectangle of the OUTPUT picture, NAME=x0,y0,x1,y1 in 0-1 (repeatable; "
+        "none is assumed)",
+    )
+    add(
         "--pacing-strategy",
         choices=["concise", "balanced", "detailed", "high_energy", "cinematic"],
         help="how tight the pacing recommendations are (default balanced)",
@@ -290,6 +320,27 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def parse_resolution(text: str | None) -> tuple[int, int] | None:
+    if text is None:
+        return None
+    width, _, height = text.lower().partition("x")
+    if not (width.isdigit() and height.isdigit()):
+        raise SystemExit(f"--reframe-resolution wants WIDTHxHEIGHT, not {text!r}")
+    return int(width), int(height)
+
+
+def parse_safe_areas(texts: Sequence[str] | None) -> tuple[SafeArea, ...]:
+    areas = []
+    for text in texts or ():
+        name, _, numbers = text.partition("=")
+        try:
+            x0, y0, x1, y1 = (float(n) for n in numbers.split(","))
+        except ValueError:
+            raise SystemExit(f"--reframe-safe-area wants NAME=x0,y0,x1,y1, not {text!r}") from None
+        areas.append(SafeArea(name or "area", x0, y0, x1, y1))
+    return tuple(areas)
+
+
 def settings_from(config: RunConfig) -> StageSettings:
     return StageSettings(
         video_analysis_profile=config.video_analysis_profile,
@@ -307,6 +358,10 @@ def settings_from(config: RunConfig) -> StageSettings:
         broll_profile=config.broll_profile,
         continuity_profile=config.continuity_profile,
         continuity_strictness=config.continuity_strictness or 1.0,
+        reframing_target=config.reframing_target,
+        reframing_resolution=parse_resolution(config.reframing_resolution),
+        reframing_profile=config.reframing_profile,
+        reframing_safe_areas=parse_safe_areas(config.reframing_safe_areas),
         cpu_only=bool(config.cpu_only),
     )
 
@@ -419,6 +474,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "broll_profile",
                 "continuity_profile",
                 "continuity_strictness",
+                "reframing_target",
+                "reframing_resolution",
+                "reframing_profile",
+                "reframing_safe_areas",
             )
             if getattr(args, key) is not None
         }

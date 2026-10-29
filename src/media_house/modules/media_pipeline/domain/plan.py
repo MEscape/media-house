@@ -29,9 +29,15 @@ owning module, not guessed:
   itself and only waits so they are not missed). It is opt-in and runs AFTER the edit plan: the
   editing stage reads its stored result on its next planning, so a second run uses what the first
   found.
+* ``reframing`` recommends a crop per shot for ONE target format, so it NEEDS the video analysis
+  (the tracks it places a window on); it WANTS the story plan, alignment and inspection (it reads
+  stored ones itself and only waits so they are not missed). It is opt-in: it means nothing
+  without a chosen target format. It does NOT want the continuity analysis (that runs after the
+  edit plan, which wants this): it reads a stored one if there is one.
 * ``edit_plan`` plans the edit from the story plan, so it NEEDS that; it WANTS the alignment, the
-  video analysis, the pacing analysis, the B-roll analysis and the inspection (it reads stored
-  ones itself, and only waits so they are not missed). It is opt-in: see ``DEFAULT_STAGES``.
+  video analysis, the pacing analysis, the B-roll analysis, the framing analysis and the
+  inspection (it reads stored ones itself, and only waits so they are not missed). It is opt-in:
+  see ``DEFAULT_STAGES``.
 * Inspection joins every non-empty run (see ``plan_asset``): it is cheap, cached, and the only
   authority on which streams exist. A stage only WANTS it, so a failed inspection never blocks.
 * Improvement stages create new assets nothing downstream reads: analyses run on the original,
@@ -112,6 +118,12 @@ STAGES: Mapping[TaskKind, Stage] = {
         ),
         needs_audio=True,
     ),
+    TaskKind.REFRAMING: Stage(
+        Lane.LIGHT,
+        needs=_k(TaskKind.VIDEO_ANALYSIS),
+        wants=_k(TaskKind.STORY, TaskKind.ALIGNMENT, TaskKind.INSPECT),
+        needs_video=True,
+    ),
     TaskKind.EDIT_PLAN: Stage(
         Lane.LIGHT,
         needs=_k(TaskKind.STORY),
@@ -120,6 +132,7 @@ STAGES: Mapping[TaskKind, Stage] = {
             TaskKind.VIDEO_ANALYSIS,
             TaskKind.PACING,
             TaskKind.BROLL,
+            TaskKind.REFRAMING,
             TaskKind.INSPECT,
         ),
         needs_audio=True,
