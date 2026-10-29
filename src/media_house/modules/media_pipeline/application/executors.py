@@ -32,6 +32,15 @@ from media_house.modules.audio_visual_alignment.application.contracts import (
     AlignmentDocument,
     AudioVisualAligner,
 )
+from media_house.modules.broll_intelligence.application.contracts import (
+    AnalyzeBrollCommand,
+    BrollAnalysis,
+    BrollAnalyzer,
+    BrollConfig,
+)
+from media_house.modules.broll_intelligence.application.contracts import (
+    ResultState as BrollState,
+)
 from media_house.modules.content_intelligence.application.contracts import (
     AnalyzeContentCommand,
     AudioUse,
@@ -106,7 +115,7 @@ from media_house.modules.video_intelligence.application.contracts import (
 )
 from media_house.shared.errors import Err, Ok
 
-_UNAVAILABLE_CODES = ("no_audio_track", "no_video_stream")
+_UNAVAILABLE_CODES = ("no_audio_track", "no_video_stream", "nothing_to_cover")
 _DEGRADED = {"not_available", "failed"}
 _NO_AUDIO = TaskResult(TaskStatus.SKIPPED_UNAVAILABLE, "the inspection found no audio stream")
 
@@ -135,6 +144,8 @@ class StageSettings:
     pacing_profile: str | None = None
     #: ``concise``, ``balanced``, ``detailed``, ``high_energy`` or ``cinematic``.
     pacing_strategy: str | None = None
+    #: A B-roll profile name (``tutorial``, ``documentary`` ...); ``None`` = by the story's format.
+    broll_profile: str | None = None
     #: Never use the GPU. Only the device settings change; results keep their identity because
     #: the owners leave the device out of their cache keys.
     cpu_only: bool = False
@@ -204,6 +215,7 @@ class ModuleExecutors:
         aligner: AudioVisualAligner,
         story_planner: StoryPlanner,
         pacing_analyzer: PacingAnalyzer,
+        broll_analyzer: BrollAnalyzer,
         edit_planner: EditPlanner,
         relationships: RelationshipDetection,
         settings: StageSettings | None = None,
@@ -220,6 +232,7 @@ class ModuleExecutors:
         self._aligner = aligner
         self._story_planner = story_planner
         self._pacing_analyzer = pacing_analyzer
+        self._broll_analyzer = broll_analyzer
         self._edit_planner = edit_planner
         self._relationships = relationships
         self._settings = settings or StageSettings()
@@ -237,6 +250,7 @@ class ModuleExecutors:
             TaskKind.ALIGNMENT: self.align,
             TaskKind.STORY: self.story,
             TaskKind.PACING: self.pacing,
+            TaskKind.BROLL: self.broll,
             TaskKind.EDIT_PLAN: self.edit_plan,
             TaskKind.RELATIONSHIPS: self.relationships,
         }
@@ -577,6 +591,55 @@ class ModuleExecutors:
             case Err(error):
                 return _from_error(error)
 
+    def broll(self, job: TaskJob) -> TaskResult:
+        """Find supplementary footage for the passages from the in-memory upstream results and the
+        library's stored shot indexes (nothing is analysed). The story plan and pacing analysis are
+        read when this run made them; B-roll never asks for them."""
+        asset_id = job.id.asset_id
+        command = AnalyzeBrollCommand(
+            (asset_id,),
+            config=BrollConfig(profile=self._settings.broll_profile),
+            story_format=self._settings.story_format,
+            story_plan=self._upstream(job, TaskKind.STORY, StoryPlan),
+            content_analyses=_given(
+                asset_id, self._upstream(job, TaskKind.CONTENT_ANALYSIS, ContentAnalysis)
+            ),
+            audio_timelines=_given(
+                asset_id, self._upstream(job, TaskKind.AUDIO_ANALYSIS, AudioIntelligenceTimeline)
+            ),
+            video_analyses=_given(
+                asset_id, self._upstream(job, TaskKind.VIDEO_ANALYSIS, VideoAnalysis)
+            ),
+            alignments=_given(asset_id, self._upstream(job, TaskKind.ALIGNMENT, AlignmentDocument)),
+            pacing=self._upstream(job, TaskKind.PACING, PacingAnalysis),
+        )
+        match self._broll_analyzer.execute(command, job.ctx):
+            case Ok(result):
+                analysis = result.analysis
+                partial = analysis.state is BrollState.PARTIAL
+                base = _outcome(
+                    result.created,
+                    broll_asset_id=result.asset.id,
+                    analysis_version=analysis.analysis_version,
+                    profile=analysis.profile,
+                    recommendations=len(analysis.recommendations),
+                    covered=len(analysis.satisfied()),
+                    gaps=len(analysis.gaps),
+                    searched_assets=analysis.pool.assets,
+                )
+                return TaskResult(
+                    TaskStatus.PARTIAL if partial else base.status,
+                    "part of the library or a search model could not be used" if partial else "",
+                    warnings=(
+                        *(g.reason for g in analysis.gaps[:3]),
+                        *(f"{a}: {why}" for a, why in analysis.pool.skipped[:2]),
+                    ),
+                    facts=base.facts,
+                    payload=analysis,
+                )
+            case Err(error):
+                return _from_error(error)
+
     def edit_plan(self, job: TaskJob) -> TaskResult:
         """Plan the edit from the story plan and the in-memory upstream results (nothing is
         recomputed). A hard target the material cannot meet is PARTIAL: a plan exists, a hard
@@ -607,6 +670,7 @@ class ModuleExecutors:
             video_analyses={} if video is None else {asset_id: video},
             alignments={} if alignment is None else {asset_id: alignment},
             pacing=self._upstream(job, TaskKind.PACING, PacingAnalysis),
+            broll=self._upstream(job, TaskKind.BROLL, BrollAnalysis),
         )
         match self._edit_planner.execute(command, job.ctx):
             case Ok(result):

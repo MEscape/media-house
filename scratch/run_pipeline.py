@@ -99,6 +99,7 @@ class RunConfig(BaseModel):
     edit_target_hard: bool | None = None
     pacing_profile: str | None = None
     pacing_strategy: str | None = None
+    broll_profile: str | None = None
 
 
 class ConsoleObserver:
@@ -249,6 +250,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="pacing profile (talking_head, tutorial, documentary, shorts_reels ...); default: by story format",
     )
     add(
+        "--broll-profile",
+        help="B-roll profile for --stages broll (tutorial, documentary, product_review ...); default: by story format",
+    )
+    add(
         "--pacing-strategy",
         choices=["concise", "balanced", "detailed", "high_energy", "cinematic"],
         help="how tight the pacing recommendations are (default balanced)",
@@ -288,6 +293,7 @@ def settings_from(config: RunConfig) -> StageSettings:
         edit_target_hard=bool(config.edit_target_hard),
         pacing_profile=config.pacing_profile,
         pacing_strategy=config.pacing_strategy,
+        broll_profile=config.broll_profile,
         cpu_only=bool(config.cpu_only),
     )
 
@@ -397,6 +403,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "edit_target_hard",
                 "pacing_profile",
                 "pacing_strategy",
+                "broll_profile",
             )
             if getattr(args, key) is not None
         }

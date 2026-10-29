@@ -20,6 +20,7 @@ class TaskKind(StrEnum):
     ALIGNMENT = "alignment"
     STORY = "story"
     PACING = "pacing"
+    BROLL = "broll"
     EDIT_PLAN = "edit_plan"
     RELATIONSHIPS = "relationships"
 

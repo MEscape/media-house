@@ -9,6 +9,7 @@ from media_house.modules.asset_relationships.application.contracts import Relati
 from media_house.modules.audio_improvement.application.contracts import AudioImprover
 from media_house.modules.audio_intelligence.application.contracts import AudioAnalyzer
 from media_house.modules.audio_visual_alignment.application.contracts import AudioVisualAligner
+from media_house.modules.broll_intelligence.application.contracts import BrollAnalyzer
 from media_house.modules.content_intelligence.application.contracts import ContentAnalyzer
 from media_house.modules.editing_intelligence.application.contracts import EditPlanner
 from media_house.modules.media_inspection.application.contracts import MediaInspector
@@ -44,6 +45,7 @@ class MediaPipelineModule:
                     aligner=c.resolve(AudioVisualAligner),
                     story_planner=c.resolve(StoryPlanner),
                     pacing_analyzer=c.resolve(PacingAnalyzer),
+                    broll_analyzer=c.resolve(BrollAnalyzer),
                     edit_planner=c.resolve(EditPlanner),
                     relationships=c.resolve(RelationshipDetection),
                     settings=settings,

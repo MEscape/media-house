@@ -117,6 +117,7 @@ def test_audio_only_asset_drops_picture_stages_and_their_dependents() -> None:
         K.CONTENT_ANALYSIS,
         K.STORY,
         K.PACING,
+        K.BROLL,
         K.EDIT_PLAN,
         K.RELATIONSHIPS,
     }

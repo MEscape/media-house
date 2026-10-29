@@ -18,9 +18,15 @@ owning module, not guessed:
   WANTS the content analysis, video analysis, alignment, story plan and inspection (it reads stored
   ones itself and only waits so they are not missed). It is a pure read of stored results, so it is
   part of the default stages.
+* ``broll`` finds supplementary footage for the passages that need it, so it NEEDS the content
+  analysis (the passages); it WANTS the story plan, alignment, video analysis, pacing analysis and
+  inspection (it reads stored ones itself and only waits so they are not missed). The footage it
+  searches is the whole library's STORED shot indexes, which no task of this run produces. It is
+  opt-in: a library-wide read is cheap per asset but grows with the library, and a recommendation
+  only means something once a person has chosen to look for footage.
 * ``edit_plan`` plans the edit from the story plan, so it NEEDS that; it WANTS the alignment, the
-  video analysis, the pacing analysis and the inspection (it reads stored ones itself, and only
-  waits so they are not missed). It is opt-in: see ``DEFAULT_STAGES``.
+  video analysis, the pacing analysis, the B-roll analysis and the inspection (it reads stored
+  ones itself, and only waits so they are not missed). It is opt-in: see ``DEFAULT_STAGES``.
 * Inspection joins every non-empty run (see ``plan_asset``): it is cheap, cached, and the only
   authority on which streams exist. A stage only WANTS it, so a failed inspection never blocks.
 * Improvement stages create new assets nothing downstream reads: analyses run on the original,
@@ -76,10 +82,29 @@ STAGES: Mapping[TaskKind, Stage] = {
         ),
         needs_audio=True,
     ),
+    TaskKind.BROLL: Stage(
+        Lane.LIGHT,
+        needs=_k(TaskKind.CONTENT_ANALYSIS),
+        wants=_k(
+            TaskKind.STORY,
+            TaskKind.ALIGNMENT,
+            TaskKind.AUDIO_ANALYSIS,
+            TaskKind.VIDEO_ANALYSIS,
+            TaskKind.PACING,
+            TaskKind.INSPECT,
+        ),
+        needs_audio=True,
+    ),
     TaskKind.EDIT_PLAN: Stage(
         Lane.LIGHT,
         needs=_k(TaskKind.STORY),
-        wants=_k(TaskKind.ALIGNMENT, TaskKind.VIDEO_ANALYSIS, TaskKind.PACING, TaskKind.INSPECT),
+        wants=_k(
+            TaskKind.ALIGNMENT,
+            TaskKind.VIDEO_ANALYSIS,
+            TaskKind.PACING,
+            TaskKind.BROLL,
+            TaskKind.INSPECT,
+        ),
         needs_audio=True,
     ),
     TaskKind.STORY: Stage(
