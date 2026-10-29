@@ -124,10 +124,12 @@ def test_pacing_does_not_depend_on_editing_or_the_pipeline() -> None:
     assert offenders == []
 
 
-def test_only_the_pipeline_the_editing_stage_and_the_composition_root_depend_on_pacing() -> None:
+def test_only_the_pipeline_its_consumers_and_the_composition_root_depend_on_pacing() -> None:
+    """The editing stage and B-roll (places that need a change of picture) read it as evidence."""
     allowed = (
         "media_house.modules.media_pipeline",
         "media_house.modules.editing_intelligence",
+        "media_house.modules.broll_intelligence",
         "media_house.bootstrap",
     )
     offenders = [

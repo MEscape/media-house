@@ -54,11 +54,12 @@ def test_story_does_no_analysis_or_storage_of_its_own() -> None:
     assert offenders == []
 
 
-def test_only_the_pipeline_the_editing_stage_and_the_composition_root_depend_on_story() -> None:
+def test_only_the_pipeline_its_consumers_and_the_composition_root_depend_on_story() -> None:
     allowed = (
         "media_house.modules.media_pipeline",
         "media_house.modules.editing_intelligence",
         "media_house.modules.pacing_intelligence",
+        "media_house.modules.broll_intelligence",
         "media_house.bootstrap",
     )
     offenders = [
