@@ -24,6 +24,11 @@ owning module, not guessed:
   searches is the whole library's STORED shot indexes, which no task of this run produces. It is
   opt-in: a library-wide read is cheap per asset but grows with the library, and a recommendation
   only means something once a person has chosen to look for footage.
+* ``continuity`` judges the cuts of the PROPOSED edit, so it NEEDS the edit plan; it WANTS the
+  B-roll analysis, alignment, video and audio analyses and the inspection (it reads stored ones
+  itself and only waits so they are not missed). It is opt-in and runs AFTER the edit plan: the
+  editing stage reads its stored result on its next planning, so a second run uses what the first
+  found.
 * ``edit_plan`` plans the edit from the story plan, so it NEEDS that; it WANTS the alignment, the
   video analysis, the pacing analysis, the B-roll analysis and the inspection (it reads stored
   ones itself, and only waits so they are not missed). It is opt-in: see ``DEFAULT_STAGES``.
@@ -91,6 +96,18 @@ STAGES: Mapping[TaskKind, Stage] = {
             TaskKind.AUDIO_ANALYSIS,
             TaskKind.VIDEO_ANALYSIS,
             TaskKind.PACING,
+            TaskKind.INSPECT,
+        ),
+        needs_audio=True,
+    ),
+    TaskKind.CONTINUITY: Stage(
+        Lane.LIGHT,
+        needs=_k(TaskKind.EDIT_PLAN),
+        wants=_k(
+            TaskKind.BROLL,
+            TaskKind.ALIGNMENT,
+            TaskKind.AUDIO_ANALYSIS,
+            TaskKind.VIDEO_ANALYSIS,
             TaskKind.INSPECT,
         ),
         needs_audio=True,

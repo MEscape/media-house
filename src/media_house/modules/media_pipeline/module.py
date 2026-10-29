@@ -11,6 +11,7 @@ from media_house.modules.audio_intelligence.application.contracts import AudioAn
 from media_house.modules.audio_visual_alignment.application.contracts import AudioVisualAligner
 from media_house.modules.broll_intelligence.application.contracts import BrollAnalyzer
 from media_house.modules.content_intelligence.application.contracts import ContentAnalyzer
+from media_house.modules.continuity_intelligence.application.contracts import ContinuityAnalyzer
 from media_house.modules.editing_intelligence.application.contracts import EditPlanner
 from media_house.modules.media_inspection.application.contracts import MediaInspector
 from media_house.modules.media_library.application.contracts import MediaLibrary
@@ -46,6 +47,7 @@ class MediaPipelineModule:
                     story_planner=c.resolve(StoryPlanner),
                     pacing_analyzer=c.resolve(PacingAnalyzer),
                     broll_analyzer=c.resolve(BrollAnalyzer),
+                    continuity_analyzer=c.resolve(ContinuityAnalyzer),
                     edit_planner=c.resolve(EditPlanner),
                     relationships=c.resolve(RelationshipDetection),
                     settings=settings,

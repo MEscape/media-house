@@ -49,12 +49,21 @@ from media_house.modules.content_intelligence.application.contracts import (
     ContentConfig,
     EmbeddingSettings,
 )
+from media_house.modules.continuity_intelligence.application.contracts import (
+    AnalyzeContinuityCommand,
+    ContinuityAnalyzer,
+    ContinuityConfig,
+)
+from media_house.modules.continuity_intelligence.application.contracts import (
+    ResultState as ContinuityState,
+)
 from media_house.modules.editing_intelligence.application.contracts import (
     Acquire as EditAcquire,
 )
 from media_house.modules.editing_intelligence.application.contracts import (
     DurationMode,
     EditConfig,
+    EditPlan,
     EditPlanner,
     PlanEditCommand,
     PlanState,
@@ -66,6 +75,7 @@ from media_house.modules.media_inspection.application.contracts import (
     MediaInspector,
 )
 from media_house.modules.media_library.application.contracts import JsonValue, MediaLibrary
+from media_house.modules.media_pipeline.application.sequence import sequence_of
 from media_house.modules.media_pipeline.application.tasks import (
     TaskExecutor,
     TaskJob,
@@ -115,7 +125,7 @@ from media_house.modules.video_intelligence.application.contracts import (
 )
 from media_house.shared.errors import Err, Ok
 
-_UNAVAILABLE_CODES = ("no_audio_track", "no_video_stream", "nothing_to_cover")
+_UNAVAILABLE_CODES = ("no_audio_track", "no_video_stream", "nothing_to_cover", "nothing_to_judge")
 _DEGRADED = {"not_available", "failed"}
 _NO_AUDIO = TaskResult(TaskStatus.SKIPPED_UNAVAILABLE, "the inspection found no audio stream")
 
@@ -146,6 +156,10 @@ class StageSettings:
     pacing_strategy: str | None = None
     #: A B-roll profile name (``tutorial``, ``documentary`` ...); ``None`` = by the story's format.
     broll_profile: str | None = None
+    #: A continuity profile name (``cinematic_dialogue`` ...); ``None`` = by the story's format.
+    continuity_profile: str | None = None
+    #: 0.5 lenient .. 1.5 strict.
+    continuity_strictness: float = 1.0
     #: Never use the GPU. Only the device settings change; results keep their identity because
     #: the owners leave the device out of their cache keys.
     cpu_only: bool = False
@@ -216,6 +230,7 @@ class ModuleExecutors:
         story_planner: StoryPlanner,
         pacing_analyzer: PacingAnalyzer,
         broll_analyzer: BrollAnalyzer,
+        continuity_analyzer: ContinuityAnalyzer,
         edit_planner: EditPlanner,
         relationships: RelationshipDetection,
         settings: StageSettings | None = None,
@@ -233,6 +248,7 @@ class ModuleExecutors:
         self._story_planner = story_planner
         self._pacing_analyzer = pacing_analyzer
         self._broll_analyzer = broll_analyzer
+        self._continuity_analyzer = continuity_analyzer
         self._edit_planner = edit_planner
         self._relationships = relationships
         self._settings = settings or StageSettings()
@@ -251,6 +267,7 @@ class ModuleExecutors:
             TaskKind.STORY: self.story,
             TaskKind.PACING: self.pacing,
             TaskKind.BROLL: self.broll,
+            TaskKind.CONTINUITY: self.continuity,
             TaskKind.EDIT_PLAN: self.edit_plan,
             TaskKind.RELATIONSHIPS: self.relationships,
         }
@@ -634,6 +651,54 @@ class ModuleExecutors:
                         *(g.reason for g in analysis.gaps[:3]),
                         *(f"{a}: {why}" for a, why in analysis.pool.skipped[:2]),
                     ),
+                    facts=base.facts,
+                    payload=analysis,
+                )
+            case Err(error):
+                return _from_error(error)
+
+    def continuity(self, job: TaskJob) -> TaskResult:
+        """Judge the cuts of the edit plan made in this run, from the in-memory upstream results
+        (nothing is recomputed). The editing stage reads the stored result on its next planning."""
+        asset_id = job.id.asset_id
+        plan = self._upstream(job, TaskKind.EDIT_PLAN, EditPlan)
+        if plan is None:
+            return TaskResult(TaskStatus.SKIPPED_DEPENDENCY, "no edit plan to judge")
+        command = AnalyzeContinuityCommand(
+            sequence_of(plan),
+            config=ContinuityConfig(
+                profile=self._settings.continuity_profile,
+                strictness=self._settings.continuity_strictness,
+            ),
+            video_analyses=_given(
+                asset_id, self._upstream(job, TaskKind.VIDEO_ANALYSIS, VideoAnalysis)
+            ),
+            audio_timelines=_given(
+                asset_id, self._upstream(job, TaskKind.AUDIO_ANALYSIS, AudioIntelligenceTimeline)
+            ),
+            alignments=_given(asset_id, self._upstream(job, TaskKind.ALIGNMENT, AlignmentDocument)),
+            broll=self._upstream(job, TaskKind.BROLL, BrollAnalysis),
+        )
+        match self._continuity_analyzer.execute(command, job.ctx):
+            case Ok(result):
+                analysis = result.analysis
+                partial = analysis.state is ContinuityState.PARTIAL
+                base = _outcome(
+                    result.created,
+                    continuity_asset_id=result.asset.id,
+                    analysis_version=analysis.analysis_version,
+                    profile=analysis.profile,
+                    transitions=analysis.metrics.transitions,
+                    evaluated=analysis.metrics.evaluated,
+                    reused_cuts=analysis.metrics.reused,
+                    issues=len(analysis.issues),
+                    surfaced=len(analysis.surfaced()),
+                    unresolved=len(analysis.unresolved),
+                )
+                return TaskResult(
+                    TaskStatus.PARTIAL if partial else base.status,
+                    "some cuts had no picture evidence" if partial else "",
+                    warnings=tuple(i.explanation for i in analysis.surfaced()[:3]),
                     facts=base.facts,
                     payload=analysis,
                 )

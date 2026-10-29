@@ -100,6 +100,8 @@ class RunConfig(BaseModel):
     pacing_profile: str | None = None
     pacing_strategy: str | None = None
     broll_profile: str | None = None
+    continuity_profile: str | None = None
+    continuity_strictness: float | None = None
 
 
 class ConsoleObserver:
@@ -254,6 +256,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="B-roll profile for --stages broll (tutorial, documentary, product_review ...); default: by story format",
     )
     add(
+        "--continuity-profile",
+        help="continuity profile for --stages continuity (cinematic_dialogue, talking_head ...)",
+    )
+    add(
+        "--continuity-strictness",
+        type=float,
+        help="0.5 lenient .. 1.5 strict (default 1.0)",
+    )
+    add(
         "--pacing-strategy",
         choices=["concise", "balanced", "detailed", "high_energy", "cinematic"],
         help="how tight the pacing recommendations are (default balanced)",
@@ -294,6 +305,8 @@ def settings_from(config: RunConfig) -> StageSettings:
         pacing_profile=config.pacing_profile,
         pacing_strategy=config.pacing_strategy,
         broll_profile=config.broll_profile,
+        continuity_profile=config.continuity_profile,
+        continuity_strictness=config.continuity_strictness or 1.0,
         cpu_only=bool(config.cpu_only),
     )
 
@@ -404,6 +417,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "pacing_profile",
                 "pacing_strategy",
                 "broll_profile",
+                "continuity_profile",
+                "continuity_strictness",
             )
             if getattr(args, key) is not None
         }
