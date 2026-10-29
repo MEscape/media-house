@@ -22,7 +22,6 @@ MODULES_DIR = SRC / "media_house" / "modules"
 #: Responsibilities of modules that are planned but not built. Nothing may depend on them, and
 #: no empty package may reserve their names.
 FUTURE_MODULES = (
-    "continuity_intelligence",
     "reframing_intelligence",
     "music_and_sound_design",
     "transition_engine",
@@ -47,6 +46,7 @@ PRODUCERS = (
     "VideoImprover",
     "AudioImprover",
     "BrollAnalyzer",
+    "ContinuityAnalyzer",
     "ProcessRunner",
     "ProcessSpec",
 )
@@ -133,6 +133,7 @@ def test_editing_only_reads_upstream_results_through_catalogs() -> None:
         "InspectionCatalog",
         "StoryCatalog",
         "BrollCatalog",
+        "ContinuityCatalog",
     ):
         assert catalog in text
     assert "StoryPlanner" in text and "Acquire.REQUEST" in text

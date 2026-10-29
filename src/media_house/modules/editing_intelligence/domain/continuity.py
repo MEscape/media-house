@@ -18,7 +18,7 @@ from dataclasses import replace
 from fractions import Fraction
 from itertools import pairwise
 
-from media_house.modules.editing_intelligence.domain.facts import AssetEvidence
+from media_house.modules.editing_intelligence.domain.facts import AssetEvidence, ContinuityFacts
 from media_house.modules.editing_intelligence.domain.hooks import CutQuery, Hooks
 from media_house.modules.editing_intelligence.domain.model import Issue, Placement, Signal
 from media_house.modules.editing_intelligence.domain.profile import EditingProfile
@@ -43,6 +43,7 @@ def assess_cuts(
     profile: EditingProfile,
     hooks: Hooks,
     issue_id: Callable[[], str],
+    continuity: ContinuityFacts | None = None,
 ) -> tuple[list[Placement], list[Issue]]:
     """Attach a ``continuity_risk`` signal to every main picture clip that follows a real cut."""
     main = sorted(
@@ -59,7 +60,7 @@ def assess_cuts(
     for before, after in pairwise(main):
         if before.cut_out is None and after.cut_in is None:
             continue  # a plain join of contiguous material: nothing was cut
-        signal = _risk(before, after, covers, evidence, profile, hooks)
+        signal = _risk(before, after, covers, evidence, profile, hooks, continuity)
         risks[after.placement_id] = signal
         if signal.value is not None and signal.value >= profile.continuity_review:
             issues.append(
@@ -85,10 +86,20 @@ def _risk(
     evidence: Mapping[str, AssetEvidence],
     profile: EditingProfile,
     hooks: Hooks,
+    continuity: ContinuityFacts | None = None,
 ) -> Signal:
     at = to_fraction(after.timeline_start)
     if any(to_fraction(c.timeline_start) <= at < to_fraction(c.timeline_end) for c in covers):
         return _signal(0.1, SignalBasis.HEURISTIC, "covered by cutaway footage")
+    if continuity is not None:
+        measured = continuity.verdict(
+            before.source.asset_id,
+            float(to_fraction(before.source.end)),
+            after.source.asset_id,
+            float(to_fraction(after.source.start)),
+        )
+        if measured is not None and measured.risk is not None:
+            return _signal(measured.risk, SignalBasis.MEASURED, measured.reason)
     if before.source.asset_id != after.source.asset_id:
         return _signal(
             None, SignalBasis.HEURISTIC, "different recordings: continuity was not measured"

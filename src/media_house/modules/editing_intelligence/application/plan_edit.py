@@ -38,12 +38,17 @@ from media_house.modules.content_intelligence.application.contracts import (
     ContentAnalysis,
     ContentCatalog,
 )
+from media_house.modules.continuity_intelligence.application.contracts import (
+    ContinuityAnalysis,
+    ContinuityCatalog,
+)
 from media_house.modules.editing_intelligence.application.results import EditResults
 from media_house.modules.editing_intelligence.application.views import (
     alignment_facts,
     audio_facts,
     broll_facts,
     content_facts,
+    continuity_facts,
     pacing_facts,
     source_facts,
     story_facts,
@@ -61,6 +66,7 @@ from media_house.modules.editing_intelligence.domain.errors import (
 from media_house.modules.editing_intelligence.domain.facts import (
     AssetEvidence,
     BrollFacts,
+    ContinuityFacts,
     PacingFacts,
     ShotChoice,
 )
@@ -208,6 +214,9 @@ class PlanEditCommand:
     #: A B-roll analysis the caller holds (used as given), and whether to read a stored one.
     broll: BrollAnalysis | None = None
     use_broll: bool = True
+    #: A continuity analysis the caller holds (used as given), and whether to read a stored one.
+    continuity: ContinuityAnalysis | None = None
+    use_continuity: bool = True
 
 
 @dataclass(frozen=True, slots=True)
@@ -248,6 +257,7 @@ class PlanEdit:
         advisors: Advisors | None = None,
         pacing: PacingCatalog | None = None,
         broll: BrollCatalog | None = None,
+        continuity: ContinuityCatalog | None = None,
     ) -> None:
         self._library = library
         self._planner = planner
@@ -261,6 +271,7 @@ class PlanEdit:
         self._advisors = advisors or Advisors()
         self._pacing = pacing
         self._broll = broll
+        self._continuity = continuity
         self._documents = DerivedDocuments(library, paths)
         self._results = EditResults(library)
 
@@ -301,6 +312,7 @@ class PlanEdit:
         gathered.value.records.insert(0, story_record)
         pacing = self._pacing_of(command, plan, gathered.value)
         broll = self._broll_of(command, plan, gathered.value)
+        continuity = self._continuity_of(command, plan, gathered.value)
         if broll is not None:
             self._gather_cover(command, plan, broll, gathered.value)
         complete = len(gathered.value.known) == len(plan.source_assets)
@@ -313,7 +325,9 @@ class PlanEdit:
         assets = tuple(a.asset_id for a in plan.source_assets)
         overrides = self._overrides(command, anchor, profile.name, assets)
         advisors = self._advisors.identities()
-        key = self._cache_key(command, plan, gathered.value, overrides, advisors, pacing, broll)
+        key = self._cache_key(
+            command, plan, gathered.value, overrides, advisors, pacing, broll, continuity
+        )
         spec = DocumentSpec(RESULT_OPERATION, EDITOR_VERSION, key)
         fingerprint = self._documents.fingerprint(anchor, spec)
         if isinstance(fingerprint, Err):
@@ -358,6 +372,7 @@ class PlanEdit:
                 pacing,
                 broll,
                 gathered.value.cover,
+                continuity,
             )
         except NothingToEdit as exc:
             return Err(exc)
@@ -606,6 +621,35 @@ class PlanEdit:
         )
         return None if found is None else broll_facts(found)
 
+    def _continuity_of(
+        self, command: PlanEditCommand, plan: StoryPlan, gathered: _Gathered
+    ) -> ContinuityFacts | None:
+        """The continuity analysis of an earlier plan of THIS story's recordings, supplied or
+        stored. It judged cuts by their source places, so it stays valid for every cut the new plan
+        repeats; the cuts it never saw keep the editor's baseline rules."""
+        assets = tuple(a.asset_id for a in plan.source_assets)
+        found: ContinuityAnalysis | None = None
+        how = InputHow.NOT_AVAILABLE
+        detail = "no continuity analysis (cuts are judged by the baseline rules)"
+        if command.continuity is not None:
+            found, how = command.continuity, InputHow.SUPPLIED
+        elif command.use_continuity and self._continuity is not None:
+            stored = self._continuity.latest(assets[0])
+            if isinstance(stored, Ok) and stored.value is not None:
+                found, how, detail = stored.value[0], InputHow.REUSED, stored.value[1].id
+        if found is not None and not set(found.sources) & set(assets):
+            found, how = None, InputHow.NOT_AVAILABLE
+            detail = "the continuity analysis is for other recordings"
+        gathered.records.append(
+            InputRecord(
+                kind="continuity_analysis",
+                how=how,
+                identity=None if found is None else found.continuity_analysis_id,
+                detail=detail if found is None or how is InputHow.REUSED else "",
+            )
+        )
+        return None if found is None else continuity_facts(found)
+
     def _gather_cover(
         self, command: PlanEditCommand, plan: StoryPlan, broll: BrollFacts, out: _Gathered
     ) -> None:
@@ -677,6 +721,7 @@ class PlanEdit:
         advisors: tuple[tuple[str, str], ...],
         pacing: PacingFacts | None,
         broll: BrollFacts | None,
+        continuity: ContinuityFacts | None,
     ) -> Mapping[str, JsonValue]:
         """Everything that can change the plan and nothing that cannot (not time, job or device)."""
         return {
@@ -696,6 +741,7 @@ class PlanEdit:
             "advisors": [list(a) for a in advisors],
             "pacing": None if pacing is None else pacing.identity,
             "broll": None if broll is None else broll.identity,
+            "continuity": None if continuity is None else continuity.identity,
             "versions": {
                 "editor": EDITOR_VERSION,
                 "schema": SCHEMA_VERSION,

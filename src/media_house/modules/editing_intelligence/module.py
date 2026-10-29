@@ -4,10 +4,10 @@ It owns no storage and no UI: edit plans are JSON documents derived from their f
 the Media Library. Every input comes from the public contract of the module that owns it (the
 story plan, content, audio, video, alignment, the stored inspection); nothing is recomputed here
 and the story planner is only asked when a caller requests a missing story plan. The pacing
-analysis and the B-roll analysis are read through ``PacingCatalog`` and ``BrollCatalog``; no
-continuity module exists yet, so no advisor is wired: the baseline rules stand, and
-``Advisors`` is the place a later module plugs in. Pipelines and the GUI call the ``EditPlanner``
-contract from a job.
+analysis, the B-roll analysis and the continuity analysis are read through ``PacingCatalog``,
+``BrollCatalog`` and ``ContinuityCatalog``; no advisor is wired: the baseline rules stand
+where an analysis is missing, and ``Advisors`` stays the place a later module plugs in.
+Pipelines and the GUI call the ``EditPlanner`` contract from a job.
 """
 
 from media_house.core.application.ports import Clock
@@ -16,6 +16,7 @@ from media_house.modules.audio_intelligence.application.contracts import AudioCa
 from media_house.modules.audio_visual_alignment.application.contracts import AlignmentCatalog
 from media_house.modules.broll_intelligence.application.contracts import BrollCatalog
 from media_house.modules.content_intelligence.application.contracts import ContentCatalog
+from media_house.modules.continuity_intelligence.application.contracts import ContinuityCatalog
 from media_house.modules.editing_intelligence.application.contracts import EditCatalog, EditPlanner
 from media_house.modules.editing_intelligence.application.plan_edit import PlanEdit
 from media_house.modules.editing_intelligence.application.results import EditResults
@@ -46,6 +47,7 @@ class EditingIntelligenceModule:
                 c.resolve(Clock),
                 pacing=c.resolve(PacingCatalog),
                 broll=c.resolve(BrollCatalog),
+                continuity=c.resolve(ContinuityCatalog),
             ),
         )
         container.register_factory(EditPlanner, lambda c: c.resolve(PlanEdit))

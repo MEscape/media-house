@@ -28,6 +28,9 @@ from media_house.modules.content_intelligence.application.contracts import (
     SemanticSegment,
     TimeBasis,
 )
+from media_house.modules.continuity_intelligence.application.contracts import (
+    ContinuityAnalysis,
+)
 from media_house.modules.editing_intelligence.domain.facts import (
     AlignmentFacts,
     AudioFacts,
@@ -38,6 +41,9 @@ from media_house.modules.editing_intelligence.domain.facts import (
     ConstraintFact,
     ContentFacts,
     ContextFact,
+    ContinuityFacts,
+    ContinuityNote,
+    CutVerdict,
     EventFact,
     KeyInfoFact,
     LinkFact,
@@ -268,6 +274,56 @@ def pacing_facts(analysis: PacingAnalysis) -> PacingFacts:
         identity="",
     )
     return replace(facts, identity=_digest(analysis.pacing_analysis_id, asdict(facts)))
+
+
+# --- continuity ------------------------------------------------------------------------------
+def continuity_facts(analysis: ContinuityAnalysis) -> ContinuityFacts:
+    """What the editor reads of the continuity analysis: a verdict per cut it judged and the
+    findings worth a look (surfaced, not rejected), each with the best repair it examined. Its
+    identity covers all of it, so any change the editor could notice misses the plan cache."""
+    cuts = []
+    for record in analysis.transitions:
+        risk = analysis.risk_at(
+            record.outgoing_asset,
+            record.outgoing_at.value,
+            record.incoming_asset,
+            record.incoming_at.value,
+        )
+        if risk is None:
+            continue
+        cuts.append(
+            CutVerdict(
+                out_asset=record.outgoing_asset,
+                leaves=record.outgoing_at.value,
+                in_asset=record.incoming_asset,
+                resumes=record.incoming_at.value,
+                risk=risk[0],
+                reason=risk[1],
+            )
+        )
+    notes = []
+    for issue in analysis.surfaced():
+        best = next((r for r in issue.repairs if r.availability.value != "unavailable"), None)
+        fix = (
+            f"; suggested: {best.description} ({best.owner.value}, {best.availability.value})"
+            if best
+            else ""
+        )
+        place = f", at {issue.timeline_at.value:.1f} s" if issue.timeline_at else ""
+        notes.append(
+            ContinuityNote(
+                subject=issue.type.value,
+                detail=f"{issue.explanation} [{issue.level.value}{place}]{fix}",
+            )
+        )
+    facts = ContinuityFacts(
+        analysis_id=analysis.continuity_analysis_id,
+        profile=analysis.profile,
+        cuts=tuple(cuts),
+        notes=tuple(notes),
+        identity="",
+    )
+    return replace(facts, identity=_digest(analysis.continuity_analysis_id, asdict(facts)))
 
 
 # --- b-roll ----------------------------------------------------------------------------------

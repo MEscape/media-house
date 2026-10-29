@@ -372,6 +372,51 @@ class AlignmentFacts:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class CutVerdict:
+    """What the continuity analysis made of one cut (source seconds on the common clock)."""
+
+    out_asset: str
+    leaves: float
+    in_asset: str
+    resumes: float
+    #: ``None`` = the analysis could not judge the cut.
+    risk: float | None
+    reason: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ContinuityNote:
+    """A finding worth the editor's attention that no placement can carry."""
+
+    subject: str
+    detail: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ContinuityFacts:
+    analysis_id: str
+    profile: str
+    cuts: tuple[CutVerdict, ...]
+    notes: tuple[ContinuityNote, ...]
+    identity: str
+
+    def verdict(
+        self, out_asset: str, leaves: float, in_asset: str, resumes: float, tolerance: float = 0.05
+    ) -> CutVerdict | None:
+        return next(
+            (
+                c
+                for c in self.cuts
+                if c.out_asset == out_asset
+                and c.in_asset == in_asset
+                and abs(c.leaves - leaves) <= tolerance
+                and abs(c.resumes - resumes) <= tolerance
+            ),
+            None,
+        )
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class BrollPlace:
     """What the B-roll analysis found for one story visual (best first), reduced to choices."""
 

@@ -36,6 +36,7 @@ from media_house.modules.editing_intelligence.domain.errors import NothingToEdit
 from media_house.modules.editing_intelligence.domain.facts import (
     AssetEvidence,
     BrollFacts,
+    ContinuityFacts,
     PacingFacts,
     StoryFacts,
 )
@@ -164,6 +165,7 @@ def plan_edit(
     pacing: PacingFacts | None = None,
     broll: BrollFacts | None = None,
     cover_evidence: Mapping[str, AssetEvidence] | None = None,
+    continuity: ContinuityFacts | None = None,
 ) -> EditPlan:
     hooks = hooks or Hooks()
     profile = config.resolve(story.target_format)
@@ -269,7 +271,9 @@ def plan_edit(
     for d in coverage.decisions:
         final[d.decision_id] = d
     placements = [*built.timeline.placements, *coverage.placements]
-    placements, continuity_issues = assess_cuts(placements, everything, profile, hooks, issue_id)
+    placements, continuity_issues = assess_cuts(
+        placements, everything, profile, hooks, issue_id, continuity
+    )
     placements = _link_cold_open(placements)
 
     starts = unit_starts([p for p in built.pieces if p.role is PlacementRole.MAIN], _main(built))
@@ -285,11 +289,12 @@ def plan_edit(
     )
     notes += _pacing_notes(pacing, built.asm.pacing_notes, note_id)
     notes += _broll_notes(broll, note_id)
+    notes += _continuity_notes(continuity, note_id)
 
     issues = [*coverage.issues, *continuity_issues, *_evidence_issues(story, evidence, issue_id)]
     issues.extend(_story_issues(story, final, issue_id))
     issues.extend(_unresolved_decisions(final, issue_id))
-    stages = [*meta.stages, *_stages(evidence, hooks, pacing, broll)]
+    stages = [*meta.stages, *_stages(evidence, hooks, pacing, broll, continuity)]
 
     essential = sum(
         (u.extent.seconds for u in units if u.priority == "essential" and u.extent is not None),
@@ -782,6 +787,19 @@ def _pacing_notes(
 
 _MAX_PACING_NOTES = 25
 _MAX_BROLL_NOTES = 15
+_MAX_CONTINUITY_NOTES = 15
+
+
+def _continuity_notes(
+    continuity: ContinuityFacts | None, note_id: Callable[[], str]
+) -> list[PacingNote]:
+    """Findings the continuity analysis ranked as worth a look: shown, never applied."""
+    if continuity is None:
+        return []
+    return [
+        PacingNote(note_id=note_id(), level="continuity", subject=n.subject, detail=n.detail)
+        for n in continuity.notes[:_MAX_CONTINUITY_NOTES]
+    ]
 
 
 def _is_used(asset_id: str, placements: Sequence[Placement]) -> bool:
@@ -808,6 +826,7 @@ def _stages(
     hooks: Hooks,
     pacing: PacingFacts | None,
     broll: BrollFacts | None,
+    continuity: ContinuityFacts | None,
 ) -> list[StageReport]:
     video = any(e.video is not None for e in evidence.values())
     audio = any(e.audio is not None for e in evidence.values())
@@ -855,6 +874,13 @@ def _stages(
             detail=""
             if broll is not None
             else "no B-roll analysis: cover candidates come from the alignment's shots only",
+        ),
+        StageReport(
+            stage="continuity_analysis",
+            state=StageState.OK if continuity is not None else StageState.NOT_AVAILABLE,
+            detail=""
+            if continuity is not None
+            else "no continuity analysis: cuts are judged by the editor's baseline rules",
         ),
     ]
 
