@@ -20,6 +20,7 @@ input again reports `reused`. Public API: `application/contracts.py` (`MediaPipe
 | story plan (order, openings, priorities, issues) | `story_architecture` | derived document keyed by every input; accepts upstream results as given; a changed key adds a plan version |
 | edit plan (keep/cut/shorten/cover decisions as exact source ranges on a neutral timeline) | `editing_intelligence` | derived document keyed by the story's facts, every analysis, configuration and overrides; opt-in `edit_plan` task; a changed key adds a plan version |
 | pacing analysis (rhythm findings and recommendations per scale) | `pacing_intelligence` | derived document keyed by every input identity, the story's facts, profile, strategy and target; default-on `pacing` task (a pure read); a changed key adds a version |
+| B-roll analysis (footage of the whole library for the passages that need it, gaps) | `broll_intelligence` | derived document keyed by the passages, the searched assets' indexes, encoders, scope and configuration; opt-in `broll` task (a library-wide read); a changed key adds a version |
 | relationship claims | `asset_relationships` | opt-in `relationships` task: `RelationshipDetection.analyze` from the STORED inspection (never probes); marks make a repeat a no-op |
 
 There is deliberately no pipeline cache or artifact registry: the library already is the single
@@ -45,7 +46,9 @@ inspect (joins every run)   thumbnail                       (light lane)
                 |
           pacing (light)   needs audio_analysis, wants content_analysis, video_analysis, alignment,
                 |          story, inspect (nothing waits for it except edit_plan)
-          edit_plan (light, opt-in)   needs story, wants alignment, video_analysis, inspection, pacing
+          broll (light, opt-in)   needs content_analysis, wants story, alignment, audio_analysis,
+                |         video_analysis, pacing, inspect
+          edit_plan (light, opt-in)   needs story, wants alignment, video_analysis, inspection, pacing, broll
 ```
 
 * Inspection is the only authority on which streams exist, so it is always in the graph. Audio
@@ -73,6 +76,12 @@ inspect (joins every run)   thumbnail                       (light lane)
   identical analysis is stored, and absent for media without audio. `--pacing-profile` and `--pacing-strategy` choose
   its profile and strategy; `--edit-target` also sets the target length it ranks against. It is on by default because
   it only reads and decides nothing, so a default run stores one small document at most.
+* `broll` (opt-in, `--stages broll`, `--broll-profile`) finds supplementary footage for the passages that need it:
+  it needs `content_analysis`, takes the run's story, pacing, alignment and analyses as given, and searches the
+  library's STORED shot indexes (assets this run did not analyse need their own video analysis). It is opt-in because
+  it reads every analysed asset of the library, and a recommendation means something only when someone looks for
+  footage. It is `partial` when part of the library or a search model could not be used, `reused` on an identical key,
+  and `skipped_unavailable` when no passage asks for footage. `edit_plan` waits for it and receives its analysis.
 * `edit_plan` (opt-in, `--stages edit_plan`) runs after `story` with the in-memory story plan and analyses and
   `Acquire.STORED`. It is not in the default stages: it is a decision that needs a chosen profile (`--edit-profile`) and
   target length (`--edit-target`, `--edit-target-hard`), and the default run stores nothing nobody asked for. It is

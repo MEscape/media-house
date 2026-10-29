@@ -18,7 +18,10 @@ story_architecture ----> editing_intelligence ----> edit plan ----> (later: comp
 ```python
 planner = container.resolve(EditPlanner)  # blocking: run as a job
 result = planner.execute(
-    PlanEditCommand((asset_id,), EditConfig(profile="talking_head", target=TargetDuration(high=90.0))), ctx
+    PlanEditCommand(
+        (asset_id,), EditConfig(profile="talking_head", target=TargetDuration(high=90.0))
+    ),
+    ctx,
 )
 plan = result.value.plan  # EditPlan (typed, immutable); result.value.created is False on a reuse
 
@@ -160,9 +163,30 @@ makes a new plan version, and the input is recorded as `InputRecord(kind="pacing
 * The remaining advice is passed on as ranked `PacingNote`s (`level="pacing"`, at most 25); the baseline section notes are
   then skipped. Stage `pacing` is `ok`, or `not_available` with the baseline in force.
 
+## B-roll input (`broll_intelligence`)
+
+The editor reads the stored B-roll analysis for the story's recordings through `BrollCatalog` (or receives one in
+`PlanEditCommand.broll`; `use_broll=False` ignores it; an analysis of other recordings is ignored and recorded).
+`application/views.broll_facts` reduces it to `BrollFacts` (its identity is part of the cache key; input record
+`broll_analysis`, stage `broll`):
+
+* For a story visual with candidates, they come FIRST (best first) and the alignment's same-recording shots stay as
+  fallbacks. A candidate B-roll found to satisfy the need has grade `broll_direct` (can be `executable`); an illustrative
+  one is `broll_illustrative` (always `needs_review`, with B-roll's caution on the cover). Every candidate is still
+  validated against the video analysis like any other.
+* Footage of OTHER recordings is loaded as cover evidence (video analysis of the version that was analysed, attributed
+  to the original asset), judged, placed on layer 1 and named in `plan.sources`. It never joins the story: timebase,
+  units and cuts use the story's recordings only.
+* The suggested part of the shot (`hint_start`/`hint_end`, estimated) is honoured as far as the shot, its settling head
+  and the cover length allow. When the story gives a section as a visual's source, the statement B-roll found inside it
+  narrows the covered passage.
+* Satisfied B-roll places the story did not name become `PacingNote(level="broll")` (at most 15); they are not placed.
+* `shot already on screen` is now judged only against shots of the passage's OWN recording (it previously compared the
+  times of any recording, which refused all other-recording cover).
+
 ## Future modules (not built)
 
-`broll_intelligence` and `continuity_intelligence` may later answer two questions better than the baseline rules. The
+`continuity_intelligence` may later answer a question better than the baseline rules. The
 editor asks through optional, **unimplemented** `Advisors` (`CoverageAdvisor.rank`, `ContinuityAdvisor.assess`); an answer
 is validated like any other candidate, an advisor's identity is part of the cache key, and `None` means no opinion. No
 advisor is wired, no package reserves a name, and a plan without them is complete. (The former `PacingAdvisor` was
@@ -181,8 +205,8 @@ configuration; nothing here compares a plan with a rendered result.
 * Cut-point confidence and every threshold are design-choice heuristics; they have not been calibrated on real speech.
 * Continuity is shot-level; identity, eyelines and pose are not exposed by video analysis and are not judged. Subject
   jumps within one shot are a heuristic.
-* Cover footage comes only from shots the alignment ranked for the story's opportunities; other footage and other
-  recordings' shots are not searched. Beat/music synchronisation is requested, not computed (no music analysis exists; the pacing analysis only has an
+* Cover footage comes from the shots the alignment ranked and, when a stored B-roll analysis exists, from its candidates
+  (any recording of the library). Without one, other recordings' shots are not searched. Beat/music synchronisation is requested, not computed (no music analysis exists; the pacing analysis only has an
   envelope-rhythm baseline).
 * The estimated length is the sum of clips; no timeline has been compiled to confirm it.
 * Planning 3 000 synthetic sentences takes about 1 s; its stored document is about 7.6 MB and reads back in about 1 s.

@@ -616,10 +616,25 @@ tutorial documentary short ...`) are data. A person's `ManualOverride` (keep/cut
 passed. The cache key covers the story's facts, every analysis identity, configuration, overrides, advisors and versions;
 a changed key adds a plan version (`supersedes`). In the pipeline it is the OPT-IN `edit_plan` task (needs `story`;
 `--stages edit_plan`, `--edit-profile`, `--edit-target`, `--edit-target-hard`). The `Advisors` for coverage and
-continuity are optional contracts for future modules; none is wired. Pacing is no longer an advisor: the editor reads the
+continuity are optional contracts for future modules; none is wired (B-roll arrives as data, see `broll_intelligence`). Pacing is no longer an advisor: the editor reads the
 stored `pacing_intelligence` analysis (`PacingCatalog`, or the pipeline payload) as evidence and still applies its own
-checks. Not built: tracking identity or eyelines, music analysis, cover footage from other recordings, anything after the
+checks. Not built: tracking identity or eyelines, music analysis, anything after the
 plan (compiler, timeline builder, Resolve adapter, quality control, revision).
+
+`broll_intelligence` FINDS supplementary footage for the passages that need it, searching the WHOLE library (see its
+README). It reads the stored story plan, content analysis (+ `designations`, `resolve_references`, `stance_of`), audio,
+alignment, pacing and the library's SHOT INDEXES (`video_intelligence.ShotIndexCatalog`: a compact derived document per
+asset, so no full analysis is parsed to search) and writes one `BrollAnalysis` as a derived library document of the
+first recording (`document_type: broll_analysis`). Retrieval is staged (words, picture embeddings through
+`VisualTextEncoder`, descriptions, repeats); a shot gets an `EvidenceRole` from its OWN observations and a `Support`
+gate (`satisfies` / `illustrative_only` / `rejected`) that is applied BEFORE its 13 independent scores order candidates,
+so a related or beautiful shot never stands in for evidence (a named product needs the footage to name the same one;
+a description never confirms identity; the right subject without the action is not a demonstration). A recommendation
+names the ORIGINAL asset, a bounded estimated source range (only a whole shot is frame-exact), a suggested placement on
+the target recording's clock, the audio behaviour and the evidence; a passage nothing qualifies for is a `CoverageGap`
+(what was searched, what to film). Profiles are data. In the pipeline it is the opt-in `broll` task (`--stages broll`,
+`--broll-profile`); `editing_intelligence` reads it (candidates from other recordings become cover). Not validated on
+real footage or the real CLIP/sentence models.
 
 `pacing_intelligence` MEASURES rhythm and RECOMMENDS (see its README); it decides no edit. It reads the STORED audio,
 content, video, alignment, inspection results and story plan through their catalogs (never runs a producer, never plans
