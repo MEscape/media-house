@@ -143,10 +143,12 @@ def test_broll_does_not_depend_on_editing_or_the_pipeline() -> None:
     assert offenders == []
 
 
-def test_only_the_pipeline_the_editing_stage_and_the_composition_root_depend_on_broll() -> None:
+def test_only_the_pipeline_its_consumers_and_the_composition_root_depend_on_broll() -> None:
+    """Editing places its cover; continuity asks whether a cutaway exists for a cut."""
     allowed = (
         "media_house.modules.media_pipeline",
         "media_house.modules.editing_intelligence",
+        "media_house.modules.continuity_intelligence",
         "media_house.bootstrap",
     )
     offenders = [

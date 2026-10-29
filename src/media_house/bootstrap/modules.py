@@ -9,6 +9,7 @@ from media_house.modules.audio_intelligence.module import AudioIntelligenceModul
 from media_house.modules.audio_visual_alignment.module import AudioVisualAlignmentModule
 from media_house.modules.broll_intelligence.module import BrollIntelligenceModule
 from media_house.modules.content_intelligence.module import ContentIntelligenceModule
+from media_house.modules.continuity_intelligence.module import ContinuityIntelligenceModule
 from media_house.modules.editing_intelligence.module import EditingIntelligenceModule
 from media_house.modules.image_adjustment.module import ImageAdjustmentModule
 from media_house.modules.media_inspection.module import MediaInspectionModule
@@ -40,5 +41,6 @@ def installed_modules() -> Sequence[ApplicationModule]:
         StoryArchitectureModule(),
         PacingIntelligenceModule(),
         BrollIntelligenceModule(),
+        ContinuityIntelligenceModule(),
         EditingIntelligenceModule(),
     )
