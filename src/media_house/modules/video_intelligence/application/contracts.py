@@ -36,6 +36,7 @@ from media_house.modules.video_intelligence.application.analyze_video import (
 )
 from media_house.modules.video_intelligence.application.shot_index import IndexedAsset
 from media_house.modules.video_intelligence.domain.analyzers import ANALYZERS, AnalyzerSpec
+from media_house.modules.video_intelligence.domain.edges import EdgeState, SubjectState, edge_state
 from media_house.modules.video_intelligence.domain.errors import (
     InspectionUnavailable,
     InvalidAnalysis,
@@ -234,6 +235,7 @@ __all__ = [
     "CropSafeRegion",
     "Curve",
     "DeviceKind",
+    "EdgeState",
     "Embedding",
     "EntitiesObservation",
     "EntityKind",
@@ -291,6 +293,7 @@ __all__ = [
     "ShotSettings",
     "SourceInfo",
     "Stabilization",
+    "SubjectState",
     "TextItem",
     "TextObservation",
     "TextSettings",
@@ -310,6 +313,7 @@ __all__ = [
     "analysis_to_json",
     "build_shot_index",
     "content_profile",
+    "edge_state",
     "find_shots",
     "get_profile",
     "validate_analysis",
