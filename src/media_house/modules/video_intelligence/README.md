@@ -185,6 +185,19 @@ usable = shot.score(ScoreName.TECHNICAL_USABILITY)  # value, reasons, confidence
 Other modules must reuse `curves`, keyframe times and `embeddings` rather than recompute them, and
 must treat any state other than `ok` as "not known", never as zero.
 
+## Library-wide search: the shot index and the visual text encoder
+
+A full `VideoAnalysis` (curves for every frame, tracks, signals) is too large to read for every asset of a library.
+`ShotIndexCatalog.shot_index(asset_id)` returns a compact, derived, versioned document (`video_intelligence.shot_index`):
+one row per shot with its exact place, objects, scene description, text read from the picture, environment, scores,
+sharpness, motion, camera, framing, face/speaking cue, junk indicators, duplicate group, events and the shot's embedding
+(half-precision floats, base64). It is built from the asset's newest stored analysis the first time it is asked for and
+found by the analysis' library identity afterwards (no analysis is parsed on a hit; a new analysis or `INDEX_VERSION`
+makes a new index). A value the analysis could not state is `None`, never `0`; times are exact seconds on the analysis'
+own video clock (the consumer applies the alignment's correction). `VisualTextEncoder` embeds words in the SAME space
+(the CLIP text tower of the model that embedded the shots); compare vectors only when `identity()` equals the index'
+`embedding_model`. Nothing is downloaded. Used by `broll_intelligence`.
+
 ## How to add an analyzer
 
 1. `domain/values.py`: add its id to `AnalyzerId`; `domain/analyzers.py`: add its `AnalyzerSpec`
@@ -225,6 +238,8 @@ must treat any state other than `ok` as "not known", never as zero.
 * Black/frozen-frame findings are not available: `media_inspection` does not provide them.
 
 ## Reading a stored analysis
+
+(For searching MANY assets read the shot index instead, see above.)
 
 `VideoCatalog.latest(asset_id, profile=None)` (in `application/contracts.py`) returns the newest stored
 analysis, optionally of one profile, or `None`. It reads the library and never decodes, measures or

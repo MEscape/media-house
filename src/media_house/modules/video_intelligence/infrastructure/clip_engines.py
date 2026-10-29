@@ -126,11 +126,17 @@ class ClipRuntime:
         return vectors
 
     def embed_texts(self, texts: list[str], request: MeasureRequest) -> list[tuple[float, ...]]:
+        return self.encode_texts(texts, request.device, request.allow_downloads)
+
+    def encode_texts(
+        self, texts: list[str], requested: DeviceKind, allow_downloads: bool
+    ) -> list[tuple[float, ...]]:
+        """L2-normalised text embeddings, in the space of the image embeddings (CLIP text tower)."""
         import torch
 
-        model, processor, _ = self._model(request.allow_downloads)
-        device = "cpu" if self._cpu_only else resolve_device(request.device)
-        inputs = processor(text=texts, return_tensors="pt", padding=True)
+        model, processor, _ = self._model(allow_downloads)
+        device = "cpu" if self._cpu_only else resolve_device(requested)
+        inputs = processor(text=texts, return_tensors="pt", padding=True, truncation=True)
         return self._run(model, "text", inputs, device, torch)
 
     def _run(
@@ -266,3 +272,34 @@ class ClipAppearanceAnalyzer:
             )
 
         return guarded("Embedding people", work)
+
+
+_TEXT_BATCH = 64
+
+
+class ClipTextEncoder:
+    """Structurally implements ``contracts.VisualTextEncoder``: words in the shot embedding space.
+
+    The vectors are comparable (dot product) with the shot embeddings the ``EMBEDDINGS`` analyzer
+    stored, because both come from the same model. Nothing is downloaded: a model that is not in
+    the cache makes the encoder ``unavailable`` with the reason.
+    """
+
+    def __init__(self, runtime: ClipRuntime, device: DeviceKind = DeviceKind.AUTO) -> None:
+        self._runtime = runtime
+        self._device = device
+
+    def identity(self) -> str:
+        return self._runtime.identity()["clip"]
+
+    def unavailable(self) -> str | None:
+        return self._runtime.unavailable(False)
+
+    def embed(self, texts: list[str], cancellation: CancellationToken) -> list[tuple[float, ...]]:
+        vectors: list[tuple[float, ...]] = []
+        for start in range(0, len(texts), _TEXT_BATCH):
+            cancellation.raise_if_cancelled()
+            vectors.extend(
+                self._runtime.encode_texts(texts[start : start + _TEXT_BATCH], self._device, False)
+            )
+        return vectors

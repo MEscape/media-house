@@ -34,6 +34,7 @@ from media_house.modules.video_intelligence.application.analyze_video import (
     AnalyzeVideoError,
     VideoAnalysisResult,
 )
+from media_house.modules.video_intelligence.application.shot_index import IndexedAsset
 from media_house.modules.video_intelligence.domain.analyzers import ANALYZERS, AnalyzerSpec
 from media_house.modules.video_intelligence.domain.errors import (
     InspectionUnavailable,
@@ -113,6 +114,13 @@ from media_house.modules.video_intelligence.domain.serialization import (
     analysis_from_json,
     analysis_to_json,
 )
+from media_house.modules.video_intelligence.domain.shot_index import (
+    INDEX_VERSION,
+    IndexedEvent,
+    IndexedShot,
+    ShotIndex,
+    build_shot_index,
+)
 from media_house.modules.video_intelligence.domain.source import (
     InputUse,
     ProcessingHistory,
@@ -141,7 +149,7 @@ from media_house.modules.video_intelligence.domain.values import (
     Stabilization,
 )
 from media_house.modules.video_intelligence.domain.vocabulary import VOCABULARY_VERSION
-from media_house.shared.concurrency import JobContext
+from media_house.shared.concurrency import CancellationToken, JobContext
 from media_house.shared.errors import Result
 
 
@@ -163,10 +171,40 @@ class VideoCatalog(Protocol):
     ) -> Result[tuple[VideoAnalysis, MediaAssetDto] | None, MediaError]: ...
 
 
+class ShotIndexCatalog(Protocol):
+    """The searchable shot rows of an asset's newest stored analysis, for library-wide search.
+
+    The index is a small derived document built from the stored analysis the first time it is asked
+    for and reused afterwards, so searching many assets never parses their full analyses. Nothing
+    is analysed: an asset without a stored analysis answers ``Ok(None)``. Blocking (file I/O).
+    """
+
+    def shot_index(self, asset_id: str) -> Result[IndexedAsset | None, MediaError]: ...
+
+
+class VisualTextEncoder(Protocol):
+    """Words into the embedding space of the shots (the CLIP text tower the embeddings come from).
+
+    A vector from ``embed`` is comparable (dot product, unit length) with ``IndexedShot.vector()``
+    of an index whose ``embedding_model`` equals ``identity()``; a different model is a different
+    space and must not be compared. ``unavailable`` says why it cannot run now (library, model
+    files), else ``None``; nothing is ever downloaded. Blocking.
+    """
+
+    def identity(self) -> str: ...
+
+    def unavailable(self) -> str | None: ...
+
+    def embed(
+        self, texts: list[str], cancellation: CancellationToken
+    ) -> list[tuple[float, ...]]: ...
+
+
 __all__ = [
     "ANALYZERS",
     "CONTENT_PROFILES",
     "DEFAULT_PROFILE",
+    "INDEX_VERSION",
     "PROCESSING_VERSION",
     "PROFILES",
     "RUBRIC_VERSION",
@@ -212,6 +250,9 @@ __all__ = [
     "GestureKind",
     "HandlesObservation",
     "IdentityCluster",
+    "IndexedAsset",
+    "IndexedEvent",
+    "IndexedShot",
     "IndicatorObservation",
     "InputSource",
     "InputUse",
@@ -245,6 +286,8 @@ __all__ = [
     "ScoreName",
     "Shot",
     "ShotFilter",
+    "ShotIndex",
+    "ShotIndexCatalog",
     "ShotSettings",
     "SourceInfo",
     "Stabilization",
@@ -262,8 +305,10 @@ __all__ = [
     "VideoCatalog",
     "VideoIntelligenceError",
     "VisualMeaningObservation",
+    "VisualTextEncoder",
     "analysis_from_json",
     "analysis_to_json",
+    "build_shot_index",
     "content_profile",
     "find_shots",
     "get_profile",

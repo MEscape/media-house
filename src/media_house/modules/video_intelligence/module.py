@@ -19,17 +19,21 @@ from media_house.modules.media_inspection.application.contracts import MediaInsp
 from media_house.modules.media_library.application.contracts import MediaLibrary
 from media_house.modules.video_intelligence.application.analyze_video import AnalyzeVideo
 from media_house.modules.video_intelligence.application.contracts import (
+    ShotIndexCatalog,
     VideoAnalyzer,
     VideoCatalog,
+    VisualTextEncoder,
 )
 from media_house.modules.video_intelligence.application.ports import FrameSource, SignalAnalyzer
 from media_house.modules.video_intelligence.application.resolver import UpstreamResolver
 from media_house.modules.video_intelligence.application.results import VideoResults
+from media_house.modules.video_intelligence.application.shot_index import ShotIndexes
 from media_house.modules.video_intelligence.domain.values import AnalyzerId
 from media_house.modules.video_intelligence.infrastructure.clip_engines import (
     ClipAppearanceAnalyzer,
     ClipEmbedder,
     ClipRuntime,
+    ClipTextEncoder,
 )
 from media_house.modules.video_intelligence.infrastructure.ffmpeg_frames import FfmpegFrameSource
 from media_house.modules.video_intelligence.infrastructure.mediapipe_engines import (
@@ -66,15 +70,19 @@ def classical_analyzers() -> dict[AnalyzerId, SignalAnalyzer]:
     return {engine.analyzer: engine for engine in engines}
 
 
-def signal_analyzers(model_dir: Path | None = None) -> dict[AnalyzerId, SignalAnalyzer]:
+def signal_analyzers(
+    model_dir: Path | None = None, clip: ClipRuntime | None = None
+) -> dict[AnalyzerId, SignalAnalyzer]:
     """The engines of every analyzer, keyed by analyzer id.
+
+    ``clip`` lets the caller share the one CLIP model with the text encoder.
 
     The model-based ones are always registered: one whose library or model file is missing
     reports ``not_available`` for itself (and what depends on it) when a run asks for it.
     """
     torch_hub = Path.home() / ".cache" / "torch" / "hub" / "checkpoints"
     store = ModelStore(model_dir or Path("models"), torch_hub)
-    clip = ClipRuntime()
+    clip = clip or ClipRuntime()
     models: tuple[SignalAnalyzer, ...] = (
         TorchvisionDetector(store),
         MediaPipeFaceAnalyzer(store),
@@ -100,10 +108,21 @@ class VideoIntelligenceModule:
                 c.resolve(MediaLibrary),
                 UpstreamResolver(c.resolve(MediaInspector)),
                 c.resolve(FrameSource),
-                signal_analyzers(c.resolve(AppPaths).cache_dir / "video_intelligence" / "models"),
+                signal_analyzers(
+                    c.resolve(AppPaths).cache_dir / "video_intelligence" / "models",
+                    c.resolve(ClipRuntime),
+                ),
                 c.resolve(AppPaths),
             ),
         )
         container.register_factory(VideoAnalyzer, lambda c: c.resolve(AnalyzeVideo))
         container.register_factory(VideoResults, lambda c: VideoResults(c.resolve(MediaLibrary)))
         container.register_factory(VideoCatalog, lambda c: c.resolve(VideoResults))
+        container.register_factory(ClipRuntime, lambda _c: ClipRuntime())
+        container.register_factory(
+            ShotIndexes, lambda c: ShotIndexes(c.resolve(MediaLibrary), c.resolve(AppPaths))
+        )
+        container.register_factory(ShotIndexCatalog, lambda c: c.resolve(ShotIndexes))
+        container.register_factory(
+            VisualTextEncoder, lambda c: ClipTextEncoder(c.resolve(ClipRuntime))
+        )
