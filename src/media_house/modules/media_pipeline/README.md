@@ -21,6 +21,7 @@ input again reports `reused`. Public API: `application/contracts.py` (`MediaPipe
 | edit plan (keep/cut/shorten/cover decisions as exact source ranges on a neutral timeline) | `editing_intelligence` | derived document keyed by the story's facts, every analysis, configuration and overrides; opt-in `edit_plan` task; a changed key adds a plan version |
 | pacing analysis (rhythm findings and recommendations per scale) | `pacing_intelligence` | derived document keyed by every input identity, the story's facts, profile, strategy and target; default-on `pacing` task (a pure read); a changed key adds a version |
 | B-roll analysis (footage of the whole library for the passages that need it, gaps) | `broll_intelligence` | derived document keyed by the passages, the searched assets' indexes, encoders, scope and configuration; opt-in `broll` task (a library-wide read); a changed key adds a version |
+| continuity analysis (issues at the cuts of a proposed edit, scores, repairs) | `continuity_intelligence` | derived document keyed by every cut's fingerprint, the plan, decisions and configuration; opt-in `continuity` task (a pure read); unchanged cuts are carried over |
 | relationship claims | `asset_relationships` | opt-in `relationships` task: `RelationshipDetection.analyze` from the STORED inspection (never probes); marks make a repeat a no-op |
 
 There is deliberately no pipeline cache or artifact registry: the library already is the single
@@ -49,6 +50,9 @@ inspect (joins every run)   thumbnail                       (light lane)
           broll (light, opt-in)   needs content_analysis, wants story, alignment, audio_analysis,
                 |         video_analysis, pacing, inspect
           edit_plan (light, opt-in)   needs story, wants alignment, video_analysis, inspection, pacing, broll
+                |
+          continuity (light, opt-in)  needs edit_plan, wants broll, alignment, audio_analysis,
+                                      video_analysis, inspect
 ```
 
 * Inspection is the only authority on which streams exist, so it is always in the graph. Audio
@@ -87,6 +91,13 @@ inspect (joins every run)   thumbnail                       (light lane)
   target length (`--edit-target`, `--edit-target-hard`), and the default run stores nothing nobody asked for. It is
   `partial` when a hard constraint (a hard target) cannot be met without removing essential material. It plans the
   story of ONE recording (the pipeline is per asset); a story of several recordings goes through `EditPlanner`.
+* `continuity` (opt-in, `--stages continuity`, `--continuity-profile`, `--continuity-strictness`) judges the cuts of the
+  run's edit plan: `application/sequence.py` maps the plan to continuity's own `ProposedSequence` (source ranges, which
+  cuts are covered, audio bridges, trimmed speech) and the analyzer reads the stored analyses. It needs `edit_plan` and
+  runs after it, so it is not an input of the plan it judges; the NEXT `edit_plan` run reads the stored result. It is
+  opt-in because it needs a chosen edit. It is `partial` when evidence was missing for some cuts, `reused` on an
+  identical key, and `skipped_unavailable` when the plan has nothing to judge (`nothing_to_judge`, fewer than two
+  clips).
 * Requesting a stage pulls in what it needs (`implied` in the report). A stage the media cannot
   support (picture stages on audio-only media) is `skipped_unavailable`, not a failure.
 

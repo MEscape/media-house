@@ -616,10 +616,11 @@ tutorial documentary short ...`) are data. A person's `ManualOverride` (keep/cut
 passed. The cache key covers the story's facts, every analysis identity, configuration, overrides, advisors and versions;
 a changed key adds a plan version (`supersedes`). In the pipeline it is the OPT-IN `edit_plan` task (needs `story`;
 `--stages edit_plan`, `--edit-profile`, `--edit-target`, `--edit-target-hard`). The `Advisors` for coverage and
-continuity are optional contracts for future modules; none is wired (B-roll arrives as data, see `broll_intelligence`). Pacing is no longer an advisor: the editor reads the
-stored `pacing_intelligence` analysis (`PacingCatalog`, or the pipeline payload) as evidence and still applies its own
-checks. Not built: tracking identity or eyelines, music analysis, anything after the
-plan (compiler, timeline builder, Resolve adapter, quality control, revision).
+continuity are optional contracts; none is wired (B-roll arrives as data, see `broll_intelligence`). Pacing and continuity are no
+longer advisors: the editor reads the stored `pacing_intelligence` analysis (`PacingCatalog`, or the pipeline payload) and,
+on its next planning, the stored `continuity_intelligence` analysis (`ContinuityCatalog`) as evidence and still applies its
+own checks. Not built: music analysis, anything after the plan (compiler, timeline builder, Resolve adapter, quality
+control, revision).
 
 `broll_intelligence` FINDS supplementary footage for the passages that need it, searching the WHOLE library (see its
 README). It reads the stored story plan, content analysis (+ `designations`, `resolve_references`, `stance_of`), audio,
@@ -647,6 +648,22 @@ cinematic`) are data; a target length ranks and reports, it forces nothing. Scor
 attention curve is a prediction, and the audio energy rhythm (`AudioIntelligenceTimeline.energy_rhythm`) is an envelope
 baseline, not music analysis. In the pipeline it is the default-on `pacing` task (a pure read that needs `audio_analysis`;
 `--pacing-profile`, `--pacing-strategy`) and `edit_plan` waits for it.
+
+`continuity_intelligence` JUDGES THE CUTS of a proposed edit (see its README); it changes no media and decides nothing. Its
+own input contract is a `ProposedSequence` (exact source ranges + timeline places; the pipeline maps the edit plan to it
+in `media_pipeline/application/sequence.py`), so it never imports the editing stage. It reads the STORED video
+(`video_intelligence.edge_state`: subject place/travel, face cues, framing, light, embedding at one moment), audio,
+alignment, relationship and B-roll results through their catalogs and writes one `ContinuityAnalysis` as a derived
+library document of the first recording (`document_type: continuity_analysis`). Issues (jump cut, visual/lighting
+discontinuity, screen direction, eyeline, action/object state, identity, clipped speech, audio step, sync, chronology,
+narrative confusion) carry separate scores, a severity level, a detectability confidence, an ESTIMATED
+`intentional_style_likelihood` (profile prior + story context; a probably deliberate difference is information, not a
+finding), evidence, exact source spans and ranked repairs with an owner and an availability (`reframing_intelligence`
+does not exist: `unavailable`). Unknown evidence is `None`/`Unresolved`, never "matches". Unchanged cuts are carried over by
+fingerprint; a person's accept/reject follows an issue. In the pipeline it is the opt-in `continuity` task (needs
+`edit_plan`; `--stages continuity`, `--continuity-profile`, `--continuity-strictness`); `editing_intelligence` reads the
+result on its next planning. Validated on synthetic evidence and a real library with synthetic tracked analyses only;
+thresholds uncalibrated.
 
 ---------------------------------------------------------------------------------------------------
 

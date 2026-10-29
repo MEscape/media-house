@@ -41,6 +41,14 @@ here. The result model already carries everything a sequence-level analysis cons
 continuity, curves); a timeline model owned by `core` or by the editing stage is the missing piece.
 The optional keyframe-only VLM adapter of milestone 5 IS built (`descriptions`).
 
+## Frame state at a moment (`edge_state`)
+
+`edge_state(analysis, seconds)` (public contract, `domain/edges.py`) reads the stored analysis at one place on the
+recording's clock and returns an `EdgeState`: the main subject (the shot's main track, else the largest person) with
+its place and size from the nearest track point (only within 0.5 s of the track), its travel direction from the points
+within 0.4 s (needs two), face yaw and speaking cue, plus the shot's framing, light, scene, objects, text and embedding.
+A moment without tracking gives no subject, never a guess. `continuity_intelligence` uses it for the two frames at a cut.
+
 ## Result model (typed; JSON is only the storage form)
 
 `VideoAnalysis` → `shots` (each: range, boundaries, handles, keyframes, camera, motion, quality,

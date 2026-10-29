@@ -184,13 +184,31 @@ The editor reads the stored B-roll analysis for the story's recordings through `
 * `shot already on screen` is now judged only against shots of the passage's OWN recording (it previously compared the
   times of any recording, which refused all other-recording cover).
 
+## Continuity input (`continuity_intelligence`)
+
+`continuity_intelligence` judges the cuts of a PROPOSED edit, so it runs after a plan exists (opt-in `continuity` task)
+and the editor reads its stored result on its NEXT planning, through `ContinuityCatalog` (or
+`PlanEditCommand.continuity`; `use_continuity=False` ignores it). `application/views.continuity_facts` reduces it to
+`ContinuityFacts` (a verdict per judged cut, notes for surfaced findings; its identity is part of the cache key; input
+record `continuity_analysis`, stage `continuity_analysis`):
+
+* A cut the analysis judged gets its risk as a MEASURED `continuity_risk` signal (reason: the analysis' finding), which
+  replaces the baseline guess for that cut. A cut it could not judge, or never saw, keeps the baseline. Cuts are matched
+  by source place (recording, where the outgoing clip leaves, where the incoming one resumes).
+* A cut whose risk reaches the profile's review level gets an editing issue (`IssueKind.CONTINUITY`).
+* Surfaced findings with their best repair become `PacingNote(level="continuity")` (at most 15). Nothing is applied: a
+  repair belongs to the editor's own checks or to a person.
+* A finding a person rejected is not a risk; one the analysis rates probably deliberate is information, not a note.
+
+`EDITOR_VERSION` is 4.
+
 ## Future modules (not built)
 
-`continuity_intelligence` may later answer a question better than the baseline rules. The
-editor asks through optional, **unimplemented** `Advisors` (`CoverageAdvisor.rank`, `ContinuityAdvisor.assess`); an answer
-is validated like any other candidate, an advisor's identity is part of the cache key, and `None` means no opinion. No
-advisor is wired, no package reserves a name, and a plan without them is complete. (The former `PacingAdvisor` was
-replaced by the pacing input above; `EDITOR_VERSION` and the vocabulary version are 2.) Reframing, music and sound design, transitions, graphics, style, the compiler, the
+The editor still has optional, **unimplemented** `Advisors` (`CoverageAdvisor.rank`, `ContinuityAdvisor.assess`); an
+answer is validated like any other candidate, an advisor's identity is part of the cache key, and `None` means no
+opinion. No advisor is wired, no package reserves a name, and a plan without them is complete. (The former
+`PacingAdvisor` was replaced by the pacing input above. `continuity_intelligence` is not wired as the `ContinuityAdvisor`:
+it judges a finished proposal, so it is read as stored evidence instead.) Reframing, music and sound design, transitions, graphics, style, the compiler, the
 timeline builder, the Resolve adapter, quality control and revision are other stages: the editor only *requests*
 effects and states intent. A future revision stage can consume findings by passing `ManualOverride`s and a changed
 configuration; nothing here compares a plan with a rendered result.
@@ -203,8 +221,9 @@ configuration; nothing here compares a plan with a rendered result.
 * Meaning preservation is judged from the story's structure, not by understanding words: every content removal is a
   suggestion. English and German filler/greeting/negation cues only.
 * Cut-point confidence and every threshold are design-choice heuristics; they have not been calibrated on real speech.
-* Continuity is shot-level; identity, eyelines and pose are not exposed by video analysis and are not judged. Subject
-  jumps within one shot are a heuristic.
+* The editor's own continuity is shot-level; subject jumps within one shot are a heuristic. Identity, eyelines, direction
+  and sound at the cut are judged only by `continuity_intelligence` (see its README) and reach the editor on a second
+  pass, because the analysis judges a plan and cannot be an input of that same plan.
 * Cover footage comes from the shots the alignment ranked and, when a stored B-roll analysis exists, from its candidates
   (any recording of the library). Without one, other recordings' shots are not searched. Beat/music synchronisation is requested, not computed (no music analysis exists; the pacing analysis only has an
   envelope-rhythm baseline).
