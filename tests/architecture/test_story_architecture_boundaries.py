@@ -60,6 +60,7 @@ def test_only_the_pipeline_its_consumers_and_the_composition_root_depend_on_stor
         "media_house.modules.editing_intelligence",
         "media_house.modules.pacing_intelligence",
         "media_house.modules.broll_intelligence",
+        "media_house.modules.reframing_intelligence",
         "media_house.bootstrap",
     )
     offenders = [

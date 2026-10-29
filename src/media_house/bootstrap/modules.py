@@ -17,6 +17,7 @@ from media_house.modules.media_library.module import MediaLibraryModule
 from media_house.modules.media_pipeline.module import MediaPipelineModule
 from media_house.modules.pacing_intelligence.module import PacingIntelligenceModule
 from media_house.modules.proxy_manager.module import ProxyManagerModule
+from media_house.modules.reframing_intelligence.module import ReframingIntelligenceModule
 from media_house.modules.story_architecture.module import StoryArchitectureModule
 from media_house.modules.video_improvement.module import VideoImprovementModule
 from media_house.modules.video_intelligence.module import VideoIntelligenceModule
@@ -42,5 +43,6 @@ def installed_modules() -> Sequence[ApplicationModule]:
         PacingIntelligenceModule(),
         BrollIntelligenceModule(),
         ContinuityIntelligenceModule(),
+        ReframingIntelligenceModule(),
         EditingIntelligenceModule(),
     )
