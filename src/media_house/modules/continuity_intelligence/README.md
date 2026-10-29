@@ -83,7 +83,9 @@ the sound), J/L cut, B-roll cover, alternate take / shot, reframing, exposure / 
 room tone, ambience bridge, speech review, sync check, identity check, order review, and `keep_intentional` when the
 style estimate is high. Each names its OWNER and how far it was examined: `checked` (something concrete backs it),
 `unchecked` (a direction; an alternate take is named but its range was not compared), `unavailable` (the module does
-not exist: `reframing_intelligence` is not built; or looked and found nothing). A repair that conflicts with the story
+not exist, or looked and found nothing). The reframe repair is `unchecked`: `reframing_intelligence`
+exists and judges the size step between neighbouring crops itself, but the crops of this cut are not
+compared here. A repair that conflicts with the story
 (reordering across a section boundary) says so in `conflicts`.
 
 ## Profiles (`domain/profile.py`)

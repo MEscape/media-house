@@ -493,14 +493,13 @@ class TestAlternateTakes:
         (pair,) = analysis.compatible_pairs
         assert pair.compatibility > 0.7 and "looks" in pair.checked
 
-    def test_the_unavailable_modules_are_listed_as_such(self) -> None:
+    def test_the_reframing_repair_is_a_direction_not_a_compared_crop(self) -> None:
         found = issue_of(run([jump()], profile="cinematic_dialogue"), IssueType.JUMP_CUT)
 
         assert found is not None
         reframe = next(r for r in found.repairs if r.kind is RepairKind.REFRAME)
-        assert reframe.availability is Availability.UNAVAILABLE and reframe.rank == len(
-            found.repairs
-        )
+        assert reframe.availability is Availability.UNCHECKED  # the module exists; no crop compared
+        assert "not compared" in " ".join(reframe.tradeoffs)
 
     def test_broll_cover_depends_on_what_the_broll_analysis_found(self) -> None:
         with_cover = issue_of(

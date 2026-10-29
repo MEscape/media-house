@@ -171,8 +171,9 @@ class TestValidation:
         )
 
     def test_a_recommendation_must_be_an_available_repair(self) -> None:
+        # a repair the issue does not list at all is as unusable as an unavailable one
         assert any(
-            "recommended" in e for e in self.errors(self.broken(recommended=RepairKind.REFRAME))
+            "recommended" in e for e in self.errors(self.broken(recommended=RepairKind.ROOM_TONE))
         )
 
     def test_the_metrics_must_agree_with_the_result(self) -> None:

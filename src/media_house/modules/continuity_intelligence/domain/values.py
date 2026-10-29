@@ -40,7 +40,7 @@ problem, the strictness and the style estimate; it is not one of the scores.
 from enum import StrEnum
 from typing import Final
 
-ANALYZER_VERSION: Final = 1
+ANALYZER_VERSION: Final = 2
 SCHEMA_VERSION: Final = 1
 VOCABULARY_VERSION: Final = 1
 PROFILE_VERSION: Final = 1

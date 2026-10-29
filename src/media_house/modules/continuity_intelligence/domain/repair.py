@@ -75,10 +75,11 @@ def repairs_for(finding: Finding, t: TransitionFact, style: float) -> tuple[Repa
         add(
             RepairKind.REFRAME,
             Owner.REFRAMING,
-            Availability.UNAVAILABLE,
+            Availability.UNCHECKED,
             "change the crop on one side so the subject's size differs enough to read as a cut",
             0.3,
-            "reframing_intelligence is not built: nothing can recommend a crop yet",
+            "reframing_intelligence recommends crops per shot and judges the size step between "
+            "neighbours; the crops of this cut were not compared here",
         )
     elif kind in (IssueType.VISUAL_DISCONTINUITY, IssueType.NARRATIVE_CONFUSION):
         _cover(t, add)
