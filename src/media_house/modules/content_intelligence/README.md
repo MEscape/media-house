@@ -29,6 +29,20 @@ Queries (`query.py`, re-exported by the contract) read the stored result: `segme
 `removal_candidates`, `related_segments`, `relationships_of`, `redundancy_links`, `opportunities`,
 `key_items`, `evidence_for`.
 
+### Named things, pointing phrases and stance (`domain/references.py`, `domain/stance.py`)
+
+Pure functions over statements, re-exported by the contract, for consumers that must not match a passage to something
+by its own words alone:
+
+* `designations(text)`: product-like names found by shape (a name followed by a number or code: "Pixel 9", "iPhone 15
+  Pro", "X100V"); two values of one family are different things. A product without a number is not recognised.
+* `resolve_references(analysis, unit_ids)`: what "this model", "that device" or "the previous version" (English and
+  German) points at. `resolved` only when the nearest statements name exactly one candidate (an older model is named
+  only when the context names one); `ambiguous` when they name several; `unresolved` otherwise, and a pointer at an
+  activity ("the same process") is `unresolved` with `about_activity`. Nothing is guessed.
+* `stance_of(text)`: negation (`not`, `never`, `kein`) and supposition/doubt (`would`, `imagine`, `angeblich`) cues. No
+  cue is not proof that a statement asserts.
+
 ## Inputs and how they are obtained
 
 | Input | Source | If absent |

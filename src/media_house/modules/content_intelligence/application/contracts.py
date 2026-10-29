@@ -82,6 +82,15 @@ from media_house.modules.content_intelligence.domain.query import (
     standalone_candidates,
     topics_at,
 )
+from media_house.modules.content_intelligence.domain.references import (
+    Designation,
+    Reference,
+    ReferenceKind,
+    ReferenceState,
+    designations,
+    resolve_in_texts,
+    resolve_references,
+)
 from media_house.modules.content_intelligence.domain.serialization import (
     analysis_from_json,
     analysis_to_json,
@@ -92,6 +101,7 @@ from media_house.modules.content_intelligence.domain.source import (
     SourceWord,
 )
 from media_house.modules.content_intelligence.domain.span import Span
+from media_house.modules.content_intelligence.domain.stance import Stance, stance_of
 from media_house.modules.content_intelligence.domain.units import Unit
 from media_house.modules.content_intelligence.domain.validation import validate_analysis
 from media_house.modules.content_intelligence.domain.values import (
@@ -189,6 +199,7 @@ __all__ = [
     "ContentCatalog",
     "ContentConfig",
     "ContentIntelligenceError",
+    "Designation",
     "EmbeddingSettings",
     "Evidence",
     "GraphicKind",
@@ -210,6 +221,9 @@ __all__ = [
     "ProfileSettings",
     "Provenance",
     "Ref",
+    "Reference",
+    "ReferenceKind",
+    "ReferenceState",
     "RelationKind",
     "Relationship",
     "ResultState",
@@ -229,6 +243,7 @@ __all__ = [
     "Span",
     "StageReport",
     "StageState",
+    "Stance",
     "Summary",
     "TextEncoder",
     "TextGenerator",
@@ -241,6 +256,7 @@ __all__ = [
     "VisualCategory",
     "analysis_from_json",
     "analysis_to_json",
+    "designations",
     "evidence_for",
     "highlights",
     "key_items",
@@ -250,8 +266,11 @@ __all__ = [
     "related_segments",
     "relationships_of",
     "removal_candidates",
+    "resolve_in_texts",
+    "resolve_references",
     "segments_between",
     "segments_of_topic",
+    "stance_of",
     "standalone_candidates",
     "topics_at",
     "validate_analysis",
