@@ -35,6 +35,7 @@ from media_house.modules.editing_intelligence.domain.effects import plan_effects
 from media_house.modules.editing_intelligence.domain.errors import NothingToEdit
 from media_house.modules.editing_intelligence.domain.facts import (
     AssetEvidence,
+    BrollFacts,
     PacingFacts,
     StoryFacts,
 )
@@ -161,6 +162,8 @@ def plan_edit(
     meta: PlanMeta,
     hooks: Hooks | None = None,
     pacing: PacingFacts | None = None,
+    broll: BrollFacts | None = None,
+    cover_evidence: Mapping[str, AssetEvidence] | None = None,
 ) -> EditPlan:
     hooks = hooks or Hooks()
     profile = config.resolve(story.target_format)
@@ -247,22 +250,26 @@ def plan_edit(
     for d in extra:
         final.setdefault(d.decision_id, d)
 
+    # Footage of other recordings (offered by the B-roll analysis) is judged and placed like any
+    # candidate, but it is never part of the story: the story's own evidence wins on a clash.
+    everything = {**(cover_evidence or {}), **evidence}
     coverage = plan_coverage(
         story,
         units,
         built.pieces,
         built.timeline,
-        evidence,
+        everything,
         rate,
         profile,
         hooks,
         issue_id,
         effect_id,
+        broll,
     )
     for d in coverage.decisions:
         final[d.decision_id] = d
     placements = [*built.timeline.placements, *coverage.placements]
-    placements, continuity_issues = assess_cuts(placements, evidence, profile, hooks, issue_id)
+    placements, continuity_issues = assess_cuts(placements, everything, profile, hooks, issue_id)
     placements = _link_cold_open(placements)
 
     starts = unit_starts([p for p in built.pieces if p.role is PlacementRole.MAIN], _main(built))
@@ -277,11 +284,12 @@ def plan_edit(
         sections=pacing is None,
     )
     notes += _pacing_notes(pacing, built.asm.pacing_notes, note_id)
+    notes += _broll_notes(broll, note_id)
 
     issues = [*coverage.issues, *continuity_issues, *_evidence_issues(story, evidence, issue_id)]
     issues.extend(_story_issues(story, final, issue_id))
     issues.extend(_unresolved_decisions(final, issue_id))
-    stages = [*meta.stages, *_stages(evidence, hooks, pacing)]
+    stages = [*meta.stages, *_stages(evidence, hooks, pacing, broll)]
 
     essential = sum(
         (u.extent.seconds for u in units if u.priority == "essential" and u.extent is not None),
@@ -317,7 +325,14 @@ def plan_edit(
         profile=profile.name,
         target_format=story.target_format,
         timebase=timebase,
-        sources=tuple(_source_record(a, evidence[a]) for a in story.asset_ids if a in evidence),
+        sources=(
+            *(_source_record(a, evidence[a]) for a in story.asset_ids if a in evidence),
+            *(
+                _source_record(a, e)
+                for a, e in (cover_evidence or {}).items()
+                if a not in evidence and _is_used(a, placements)
+            ),
+        ),
         decisions=ordered_decisions,
         placements=ordered_placements,
         audio_bridges=tuple(coverage.bridges),
@@ -345,7 +360,7 @@ def plan_edit(
         limitations=LIMITATIONS,
         overrides=meta.overrides,
     )
-    validation = validate(draft, story, evidence, target, issue_id)
+    validation = validate(draft, story, everything, target, issue_id)
     all_issues = (*issues, *validation.issues)
     unknown_overrides = tuple(
         Issue(
@@ -766,10 +781,33 @@ def _pacing_notes(
 
 
 _MAX_PACING_NOTES = 25
+_MAX_BROLL_NOTES = 15
+
+
+def _is_used(asset_id: str, placements: Sequence[Placement]) -> bool:
+    return any(p.source.asset_id == asset_id for p in placements)
+
+
+def _broll_notes(broll: BrollFacts | None, note_id: Callable[[], str]) -> list[PacingNote]:
+    """B-roll that fits a place the story did not name as a visual: shown, never placed."""
+    if broll is None:
+        return []
+    return [
+        PacingNote(
+            note_id=note_id(),
+            level="broll",
+            subject=n.need,
+            detail=f"{n.detail} ({n.start:.1f}-{n.end:.1f} s of {n.asset_id})",
+        )
+        for n in broll.notes[:_MAX_BROLL_NOTES]
+    ]
 
 
 def _stages(
-    evidence: Mapping[str, AssetEvidence], hooks: Hooks, pacing: PacingFacts | None
+    evidence: Mapping[str, AssetEvidence],
+    hooks: Hooks,
+    pacing: PacingFacts | None,
+    broll: BrollFacts | None,
 ) -> list[StageReport]:
     video = any(e.video is not None for e in evidence.values())
     audio = any(e.audio is not None for e in evidence.values())
@@ -810,6 +848,13 @@ def _stages(
             detail=""
             if pacing is not None
             else "no pacing analysis: the editor's baseline pacing notes apply",
+        ),
+        StageReport(
+            stage="broll",
+            state=StageState.OK if broll is not None else StageState.NOT_AVAILABLE,
+            detail=""
+            if broll is not None
+            else "no B-roll analysis: cover candidates come from the alignment's shots only",
         ),
     ]
 

@@ -30,6 +30,10 @@ from media_house.modules.audio_visual_alignment.application.contracts import (
     AlignmentCatalog,
     AlignmentDocument,
 )
+from media_house.modules.broll_intelligence.application.contracts import (
+    BrollAnalysis,
+    BrollCatalog,
+)
 from media_house.modules.content_intelligence.application.contracts import (
     ContentAnalysis,
     ContentCatalog,
@@ -38,6 +42,7 @@ from media_house.modules.editing_intelligence.application.results import EditRes
 from media_house.modules.editing_intelligence.application.views import (
     alignment_facts,
     audio_facts,
+    broll_facts,
     content_facts,
     pacing_facts,
     source_facts,
@@ -55,6 +60,7 @@ from media_house.modules.editing_intelligence.domain.errors import (
 )
 from media_house.modules.editing_intelligence.domain.facts import (
     AssetEvidence,
+    BrollFacts,
     PacingFacts,
     ShotChoice,
 )
@@ -199,6 +205,9 @@ class PlanEditCommand:
     #: A pacing analysis the caller holds (used as given), and whether to read a stored one.
     pacing: PacingAnalysis | None = None
     use_pacing: bool = True
+    #: A B-roll analysis the caller holds (used as given), and whether to read a stored one.
+    broll: BrollAnalysis | None = None
+    use_broll: bool = True
 
 
 @dataclass(frozen=True, slots=True)
@@ -216,6 +225,8 @@ class _Gathered:
     records: list[InputRecord] = field(default_factory=list)
     identities: dict[str, JsonValue] = field(default_factory=dict)
     known: dict[str, frozenset[str]] = field(default_factory=dict)
+    #: Footage of recordings outside the story that the B-roll analysis offered.
+    cover: dict[str, AssetEvidence] = field(default_factory=dict)
 
 
 _MANUAL = (Action.KEEP, Action.CUT)
@@ -236,6 +247,7 @@ class PlanEdit:
         clock: Clock,
         advisors: Advisors | None = None,
         pacing: PacingCatalog | None = None,
+        broll: BrollCatalog | None = None,
     ) -> None:
         self._library = library
         self._planner = planner
@@ -248,6 +260,7 @@ class PlanEdit:
         self._clock = clock
         self._advisors = advisors or Advisors()
         self._pacing = pacing
+        self._broll = broll
         self._documents = DerivedDocuments(library, paths)
         self._results = EditResults(library)
 
@@ -287,6 +300,9 @@ class PlanEdit:
             return gathered
         gathered.value.records.insert(0, story_record)
         pacing = self._pacing_of(command, plan, gathered.value)
+        broll = self._broll_of(command, plan, gathered.value)
+        if broll is not None:
+            self._gather_cover(command, plan, broll, gathered.value)
         complete = len(gathered.value.known) == len(plan.source_assets)
         problems = validate_plan(plan, gathered.value.known if complete else None)
         if problems:
@@ -297,7 +313,7 @@ class PlanEdit:
         assets = tuple(a.asset_id for a in plan.source_assets)
         overrides = self._overrides(command, anchor, profile.name, assets)
         advisors = self._advisors.identities()
-        key = self._cache_key(command, plan, gathered.value, overrides, advisors, pacing)
+        key = self._cache_key(command, plan, gathered.value, overrides, advisors, pacing, broll)
         spec = DocumentSpec(RESULT_OPERATION, EDITOR_VERSION, key)
         fingerprint = self._documents.fingerprint(anchor, spec)
         if isinstance(fingerprint, Err):
@@ -340,6 +356,8 @@ class PlanEdit:
                 meta,
                 self._advisors.hooks(),
                 pacing,
+                broll,
+                gathered.value.cover,
             )
         except NothingToEdit as exc:
             return Err(exc)
@@ -559,6 +577,82 @@ class PlanEdit:
         )
         return None if found is None else pacing_facts(found)
 
+    def _broll_of(
+        self, command: PlanEditCommand, plan: StoryPlan, gathered: _Gathered
+    ) -> BrollFacts | None:
+        """The B-roll analysis of THIS story's recordings, supplied or stored; else ``None``.
+
+        An analysis of other recordings is ignored and said so."""
+        assets = tuple(a.asset_id for a in plan.source_assets)
+        found: BrollAnalysis | None = None
+        how = InputHow.NOT_AVAILABLE
+        detail = "no B-roll analysis (cover candidates come from the alignment's shots only)"
+        if command.broll is not None:
+            found, how = command.broll, InputHow.SUPPLIED
+        elif command.use_broll and self._broll is not None:
+            stored = self._broll.latest(assets[0], story_plan_id=plan.story_plan_id)
+            if isinstance(stored, Ok) and stored.value is not None:
+                found, how, detail = stored.value[0], InputHow.REUSED, stored.value[1].id
+        if found is not None and found.sources != assets:
+            found, how = None, InputHow.NOT_AVAILABLE
+            detail = "the B-roll analysis is for other recordings"
+        gathered.records.append(
+            InputRecord(
+                kind="broll_analysis",
+                how=how,
+                identity=None if found is None else found.broll_analysis_id,
+                detail=detail if found is None or how is InputHow.REUSED else "",
+            )
+        )
+        return None if found is None else broll_facts(found)
+
+    def _gather_cover(
+        self, command: PlanEditCommand, plan: StoryPlan, broll: BrollFacts, out: _Gathered
+    ) -> None:
+        """Load the footage evidence of the recordings the B-roll analysis offered (video only).
+
+        The shots belong to the stored version that was analysed (a proxy, say) but are attributed
+        to the original asset, the id the plan uses."""
+        story_assets = {a.asset_id for a in plan.source_assets}
+        for original, analysed in broll.analysed:
+            if original in story_assets or original in out.cover:
+                continue
+            found = self._library.get(original)
+            video = self._video.latest(analysed)
+            if isinstance(found, Err) or isinstance(video, Err) or video.value is None:
+                out.records.append(
+                    InputRecord(
+                        kind="video_analysis",
+                        how=InputHow.NOT_AVAILABLE,
+                        asset_id=original,
+                        detail="no usable video analysis of the offered footage",
+                    )
+                )
+                continue
+            analysis, stored = video.value
+            inspection = self._inspections.find(original)
+            alignment = self._alignments.latest(analysed)
+            aligned = alignment.value[0] if isinstance(alignment, Ok) and alignment.value else None
+            correction = aligned.video_correction if aligned is not None else 0.0
+            source = source_facts(found.value, inspection, analysis.source.duration_seconds)
+            evidence = AssetEvidence(
+                source=source,
+                video=video_facts(analysis, original, correction, aligned is not None),
+            )
+            out.cover[original] = evidence
+            out.identities[f"cover:{original}"] = {
+                "source": source.identity,
+                "video": evidence.video.identity if evidence.video else None,
+            }
+            out.records.append(
+                InputRecord(
+                    kind="video_analysis",
+                    how=InputHow.REUSED,
+                    asset_id=original,
+                    detail=stored.id,
+                )
+            )
+
     # --- overrides, identity, history -------------------------------------------------
     def _overrides(
         self, command: PlanEditCommand, anchor: str, profile: str, assets: tuple[str, ...]
@@ -582,6 +676,7 @@ class PlanEdit:
         overrides: tuple[ManualOverride, ...],
         advisors: tuple[tuple[str, str], ...],
         pacing: PacingFacts | None,
+        broll: BrollFacts | None,
     ) -> Mapping[str, JsonValue]:
         """Everything that can change the plan and nothing that cannot (not time, job or device)."""
         return {
@@ -600,6 +695,7 @@ class PlanEdit:
             "overrides": [[o.decision_id, o.action.value, o.note] for o in overrides],
             "advisors": [list(a) for a in advisors],
             "pacing": None if pacing is None else pacing.identity,
+            "broll": None if broll is None else broll.identity,
             "versions": {
                 "editor": EDITOR_VERSION,
                 "schema": SCHEMA_VERSION,

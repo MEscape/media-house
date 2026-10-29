@@ -18,13 +18,14 @@ unresolved. Cover sits on a second picture layer over the main picture; the narr
 """
 
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from fractions import Fraction
 
 from media_house.core.domain import Rational
 from media_house.modules.editing_intelligence.domain.assemble import Piece, Timeline
 from media_house.modules.editing_intelligence.domain.facts import (
     AssetEvidence,
+    BrollFacts,
     ShotChoice,
     ShotFact,
     StoryFacts,
@@ -71,7 +72,8 @@ from media_house.modules.editing_intelligence.domain.values import (
     TrackKind,
 )
 
-SPECIFIC_GRADES = frozenset({"observed_text", "described", "entity_label"})
+#: ``broll_direct``: the B-roll analysis found the footage shows what the passage names.
+SPECIFIC_GRADES = frozenset({"observed_text", "described", "entity_label", "broll_direct"})
 _GRAPHIC_PURPOSES = {
     "explainer_graphic": EffectIntent.EXPLAIN,
     "text_on_screen": EffectIntent.SHOW_TEXT,
@@ -103,6 +105,7 @@ def plan_coverage(
     hooks: Hooks,
     issue_id: Callable[[], str],
     effect_id: Callable[[], str],
+    broll: BrollFacts | None = None,
 ) -> CoverageResult:
     out = CoverageResult()
     section_order = {s.section_id: s.order for s in story.sections}
@@ -123,6 +126,7 @@ def plan_coverage(
             out,
             issue_id,
             effect_id,
+            broll,
         )
     return out
 
@@ -140,6 +144,7 @@ def _one(
     out: CoverageResult,
     issue_id: Callable[[], str],
     effect_id: Callable[[], str],
+    broll: BrollFacts | None = None,
 ) -> None:
     ref = visual.source
     if ref.start is None or ref.end is None or ref.asset_id not in evidence:
@@ -156,6 +161,10 @@ def _one(
         return
     asset = evidence[ref.asset_id]
     start, end = exact(ref.start), exact(ref.end)
+    place = broll.place(visual.visual_id) if broll is not None else None
+    if place is not None and exact(place.end) > max(start, exact(place.start)):
+        # B-roll found the statement inside a source that spans a whole section.
+        start, end = max(start, exact(place.start)), min(end, exact(place.end))
     hit = next(
         (
             (i, p)
@@ -193,7 +202,7 @@ def _one(
         )
         return
     accepted, rejected_notes = _candidates(
-        visual, evidence, span_start, span_end, piece, profile, hooks, request_id
+        visual, evidence, span_start, span_end, piece, profile, hooks, request_id, broll
     )
     chosen = accepted[0] if accepted else None
     placement_id: str | None = None
@@ -334,8 +343,22 @@ def _candidates(
     profile: EditingProfile,
     hooks: Hooks,
     request_id: str,
+    broll: BrollFacts | None = None,
 ) -> tuple[list[CoverCandidate], tuple[str, ...]]:
     choices: Sequence[ShotChoice] = visual.shots
+    place = broll.place(visual.visual_id) if broll is not None else None
+    if place is not None and place.choices:
+        # The B-roll analysis searched the whole library for this place: its candidates come
+        # first (best first), the alignment's same-recording shots stay as fallbacks.
+        known = {(c.asset_id, c.shot_id) for c in place.choices}
+        choices = (
+            *place.choices,
+            *(
+                replace(c, rank=c.rank + len(place.choices))
+                for c in visual.shots
+                if (c.asset_id, c.shot_id) not in known
+            ),
+        )
     if hooks.coverage is not None:
         advised = hooks.coverage(
             CoverageQuery(
@@ -355,7 +378,9 @@ def _candidates(
     accepted: list[CoverCandidate] = []
     rejected: list[str] = []
     for choice in sorted(choices, key=lambda c: c.rank):
-        verdict = _judge(choice, evidence, span_start, span_end, profile, passage)
+        verdict = _judge(
+            choice, evidence, span_start, span_end, profile, passage, visual.source.asset_id
+        )
         if isinstance(verdict, str):
             rejected.append(verdict)
         else:
@@ -371,13 +396,14 @@ def _judge(
     span_end: Fraction,
     profile: EditingProfile,
     passage: str,
+    passage_asset: str,
 ) -> CoverCandidate | str:
     """A qualifying candidate, or the reason the shot was refused."""
     target = evidence.get(choice.asset_id)
     shot = target.video.shot(choice.shot_id) if target is not None and target.video else None
     if target is None or shot is None:
         return f"{choice.shot_id}: not found in the video analysis"
-    reason = _unfit(shot, target, choice, span_start, span_end)
+    reason = _unfit(shot, target, choice, span_start, span_end, passage_asset)
     if reason is not None:
         return f"{choice.shot_id}: {reason}"
     head = exact(shot.head_seconds) if shot.head_seconds else Fraction(0)
@@ -385,10 +411,20 @@ def _judge(
     available = exact(shot.end) - begin
     if available < exact(profile.min_cover_seconds):
         begin, available = exact(shot.start), exact(shot.end) - exact(shot.start)
-    length = min(available, exact(profile.max_cover_seconds), span_end - span_start)
+    wanted = min(available, exact(profile.max_cover_seconds), span_end - span_start)
+    if choice.hint_start is not None:
+        # A suggested part of the shot (where the action is): honoured as far as the shot allows.
+        hinted = max(
+            begin, min(exact(choice.hint_start), exact(shot.end) - exact(profile.min_cover_seconds))
+        )
+        if choice.hint_end is not None and exact(choice.hint_end) > hinted:
+            wanted = min(wanted, exact(choice.hint_end) - hinted)
+        begin, available = hinted, exact(shot.end) - hinted
+        wanted = min(wanted, available)
+    length = wanted
     if length < exact(profile.min_cover_seconds):
         return f"{choice.shot_id}: too short to cut to"
-    warnings: list[str] = []
+    warnings: list[str] = list(choice.warnings)
     executable = choice.grade in SPECIFIC_GRADES
     if not executable:
         warnings.append(
@@ -422,9 +458,12 @@ def _unfit(
     choice: ShotChoice,
     span_start: Fraction,
     span_end: Fraction,
+    passage_asset: str,
 ) -> str | None:
+    # The shot on screen is a shot of the PASSAGE's recording; footage of another recording is
+    # never that shot, whatever its times are on its own clock.
     if (
-        choice.asset_id == target.source.asset_id
+        choice.asset_id == passage_asset
         and exact(shot.start) < span_end
         and exact(shot.end) > span_start
     ):

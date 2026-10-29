@@ -94,6 +94,12 @@ class ShotChoice:
     shot_id: str
     grade: str
     rank: int
+    #: Part of the shot a source suggests (seconds on the recording's common clock). The editor
+    #: still clamps it to the shot, its settling head and the length it needs.
+    hint_start: float | None = None
+    hint_end: float | None = None
+    #: Cautions the source attached to this candidate (shown on the cover, never hidden).
+    warnings: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -363,6 +369,49 @@ class AlignmentFacts:
             if item.visibility == "speaking_face"
             for sid in item.shot_ids
         )
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class BrollPlace:
+    """What the B-roll analysis found for one story visual (best first), reduced to choices."""
+
+    visual_id: str
+    choices: tuple[ShotChoice, ...]
+    #: The passage the footage is for (seconds on the recording's clock). The story may give a
+    #: whole section as a visual's source; B-roll narrows it to the statement the visual is about.
+    start: float
+    end: float
+    #: No candidate satisfies what the story asked for (any choice listed is illustrative only).
+    missing: bool
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class BrollNote:
+    """A satisfied B-roll recommendation for a place the story did not name as a visual."""
+
+    asset_id: str
+    start: float
+    end: float
+    need: str
+    detail: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class BrollFacts:
+    analysis_id: str
+    profile: str
+    places: tuple[BrollPlace, ...]
+    notes: tuple[BrollNote, ...]
+    #: ``(original asset id, the asset whose analysis holds its shots)`` for every candidate.
+    analysed: tuple[tuple[str, str], ...]
+    identity: str
+
+    def place(self, visual_id: str) -> BrollPlace | None:
+        return next((p for p in self.places if p.visual_id == visual_id), None)
+
+    def assets(self) -> tuple[tuple[str, str], ...]:
+        """``(asset id, shot id)`` of every candidate offered."""
+        return tuple(dict.fromkeys((c.asset_id, c.shot_id) for p in self.places for c in p.choices))
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

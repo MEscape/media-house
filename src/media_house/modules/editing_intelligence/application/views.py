@@ -16,6 +16,11 @@ from media_house.modules.audio_visual_alignment.application.contracts import (
     AlignmentDocument,
     Visibility,
 )
+from media_house.modules.broll_intelligence.application.contracts import (
+    BrollAnalysis,
+    Candidate,
+    Support,
+)
 from media_house.modules.content_intelligence.application.contracts import (
     ContentAnalysis,
     RelationKind,
@@ -27,6 +32,9 @@ from media_house.modules.editing_intelligence.domain.facts import (
     AlignmentFacts,
     AudioFacts,
     BeatFact,
+    BrollFacts,
+    BrollNote,
+    BrollPlace,
     ConstraintFact,
     ContentFacts,
     ContextFact,
@@ -260,6 +268,62 @@ def pacing_facts(analysis: PacingAnalysis) -> PacingFacts:
         identity="",
     )
     return replace(facts, identity=_digest(analysis.pacing_analysis_id, asdict(facts)))
+
+
+# --- b-roll ----------------------------------------------------------------------------------
+def _choice(c: Candidate) -> ShotChoice:
+    return ShotChoice(
+        asset_id=c.asset_id,
+        shot_id=c.shot_id,
+        grade="broll_direct" if c.support is Support.SATISFIES else "broll_illustrative",
+        rank=c.rank,
+        hint_start=c.source.start.value,
+        hint_end=c.source.end.value,
+        warnings=c.warnings,
+    )
+
+
+def broll_facts(analysis: BrollAnalysis) -> BrollFacts:
+    """What the editor reads of the B-roll analysis: the candidates of each story visual (best
+    first, illustrative ones labelled as such) and the satisfied places the story did not name.
+    Its identity covers all of it, so any change the editor could notice misses the plan cache."""
+    places: list[BrollPlace] = []
+    notes: list[BrollNote] = []
+    analysed: dict[str, str] = {}
+    for rec in analysis.recommendations:
+        if rec.story_visual_id is not None:
+            places.append(
+                BrollPlace(
+                    visual_id=rec.story_visual_id,
+                    choices=tuple(_choice(c) for c in rec.candidates),
+                    start=rec.placement.target_start.value,
+                    end=rec.placement.target_end.value,
+                    missing=rec.missing_coverage,
+                )
+            )
+            for c in rec.candidates:
+                analysed.setdefault(c.asset_id, c.analyzed_asset_id)
+        elif rec.best is not None and not rec.missing_coverage:
+            best = rec.best
+            notes.append(
+                BrollNote(
+                    asset_id=rec.asset_id,
+                    start=rec.placement.target_start.value,
+                    end=rec.placement.target_end.value,
+                    need=rec.need.value,
+                    detail=f"{rec.purpose.value} footage {best.asset_name} "
+                    f"({best.role.value.replace('_', ' ')}) is available",
+                )
+            )
+    facts = BrollFacts(
+        analysis_id=analysis.broll_analysis_id,
+        profile=analysis.profile,
+        places=tuple(places),
+        notes=tuple(notes),
+        analysed=tuple(sorted(analysed.items())),
+        identity="",
+    )
+    return replace(facts, identity=_digest(analysis.broll_analysis_id, asdict(facts)))
 
 
 # --- content analysis ------------------------------------------------------------------------
