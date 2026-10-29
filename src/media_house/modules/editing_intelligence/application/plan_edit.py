@@ -49,6 +49,7 @@ from media_house.modules.editing_intelligence.application.views import (
     broll_facts,
     content_facts,
     continuity_facts,
+    framing_facts,
     pacing_facts,
     source_facts,
     story_facts,
@@ -67,6 +68,7 @@ from media_house.modules.editing_intelligence.domain.facts import (
     AssetEvidence,
     BrollFacts,
     ContinuityFacts,
+    FramingFacts,
     PacingFacts,
     ShotChoice,
 )
@@ -108,6 +110,10 @@ from media_house.modules.media_library.application.contracts import (
 from media_house.modules.pacing_intelligence.application.contracts import (
     PacingAnalysis,
     PacingCatalog,
+)
+from media_house.modules.reframing_intelligence.application.contracts import (
+    ReframingAnalysis,
+    ReframingCatalog,
 )
 from media_house.modules.story_architecture.application.contracts import (
     Acquire as StoryAcquire,
@@ -217,6 +223,11 @@ class PlanEditCommand:
     #: A continuity analysis the caller holds (used as given), and whether to read a stored one.
     continuity: ContinuityAnalysis | None = None
     use_continuity: bool = True
+    #: A framing analysis the caller holds (used as given), whether to read a stored one, and which
+    #: target format (``9:16``) to read it for (``None``: the newest, whatever its target).
+    reframing: ReframingAnalysis | None = None
+    use_reframing: bool = True
+    reframing_target: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -258,6 +269,7 @@ class PlanEdit:
         pacing: PacingCatalog | None = None,
         broll: BrollCatalog | None = None,
         continuity: ContinuityCatalog | None = None,
+        reframing: ReframingCatalog | None = None,
     ) -> None:
         self._library = library
         self._planner = planner
@@ -272,6 +284,7 @@ class PlanEdit:
         self._pacing = pacing
         self._broll = broll
         self._continuity = continuity
+        self._reframing = reframing
         self._documents = DerivedDocuments(library, paths)
         self._results = EditResults(library)
 
@@ -313,6 +326,7 @@ class PlanEdit:
         pacing = self._pacing_of(command, plan, gathered.value)
         broll = self._broll_of(command, plan, gathered.value)
         continuity = self._continuity_of(command, plan, gathered.value)
+        framing = self._framing_of(command, plan, gathered.value)
         if broll is not None:
             self._gather_cover(command, plan, broll, gathered.value)
         complete = len(gathered.value.known) == len(plan.source_assets)
@@ -326,7 +340,7 @@ class PlanEdit:
         overrides = self._overrides(command, anchor, profile.name, assets)
         advisors = self._advisors.identities()
         key = self._cache_key(
-            command, plan, gathered.value, overrides, advisors, pacing, broll, continuity
+            command, plan, gathered.value, overrides, advisors, pacing, broll, continuity, framing
         )
         spec = DocumentSpec(RESULT_OPERATION, EDITOR_VERSION, key)
         fingerprint = self._documents.fingerprint(anchor, spec)
@@ -373,6 +387,7 @@ class PlanEdit:
                 broll,
                 gathered.value.cover,
                 continuity,
+                framing,
             )
         except NothingToEdit as exc:
             return Err(exc)
@@ -650,6 +665,35 @@ class PlanEdit:
         )
         return None if found is None else continuity_facts(found)
 
+    def _framing_of(
+        self, command: PlanEditCommand, plan: StoryPlan, gathered: _Gathered
+    ) -> FramingFacts | None:
+        """The framing analysis of THIS story's recordings for the wanted target, supplied or
+        stored. Its recommendations are keyed by source range, so they stay valid for every clip
+        the plan places from those ranges."""
+        assets = tuple(a.asset_id for a in plan.source_assets)
+        found: ReframingAnalysis | None = None
+        how = InputHow.NOT_AVAILABLE
+        detail = "no framing analysis (clips carry no crop recommendation)"
+        if command.reframing is not None:
+            found, how = command.reframing, InputHow.SUPPLIED
+        elif command.use_reframing and self._reframing is not None:
+            stored = self._reframing.latest(assets[0], target=command.reframing_target)
+            if isinstance(stored, Ok) and stored.value is not None:
+                found, how, detail = stored.value[0], InputHow.REUSED, stored.value[1].id
+        if found is not None and not {s.asset_id for s in found.sources} & set(assets):
+            found, how = None, InputHow.NOT_AVAILABLE
+            detail = "the framing analysis is for other recordings"
+        gathered.records.append(
+            InputRecord(
+                kind="framing_analysis",
+                how=how,
+                identity=None if found is None else found.reframing_analysis_id,
+                detail=detail if found is None or how is InputHow.REUSED else "",
+            )
+        )
+        return None if found is None else framing_facts(found)
+
     def _gather_cover(
         self, command: PlanEditCommand, plan: StoryPlan, broll: BrollFacts, out: _Gathered
     ) -> None:
@@ -722,6 +766,7 @@ class PlanEdit:
         pacing: PacingFacts | None,
         broll: BrollFacts | None,
         continuity: ContinuityFacts | None,
+        framing: FramingFacts | None,
     ) -> Mapping[str, JsonValue]:
         """Everything that can change the plan and nothing that cannot (not time, job or device)."""
         return {
@@ -742,6 +787,7 @@ class PlanEdit:
             "pacing": None if pacing is None else pacing.identity,
             "broll": None if broll is None else broll.identity,
             "continuity": None if continuity is None else continuity.identity,
+            "framing": None if framing is None else framing.identity,
             "versions": {
                 "editor": EDITOR_VERSION,
                 "schema": SCHEMA_VERSION,

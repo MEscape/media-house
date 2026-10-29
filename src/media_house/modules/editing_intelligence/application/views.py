@@ -9,6 +9,7 @@ the plan's cache key notices a changed analysis.
 import hashlib
 from collections.abc import Sequence
 from dataclasses import asdict, replace
+from fractions import Fraction
 from functools import partial
 
 from media_house.modules.audio_intelligence.application.contracts import AudioIntelligenceTimeline
@@ -45,6 +46,8 @@ from media_house.modules.editing_intelligence.domain.facts import (
     ContinuityNote,
     CutVerdict,
     EventFact,
+    FramingFacts,
+    FramingSpan,
     KeyInfoFact,
     LinkFact,
     OpeningFact,
@@ -70,6 +73,9 @@ from media_house.modules.editing_intelligence.domain.facts import (
 from media_house.modules.media_inspection.application.contracts import InspectionResult
 from media_house.modules.media_library.application.contracts import MediaAssetDto
 from media_house.modules.pacing_intelligence.application.contracts import PacingAnalysis
+from media_house.modules.reframing_intelligence.application.contracts import (
+    ReframingAnalysis,
+)
 from media_house.modules.story_architecture.application.contracts import SourceRef, StoryPlan
 from media_house.modules.video_intelligence.application.contracts import (
     AnalyzerState,
@@ -324,6 +330,54 @@ def continuity_facts(analysis: ContinuityAnalysis) -> ContinuityFacts:
         identity="",
     )
     return replace(facts, identity=_digest(analysis.continuity_analysis_id, asdict(facts)))
+
+
+# --- framing ---------------------------------------------------------------------------------
+_NOT_SERVED = frozenset({"unreframeable", "fill_treatment"})
+
+
+def framing_facts(analysis: ReframingAnalysis) -> FramingFacts:
+    """What the editor reads of the framing analysis: per shot, the strategy and feasibility for the
+    target, and for the shots it could not serve well why, with the first alternative it named. The
+    crop and keyframes stay in the analysis. Its identity covers all of it, so any change the editor
+    could notice misses the plan cache."""
+    spans = []
+    for r in analysis.recommendations:
+        problem = r.strategy.value in _NOT_SERVED or r.feasibility.value in (
+            "impossible",
+            "uncertain",
+            "low_quality",
+        )
+        detail = ""
+        if problem:
+            detail = r.reasons[0] if r.reasons else r.feasibility.value
+            if r.tradeoffs:
+                detail = r.tradeoffs[0]
+            if r.alternatives:
+                a = r.alternatives[0]
+                detail += f"; alternative: {a.summary}" + (
+                    f" (needs {a.requires})" if a.requires else ""
+                )
+        spans.append(
+            FramingSpan(
+                recommendation_id=r.recommendation_id,
+                asset_id=r.asset_id,
+                start=Fraction(r.start.numerator, r.start.denominator),
+                end=Fraction(r.end.numerator, r.end.denominator),
+                strategy=r.strategy.value,
+                feasibility=r.feasibility.value,
+                executable=r.executable,
+                detail=detail,
+            )
+        )
+    facts = FramingFacts(
+        analysis_id=analysis.reframing_analysis_id,
+        target=analysis.target.name,
+        profile=analysis.profile,
+        spans=tuple(spans),
+        identity="",
+    )
+    return replace(facts, identity=_digest(analysis.reframing_analysis_id, asdict(facts)))
 
 
 # --- b-roll ----------------------------------------------------------------------------------

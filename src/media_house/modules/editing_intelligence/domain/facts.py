@@ -7,6 +7,7 @@ container timeline (the alignment's common clock), or ``None`` when upstream had
 """
 
 from dataclasses import dataclass
+from fractions import Fraction
 
 from media_house.core.domain import Rational
 
@@ -414,6 +415,36 @@ class ContinuityFacts:
             ),
             None,
         )
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class FramingSpan:
+    """What the reframing analysis recommends for one shot (source seconds, common clock)."""
+
+    recommendation_id: str
+    asset_id: str
+    start: Fraction
+    end: Fraction
+    strategy: str
+    feasibility: str
+    executable: bool
+    #: Why it is a problem and the best alternative the analysis named; empty when it is not.
+    detail: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class FramingFacts:
+    analysis_id: str
+    target: str
+    profile: str
+    spans: tuple[FramingSpan, ...]
+    identity: str
+
+    def covering(self, asset_id: str, start: Fraction, end: Fraction) -> list[FramingSpan]:
+        found = [
+            s for s in self.spans if s.asset_id == asset_id and s.start < end and s.end > start
+        ]
+        return sorted(found, key=lambda s: (s.start, s.recommendation_id))
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

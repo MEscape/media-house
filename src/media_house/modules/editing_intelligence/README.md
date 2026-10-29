@@ -184,6 +184,22 @@ The editor reads the stored B-roll analysis for the story's recordings through `
 * `shot already on screen` is now judged only against shots of the passage's OWN recording (it previously compared the
   times of any recording, which refused all other-recording cover).
 
+## Framing input (`reframing_intelligence`)
+
+`reframing_intelligence` recommends a crop per SHOT for one target format; the edit places RANGES of recordings. The editor reads
+the stored analysis (`ReframingCatalog`, `PlanEditCommand.reframing_target` picks the format, or `PlanEditCommand.reframing`, or
+the pipeline payload; `use_reframing=False` ignores it). `application/views.framing_facts` reduces it to `FramingFacts` (per shot:
+strategy, feasibility, executable, and for the shots it could not serve well why, with the first alternative it named; its identity
+is part of the cache key; input record `framing_analysis`, stage `framing_analysis`). `domain/framing.py`:
+
+* Every picture clip gets a `FramingRef` per recommendation its source range overlaps (id, analysis id, target, strategy,
+  feasibility, executable, the part of the range it covers, in source seconds). The crop and keyframes are NOT copied: a timeline
+  stage fetches them by id from the analysis (the one place they are stored).
+* A clip whose range no crop serves (`unreframeable`/`fill_treatment`/impossible), a soft crop (`low_quality`) or an uncertain one
+  (missing evidence) becomes an editing issue (`IssueKind.FRAMING`, warning / unresolved) and a `PacingNote(level="framing")`
+  (at most 15). Nothing is applied: the editor keeps the clip it chose and says what the framing recommendations make of it.
+* Sound clips carry no framing. A range the analysis does not cover carries none.
+
 ## Continuity input (`continuity_intelligence`)
 
 `continuity_intelligence` judges the cuts of a PROPOSED edit, so it runs after a plan exists (opt-in `continuity` task)
@@ -208,7 +224,7 @@ The editor still has optional, **unimplemented** `Advisors` (`CoverageAdvisor.ra
 answer is validated like any other candidate, an advisor's identity is part of the cache key, and `None` means no
 opinion. No advisor is wired, no package reserves a name, and a plan without them is complete. (The former
 `PacingAdvisor` was replaced by the pacing input above. `continuity_intelligence` is not wired as the `ContinuityAdvisor`:
-it judges a finished proposal, so it is read as stored evidence instead.) Reframing, music and sound design, transitions, graphics, style, the compiler, the
+it judges a finished proposal, so it is read as stored evidence instead.) Music and sound design, transitions, graphics, style, the compiler, the
 timeline builder, the Resolve adapter, quality control and revision are other stages: the editor only *requests*
 effects and states intent. A future revision stage can consume findings by passing `ManualOverride`s and a changed
 configuration; nothing here compares a plan with a rendered result.

@@ -23,6 +23,9 @@ from media_house.modules.editing_intelligence.application.results import EditRes
 from media_house.modules.media_inspection.application.contracts import InspectionCatalog
 from media_house.modules.media_library.application.contracts import MediaLibrary
 from media_house.modules.pacing_intelligence.application.contracts import PacingCatalog
+from media_house.modules.reframing_intelligence.application.contracts import (
+    ReframingCatalog,
+)
 from media_house.modules.story_architecture.application.contracts import StoryCatalog, StoryPlanner
 from media_house.modules.video_intelligence.application.contracts import VideoCatalog
 from media_house.shared.filesystem import AppPaths
@@ -48,6 +51,7 @@ class EditingIntelligenceModule:
                 pacing=c.resolve(PacingCatalog),
                 broll=c.resolve(BrollCatalog),
                 continuity=c.resolve(ContinuityCatalog),
+                reframing=c.resolve(ReframingCatalog),
             ),
         )
         container.register_factory(EditPlanner, lambda c: c.resolve(PlanEdit))

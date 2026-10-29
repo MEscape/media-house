@@ -169,6 +169,27 @@ class Decision:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class FramingRef:
+    """A framing recommendation that covers part of a clip's source range.
+
+    The crop and its keyframes stay in the reframing analysis (the one place they are stored); a
+    timeline stage fetches them by ``recommendation_id`` from ``analysis_id``. ``start`` and
+    ``end`` are the part of the clip's source range the recommendation covers (exact seconds on the
+    recording's clock, never timeline places)."""
+
+    recommendation_id: str
+    analysis_id: str
+    #: The target format the analysis was made for (``9:16``).
+    target: str
+    strategy: str
+    feasibility: str
+    #: A crop that a downstream stage may apply as it stands.
+    executable: bool
+    start: Rational
+    end: Rational
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class Placement:
     """One clip on one track of the timeline."""
 
@@ -198,6 +219,8 @@ class Placement:
     continuity_risk: Signal | None = None
     confidence: float | None = None
     warnings: tuple[str, ...] = ()
+    #: The framing recommendations covering this clip's source range (picture clips only).
+    framing: tuple[FramingRef, ...] = ()
 
     def __post_init__(self) -> None:
         optional_unit_interval(self.confidence, "placement confidence")
