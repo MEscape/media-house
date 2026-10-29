@@ -619,7 +619,10 @@ a changed key adds a plan version (`supersedes`). In the pipeline it is the OPT-
 continuity are optional contracts; none is wired (B-roll arrives as data, see `broll_intelligence`). Pacing and continuity are no
 longer advisors: the editor reads the stored `pacing_intelligence` analysis (`PacingCatalog`, or the pipeline payload) and,
 on its next planning, the stored `continuity_intelligence` analysis (`ContinuityCatalog`) as evidence and still applies its
-own checks. Not built: music analysis, anything after the plan (compiler, timeline builder, Resolve adapter, quality
+own checks. It also reads the stored `reframing_intelligence` analysis for a target format (`ReframingCatalog`, or the pipeline
+payload; `PlanEditCommand.reframing_target`): every picture clip carries a `FramingRef` per overlapping recommendation and a
+clip no crop serves (or a soft or uncertain one) becomes an issue (`IssueKind.FRAMING`) and a note; the crop itself stays in
+the framing analysis and nothing is cropped in the plan. Not built: music analysis, anything after the plan (compiler, timeline builder, Resolve adapter, quality
 control, revision).
 
 `broll_intelligence` FINDS supplementary footage for the passages that need it, searching the WHOLE library (see its
@@ -658,12 +661,33 @@ library document of the first recording (`document_type: continuity_analysis`). 
 discontinuity, screen direction, eyeline, action/object state, identity, clipped speech, audio step, sync, chronology,
 narrative confusion) carry separate scores, a severity level, a detectability confidence, an ESTIMATED
 `intentional_style_likelihood` (profile prior + story context; a probably deliberate difference is information, not a
-finding), evidence, exact source spans and ranked repairs with an owner and an availability (`reframing_intelligence`
-does not exist: `unavailable`). Unknown evidence is `None`/`Unresolved`, never "matches". Unchanged cuts are carried over by
+finding), evidence, exact source spans and ranked repairs with an owner and an availability (the reframe repair is `unchecked`:
+`reframing_intelligence` exists, but the crops of the cut are not compared by continuity). Unknown evidence is `None`/`Unresolved`, never "matches". Unchanged cuts are carried over by
 fingerprint; a person's accept/reject follows an issue. In the pipeline it is the opt-in `continuity` task (needs
 `edit_plan`; `--stages continuity`, `--continuity-profile`, `--continuity-strictness`); `editing_intelligence` reads the
 result on its next planning. Validated on synthetic evidence and a real library with synthetic tracked analyses only;
 thresholds uncalibrated.
+
+`reframing_intelligence` RECOMMENDS HOW EACH SHOT IS FRAMED for one target format (`TargetFormat.of("9:16")`; see its
+README); it modifies no media, renders nothing, names no timeline backend and decides no edit. It reads the STORED video
+analysis (tracks, quality; the only required input), inspection, alignment, story plan and continuity analysis through their
+catalogs and writes one `ReframingAnalysis` as a derived library document of the first recording (`document_type:
+reframing_analysis`), found by target and profile through `ReframingCatalog`. Per shot a `Recommendation`: a strategy
+(original framing, static/repositioned crop, dynamic crop, push-in, or `unreframeable`/fill proposal), `Crop(x, y, w, h)`
+keyframes (normalised top-left window of the display-oriented source picture, exact `Rational` source seconds on the common
+clock, `hold`/`linear` interpolation, no movement across a cut), independent scores with a stated basis (`None` = not
+stated), a feasibility (`impossible` / `low_quality` / `feasible_with_tradeoffs` / `uncertain`, an uncertain one is never
+`executable`), the effective-resolution calculation (stored samples per output pixel, pixel shape and rotation included),
+tracking gaps, reasons, trade-offs and, where nothing carries the shot, alternatives with what each would need (never
+executable here). Safe areas are configuration only, never assumed; nothing is dropped silently (two speakers that cannot
+share the window make the shot `unreframeable`). Neighbouring shots are compared by subject size and place (pairs from the
+stored continuity analysis, else recording order). The cache key covers every shot's evidence, the target and resolution, the
+configuration and safe areas, the story and continuity identity; an unchanged shot is carried over; a person's accept/reject
+follows the segment. In the pipeline it is the opt-in `reframing` task (needs `video_analysis`; `--stages reframing
+--reframe-target 9:16 [--reframe-resolution WxH] [--reframe-profile P] [--reframe-safe-area NAME=x0,y0,x1,y1]`, skipped until
+a target is given); `edit_plan` waits for it and attaches its references to the clips. Validated on synthetic geometry only
+(`tests/support/refr_eval.py`); no real footage, tracker or picture quality was evaluated; thresholds uncalibrated; no hands
+or per-person speaking are known upstream.
 
 ---------------------------------------------------------------------------------------------------
 
