@@ -199,3 +199,27 @@ class TestLanguageAndEmbeddings:
 
         stage = next(s for s in doc.stages if s.stage == "text")
         assert stage.state.value == "not_available" and doc.text_matches == ()
+
+
+def test_a_spoken_price_meets_the_same_price_on_screen() -> None:
+    from dataclasses import replace
+
+    from media_house.modules.audio_visual_alignment.application.views import commerce_terms
+    from media_house.modules.audio_visual_alignment.domain.inputs import ContentFacts, Passage
+
+    said = "Die Batterie kostet 15,99 Euro im Laden"
+    tag = shot("a", 0, 60, text=("15,99 €",))
+    tag = replace(tag, commerce_terms=commerce_terms(*tag.screen_text, languages=("de", "en")))
+    passage = Passage("p1", 10.0, 20.0, said, commerce_terms(said, languages=("de",)))
+    doc = run(
+        inputs(
+            audio([], language="de"),
+            video([tag]),
+            content_facts=ContentFacts(None, (passage,), ()),
+        )
+    )
+
+    (match,) = doc.text_matches
+    assert match.grade is EvidenceGrade.OBSERVED_TEXT
+    assert "price:15.99" in match.terms
+    assert commerce_terms("PLATZ 3", languages=("de", "en")) == ("rank:3",)

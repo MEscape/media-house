@@ -66,8 +66,9 @@ class AlignmentProfile:
     semantic_min_shots: int = 5
 
     # --- sound to action --------------------------------------------------------------------
-    audio_event_kinds: tuple[str, ...] = ("energy_spike",)
-    video_event_kinds: tuple[str, ...] = ("motion_peak", "gesture", "track_entered")
+    #: ``impulse`` is audio_intelligence's bang detector; a bang pairs with a ``flash``.
+    audio_event_kinds: tuple[str, ...] = ("energy_spike", "impulse")
+    video_event_kinds: tuple[str, ...] = ("motion_peak", "gesture", "track_entered", "flash")
     event_tolerance_seconds: float = 0.35
     min_event_strength: float = 0.5
 

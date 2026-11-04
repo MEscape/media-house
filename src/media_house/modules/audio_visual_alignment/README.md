@@ -123,9 +123,12 @@ through on-screen text, and a `language_mismatch` flag says so.
 * Only the **largest face** has a mouth signal, and `people > 1` makes a shot `ambiguous`: crowds
   and over-the-shoulder shots yield few links. `people` is the number of person *tracks* in the shot,
   so a track that fragments counts twice and errs toward `ambiguous`, never toward a false link.
-* Sound-to-action uses the events that exist: `energy_spike` against `motion_peak`, `gesture`,
-  `track_entered`. No sound classifier ships, so footsteps, doors or applause are not named and no
+* Sound-to-action uses the events that exist: `energy_spike` and `impulse` (a bang) against
+  `motion_peak`, `gesture`, `track_entered` and `flash`. No sound classifier ships, so footsteps, doors or applause are not named and no
   musical beats are matched. The `audio_event_kinds` setting passes any new kind through.
+* Prices and ranks ("15,99 Euro" said, "15,99 €" on screen, "Platz 3") are matched as normalised
+  terms (`price:15.99`, `rank:3`) read with content_intelligence's `commerce_facts`; other digits
+  are still not terms.
 * One video and one audio per run. Several cameras, and the same person across clips, are not
   related (identity clusters are per video analysis).
 * Alignment is **not measured against labelled real footage**; the thresholds are conservative

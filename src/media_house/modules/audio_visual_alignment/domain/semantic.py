@@ -64,7 +64,10 @@ def words(text: str, minimum: int) -> set[str]:
 
 def passage_terms(passages: Sequence[Passage], profile: AlignmentProfile) -> dict[str, set[str]]:
     """Distinctive words per passage; words common to many passages are dropped."""
-    per_passage = {p.passage_id: words(p.text, profile.min_term_length) for p in passages}
+    per_passage = {
+        p.passage_id: words(p.text, profile.min_term_length) | set(p.commerce_terms)
+        for p in passages
+    }
     if len(passages) >= _MIN_PASSAGES_FOR_COMMON:
         frequency = Counter(w for terms in per_passage.values() for w in terms)
         common = {w for w, n in frequency.items() if n / len(passages) > _COMMON_SHARE}
@@ -142,7 +145,7 @@ def _match(
     minimum = profile.min_term_length
     on_screen = (
         set().union(*(words(t, minimum) for t in shot.screen_text)) if shot.screen_text else set()
-    )
+    ) | set(shot.commerce_terms)
     described = words(shot.description, minimum) if shot.description else set()
     labels = {w for label in shot.objects for w in words(label, minimum)}
     evidence: list[Evidence] = []

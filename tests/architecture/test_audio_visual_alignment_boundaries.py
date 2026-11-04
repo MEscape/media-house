@@ -25,7 +25,7 @@ OTHER_MODULES = (
     "audio_improvement",
     "video_improvement",
     "workspace",
-    "image_adjustment",
+    "visual_asset_generation",
 )
 HEAVY_LIBRARIES = frozenset(
     {

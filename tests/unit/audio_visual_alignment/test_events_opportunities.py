@@ -66,6 +66,20 @@ def pairs(
 
 
 class TestSoundAction:
+    def test_a_bang_pairs_with_a_flash(self) -> None:
+        bang = AudioEventFact("a1", "impulse", 10.0, 10.05, 0.9)
+
+        assert len(pairs([spike(1, 10.0)], [motion(1, 10.1, kind="flash")])) == 1
+        assert len(pairs([bang], [motion(1, 10.1, kind="flash")])) == 1
+
+    def test_the_impulse_kind_is_the_audio_owners_name(self) -> None:
+        import importlib
+
+        owner = importlib.import_module(
+            "media_house.modules.audio_intelligence.application.contracts"
+        )
+        assert getattr(owner, "IMPULSE", "impulse") in AlignmentProfile().audio_event_kinds
+
     def test_a_movement_at_the_sound_onset_is_a_candidate_with_its_offset(self) -> None:
         found = pairs([spike(1, 10.0)], [motion(1, 10.1)])
 
@@ -81,7 +95,7 @@ class TestSoundAction:
 
     def test_weak_sounds_and_other_kinds_are_not_considered(self) -> None:
         weak = pairs([spike(1, 10.0, strength=0.2)], [motion(1, 10.0)])
-        other = pairs([spike(1, 10.0)], [motion(1, 10.0, kind="flash")])
+        other = pairs([spike(1, 10.0)], [motion(1, 10.0, kind="text_appeared")])
 
         assert weak == () and other == ()
 

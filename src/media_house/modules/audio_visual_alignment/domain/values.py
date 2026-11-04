@@ -12,7 +12,7 @@ RESULT_OPERATION = "audio_visual_alignment"
 RESULT_DOCUMENT = "audio_visual_alignment.document"
 
 #: Bump when any rule or formula changes what a result contains; stored results then miss.
-ALIGNMENT_VERSION = 1
+ALIGNMENT_VERSION = 2
 #: Bump when the stored shape changes.
 SCHEMA_VERSION = 1
 #: Bump when ``scoring.py`` changes what a strength means.

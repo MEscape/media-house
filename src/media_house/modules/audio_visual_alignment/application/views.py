@@ -21,7 +21,11 @@ from media_house.modules.audio_visual_alignment.domain.inputs import (
     VideoEventFact,
     VideoFacts,
 )
-from media_house.modules.content_intelligence.application.contracts import ContentAnalysis
+from media_house.modules.content_intelligence.application.contracts import (
+    CommerceKind,
+    ContentAnalysis,
+    commerce_facts,
+)
 from media_house.modules.media_inspection.application.contracts import MediaInspection
 from media_house.modules.video_intelligence.application.contracts import (
     AnalyzerId,
@@ -30,6 +34,7 @@ from media_house.modules.video_intelligence.application.contracts import (
 )
 
 _MOUTH_CURVE = "mouth_activity"
+_MATCHED_FACTS = (CommerceKind.PRICE, CommerceKind.RANK)
 _PERSON = "person"
 
 
@@ -89,6 +94,10 @@ def video_facts(analysis: VideoAnalysis, document_id: str | None) -> VideoFacts:
             objects=tuple(s.meaning.objects) if s.meaning.state is AnalyzerState.OK else (),
             description=s.meaning.description if s.meaning.state is AnalyzerState.OK else None,
             scene_id=s.scene_id,
+            commerce_terms=commerce_terms(
+                *(i.text for i in s.text.items if s.text.state is AnalyzerState.OK),
+                languages=("de", "en"),  # on-screen text carries no language
+            ),
         )
         for s in analysis.shots
     )
@@ -130,7 +139,8 @@ def content_facts(analysis: ContentAnalysis, document_id: str | None) -> Content
         if span.start is None or span.end is None:
             continue
         text = " ".join(u.text for uid in segment.unit_ids if (u := analysis.unit(uid)) is not None)
-        passages.append(Passage(segment.segment_id, span.start, span.end, text))
+        terms = commerce_terms(text, languages=(analysis.source.language or "",))
+        passages.append(Passage(segment.segment_id, span.start, span.end, text, terms))
         for item in (*segment.broll, *segment.graphics):
             if item.span.start is None or item.span.end is None:
                 continue
@@ -162,4 +172,19 @@ def clock_facts(inspection: MediaInspection) -> ClockFacts:
         container_start=inspection.container.start_time,
         video_first_pts=first_pts,
         audio_start=audio.start_time if audio is not None else None,
+    )
+
+
+def commerce_terms(*texts: str, languages: tuple[str, ...]) -> tuple[str, ...]:
+    """Prices and ranks as normalised terms, so "15,99 Euro" said meets "15,99 €" on screen."""
+    return tuple(
+        sorted(
+            {
+                f"{f.kind.value}:{float(f.value):.15g}"
+                for text in texts
+                for language in languages
+                for f in commerce_facts(text, language)
+                if f.kind in _MATCHED_FACTS and f.value is not None
+            }
+        )
     )

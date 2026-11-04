@@ -80,6 +80,8 @@ class ShotFacts:
     objects: tuple[str, ...] = ()
     description: str | None = None
     scene_id: str | None = None
+    #: Prices and ranks read off the screen, normalised (``price:15.99``, ``rank:3``).
+    commerce_terms: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,6 +120,8 @@ class Passage:
     start: float
     end: float
     text: str
+    #: Prices and ranks said in the passage, normalised like ``ShotFacts.commerce_terms``.
+    commerce_terms: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
