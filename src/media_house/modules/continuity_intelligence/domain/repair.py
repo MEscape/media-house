@@ -141,7 +141,7 @@ def repairs_for(finding: Finding, t: TransitionFact, style: float) -> tuple[Repa
     elif kind is IssueType.AUDIO_DISCONTINUITY:
         add(
             RepairKind.AUDIO_CROSSFADE,
-            Owner.AUDIO_IMPROVEMENT,
+            Owner.TRANSITION,
             Availability.UNCHECKED,
             "crossfade the sound across the cut",
             0.15,
@@ -149,7 +149,7 @@ def repairs_for(finding: Finding, t: TransitionFact, style: float) -> tuple[Repa
         )
         add(
             RepairKind.ROOM_TONE,
-            Owner.AUDIO_IMPROVEMENT,
+            Owner.SOUND,
             Availability.UNCHECKED,
             "lay room tone under the cut",
             0.35,
@@ -157,7 +157,7 @@ def repairs_for(finding: Finding, t: TransitionFact, style: float) -> tuple[Repa
         )
         add(
             RepairKind.AMBIENCE_BRIDGE,
-            Owner.AUDIO_IMPROVEMENT,
+            Owner.SOUND,
             Availability.UNCHECKED,
             "bridge the step with the ambience of one side",
             0.4,

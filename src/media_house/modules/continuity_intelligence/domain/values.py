@@ -40,7 +40,7 @@ problem, the strictness and the style estimate; it is not one of the scores.
 from enum import StrEnum
 from typing import Final
 
-ANALYZER_VERSION: Final = 2
+ANALYZER_VERSION: Final = 3
 SCHEMA_VERSION: Final = 1
 VOCABULARY_VERSION: Final = 1
 PROFILE_VERSION: Final = 1
@@ -137,6 +137,10 @@ class Owner(StrEnum):
     REFRAMING = "reframing_intelligence"
     VIDEO_IMPROVEMENT = "video_improvement"
     AUDIO_IMPROVEMENT = "audio_improvement"
+    #: Layer 4 owners, named by value only: the audio/visual transition at a cut, and the
+    #: ambience bed / room tone under it.
+    TRANSITION = "transition_engine"
+    SOUND = "music_and_sound_design"
     PERSON = "person"
 
 

@@ -6,6 +6,10 @@ import pytest
 
 from media_house.modules.continuity_intelligence.domain.facts import AudioEdge
 from media_house.modules.continuity_intelligence.domain.model import Issue
+from media_house.modules.continuity_intelligence.domain.serialization import (
+    analysis_from_json,
+    analysis_to_json,
+)
 from media_house.modules.continuity_intelligence.domain.values import (
     Availability,
     IdentityVerdict,
@@ -367,7 +371,8 @@ class TestSound:
             audio=self.audio(level_db=-32.0, floor_db=-45.0, speech_near=True),
         )
 
-        plain = issue_of(run([transition(a=a, b=b, gap=2.0)]), IssueType.AUDIO_DISCONTINUITY)
+        plain_run = run([transition(a=a, b=b, gap=2.0)])
+        plain = issue_of(plain_run, IssueType.AUDIO_DISCONTINUITY)
         bridged = issue_of(
             run([transition(a=a, b=b, gap=2.0, bridged=True)]), IssueType.AUDIO_DISCONTINUITY
         )
@@ -382,6 +387,11 @@ class TestSound:
             r.owner is not Owner.EDITING or r.kind is not RepairKind.AUDIO_CROSSFADE
             for r in plain.repairs
         )
+        owners = {r.kind: r.owner for r in plain.repairs}
+        assert owners[RepairKind.AUDIO_CROSSFADE] is Owner.TRANSITION
+        assert owners[RepairKind.ROOM_TONE] is Owner.SOUND
+        assert owners[RepairKind.AMBIENCE_BRIDGE] is Owner.SOUND
+        assert analysis_from_json(analysis_to_json(plain_run)) == plain_run
 
     def test_uncertain_sync_is_named_not_assumed(self) -> None:
         """11."""
