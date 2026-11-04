@@ -1,0 +1,11 @@
+{
+  "name": "media-house-motion-graphics-runtime",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pinned HyperFrames renderer and GSAP for media_house motion_graphics_engine (installed into the app cache by scripts/setup_hyperframes.py).",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "gsap": "3.15.0",
+    "hyperframes": "0.9.5"
+  }
+}
