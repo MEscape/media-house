@@ -16,7 +16,7 @@ INSPECTION_CONTRACT = f"{INSPECTION}.application.contracts"
 PROCESSING_MODULES = (
     "media_house.modules.audio_improvement",
     "media_house.modules.audio_intelligence",
-    "media_house.modules.image_adjustment",
+    "media_house.modules.visual_asset_generation",
 )
 LIBRARY_CONTRACT = "media_house.modules.media_library.application.contracts"
 

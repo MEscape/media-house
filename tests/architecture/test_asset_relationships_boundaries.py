@@ -31,7 +31,7 @@ OTHERS = (
     "media_house.modules.audio_intelligence",
     "media_house.modules.audio_visual_alignment",
     "media_house.modules.content_intelligence",
-    "media_house.modules.image_adjustment",
+    "media_house.modules.visual_asset_generation",
     "media_house.modules.video_improvement",
     "media_house.modules.video_intelligence",
     "media_house.modules.workspace",

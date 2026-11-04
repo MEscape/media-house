@@ -57,4 +57,4 @@ def process_asset(library: MediaLibrary, asset_id: str, ctx: JobContext) -> None
 
 ## Not in scope
 
-Direct audio analysis, background removal, or video encoding. The media library manages storage, cataloging, and thumbnails; other vertical slices (like `audio_intelligence` or `image_adjustment`) do the heavy media processing and store their results back here.
+Direct audio analysis, background removal, or video encoding. The media library manages storage, cataloging, and thumbnails; other vertical slices (like `audio_intelligence` or `visual_asset_generation`) do the heavy media processing and store their results back here.

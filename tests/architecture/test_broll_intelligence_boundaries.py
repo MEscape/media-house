@@ -149,6 +149,7 @@ def test_only_the_pipeline_its_consumers_and_the_composition_root_depend_on_brol
         "media_house.modules.media_pipeline",
         "media_house.modules.editing_intelligence",
         "media_house.modules.continuity_intelligence",
+        "media_house.modules.visual_asset_generation",  # Layer 4 reads the stored result
         "media_house.bootstrap",
     )
     offenders = [
