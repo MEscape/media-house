@@ -93,6 +93,27 @@ the module that owns the behaviour; the example module's `domain/` is flat files
 because sub-packages with one file each add nothing; `core/` gained `infrastructure/` and `modules/` because ports
 need adapters and the module contract needs a home that both `bootstrap` and `module.py` can import.
 
+### Product modules (`modules/`, registered in `bootstrap/modules.py`)
+
+Each module's README is its contract; `AI_CONTEXT.md` sec. 11 summarises them. Dependencies point upward only
+(a layer reads the layers above it, through their `application.contracts`).
+
+```text
+Layer 1  foundation      media_library (assets, derived assets, documents = THE cache), media_inspection,
+                         proxy_manager, asset_relationships, audio_improvement, video_improvement
+Layer 2  analysis        audio_intelligence, video_intelligence, content_intelligence, audio_visual_alignment
+Layer 3  editorial       story_architecture, pacing_intelligence, broll_intelligence, continuity_intelligence,
+                         reframing_intelligence, editing_intelligence (EditPlan)
+Layer 4  finishing       visual_style_engine (channel identity), visual_asset_generation (stills; was
+                         image_adjustment), motion_graphics_engine, caption_engine, transition_engine,
+                         vfx_engine, music_and_sound_design          -> docs/layer4/README.md
+orchestration            media_pipeline (one dependency graph over all of the above; maps the EditPlan
+                         into each Layer 4 module's own input DTO)
+example                  workspace
+```
+
+Not built: `timeline_builder`, `resolve_adapter`, `quality_control` (Layer 4 plans carry everything they need).
+
 ## 3. Ports and adapters
 
 A port is a `typing.Protocol` owned by the layer that *needs* the capability.

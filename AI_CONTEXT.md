@@ -591,6 +591,11 @@ message, through `content_intelligence.TextGenerator`, and only what passes the 
 identity of every input + configuration + model + versions; a changed key makes a NEW plan with `plan_version` and
 `supersedes` (history is kept). In the pipeline it is the `story` task (needs `content_analysis`, wants
 `alignment`, on by default; `--story-format`, `--story-llm` in `scratch/run_pipeline.py`).
+Channel formats map onto existing names (no new format): ranking -> `top_n`; brochure review, shopping tour and
+unboxing -> `unboxing` (order preserved; `review` would reorder); a Short with speech -> `short`; everything without
+speech (memes, versus polls, compilations, uncut takes) takes the no-speech path: `story` is `skipped_unavailable`
+(`nothing_to_plan`), never failed, and the tasks that need its plan are skipped with that reason; an editing
+`nothing_to_edit` is `skipped_unavailable` too (see the story README).
 For a story of SEVERAL recordings it also reads how they relate from `RelationshipCatalog` (read only; a catalog that
 cannot answer costs the relations, not the plan) and uses each in proportion to its certainty: RECORDED lineage (an
 exact copy, a derivative) makes the copy's sections redundant candidates; a person-CONFIRMED take or overlap is
@@ -688,6 +693,81 @@ follows the segment. In the pipeline it is the opt-in `reframing` task (needs `v
 a target is given); `edit_plan` waits for it and attaches its references to the clips. Validated on synthetic geometry only
 (`tests/support/refr_eval.py`); no real footage, tracker or picture quality was evaluated; thresholds uncalibrated; no hands
 or per-person speaking are known upstream.
+
+**Layer 4** (overview, dependency map, data flow, time rules: `docs/layer4/README.md`; binding rules:
+`docs/layer4/contracts.md`) turns the edit into STORED PLANS (JSON documents of the anchor = first source asset, contracts
+sec. 5 envelope: `plan_id, plan_version, supersedes, project_id, edit: EditRef | None, style, state ok|partial, checks
+(QcIssue critical/error/warning/info, technical/creative), inputs, stages, provenance, warnings, limitations`) and RENDERED
+derived assets. Every module owns a narrow input DTO and never imports the `EditPlan`; every DTO accepts `edit=None` (the
+NO-SPEECH PATH: one clip of the whole recording, timeline = source, the inspected frame rate). Times are exact `Rational`s in
+three never-mixed domains (`source_*`, `timeline_*`, `local_*`); frames are computed once at the edge (`round(t * fps)`,
+half-to-even). Knobs live in `domain/profile.py` with settings-UI field metadata; precedence profile defaults -> channel
+identity -> format profile -> project overrides -> section overrides -> person decisions. `timeline_builder`,
+`resolve_adapter` and `quality_control` are NOT built.
+
+`visual_style_engine` is the channel identity as versioned data (palette, fonts with sha256, type scale in ref px at a 1080
+short side, graphic language, non-overlapping layout zones per 16:9/9:16/1:1 with platform keep-outs, caption and title
+looks, motion tokens, logo/brand slots, mandatory vs preference rules). `StyleResolver.execute(ResolveStyleCommand(anchor,
+project_id, width, height, StyleConfig(profile, overrides, section_overrides, sponsored), story_format))` (no job context)
+resolves, QCs (a CRITICAL is never stored) and stores a pinned `visual_style` document; `StyleRef(document_id, fingerprint,
+identity_version, profile)` is what consumers keep and put in their cache keys; `StyleValidator` is the drift check every
+consumer declares its texts/placements/motion to. Profile choice: explicit -> story format -> output aspect (`9:16` ->
+`shorts_meme`) -> `generic`. It renders and decides nothing.
+
+`visual_asset_generation` (the renamed `image_adjustment`; cut-out operation and version unchanged, so old cut-outs stay
+cache hits) prepares stills: existing-image selection (`ImageSelector`, also `for_gaps` over B-roll gaps), exact frame grabs
+(`FrameGrabber`), clean RGBA cut-outs, enhanced variants (sticker, silhouette, glow, shadow, outline), delivery copies and image
+QC, batched by `VisualAssetPreparer` into a `visual_asset_set` document. Generation is a port only (`GenerationNotAvailable`
+here). It has no pipeline task: motion graphics requests the stickers/silhouettes it draws, and gap images are a library
+selection a person picks from.
+
+`motion_graphics_engine` builds, animates, renders and validates every graphic (rank cards, price tags, spec cards, lower
+thirds, callouts, charts, CTA, sponsor label, end screen, and as an EXECUTOR caption groups and transition overlays) with one
+`GraphicRequest` model, a layout engine (style zones, real font widths, readability floor, no overlap), an animation compiler
+(style easings/durations -> keyframes + `AnimationEvent`s) and HyperFrames 0.9.5 (deterministic HTML, local GSAP and fonts,
+offline) -> ProRes 4444 MOV with true alpha (`motion_graphic_render`, cached by composition digest). `MotionGraphicsPlanner`
+plans a `graphics_plan` from a `GraphicsBrief` (sections with rank/product, editorial GRAPHIC requests, `ProductFacts` from
+content's `commerce_facts`, sponsored spans) plus format templates and brand bookends; `GraphicsRenderer` is the executor
+contract captions and transitions call. Without `scripts/setup_hyperframes.py` renders are `not_available` items in a stored plan.
+
+`caption_engine` decides captions (mode per section: full / selective / emphasis-only / key-information / disabled, which
+words, grouping by a DP under hard line limits, timing, layout in the caption zone avoiding subjects, emphasis, emoji from a
+controlled vocabulary, animation REQUESTS) and SRT/WebVTT text; it never transcribes and never draws (each group is a
+motion `CAPTION` request). `CaptionPlanner.execute(PlanCaptionsCommand(CaptionTimeline, style, config, render, transcripts,
+contents))` stores a `caption_plan`; suspect (bang) and low-confidence words are never burned in; a fact a planned graphic
+already shows is not repeated. Profile: explicit -> the style's format profile -> story format -> aspect.
+
+`transition_engine` decides the transition at every boundary of the main picture layer (hard cut by default; kind, intensity
+0-4 under the style ceiling and a budget, duration in frames and exact seconds, alignment, handle math against the inspected
+recording length, fallback) and the AUDIO transition of every cut (J/L kept, speech-safe equal-power crossfades, head/tail
+fades); graphic overlays (wipe, shape, mask, zoom tunnel, pixel dissolve) are rendered through motion graphics, every other
+kind is a specification for the timeline builder. `TransitionPlanner` stores a `transition_plan` with stable ids
+(`cut:<out>><in>`) and `TransitionEvent`s (strength = intensity / 4).
+
+`vfx_engine` plans shot effects with restraint (punch-in, slow motion / ramps / freeze / reverse with exact time maps that
+keep the clip's timeline span, privacy concealment on tracked regions, vignette/grain/glow/... bypassed where they would harm,
+footage composites) and renders them as ProRes 422 HQ 10-bit clips from a float32 RGB working space (`vfx_render`); speech is
+never retimed. Matting, inpainting, screen replacement and lens flares are `not_available` (no model; never faked).
+`VfxPlanner.execute(PlanVfxCommand(VfxShots, style, config, render, video_analyses))` stores a `vfx_plan`.
+
+`music_and_sound_design` owns the sound library inventory (`SoundLibraryImporter`: manifest import, licence facts, measured
+tempo/beats/downbeats/sections/loop/loudness per music asset and a profile per effect, cached) and plans music cues, SFX with
+restraint, silence, ambience preservation (fireworks stay in front), ducking INTENT and credits from that library only
+(nothing downloaded or generated; a need it cannot meet becomes a `MissingAsset`; only `commercial_use: true`).
+`SoundDesignPlanner.execute(PlanSoundDesignCommand(SoundtrackTimeline, config, audio_timelines, story_plan, pacing))` stores a
+`sound_design_plan`; `SoundStemRenderer` renders the unmastered music+effects stem (WAV f32 48 kHz, `sound_stem_render`) for
+audio_improvement's `AudioMixing`. It does not consume the visual style and does no loudness/EQ/mastering.
+
+In the pipeline Layer 4 is six opt-in tasks (`--stages layer4`): `visual_style` (light; wants `edit_plan`) and `graphics`,
+`captions`, `transitions`, `vfx`, `sound_design` (cpu; each NEEDS `visual_style` + `inspect` and WANTS `edit_plan`; captions
+want graphics, transitions want graphics + continuity + pacing, sound wants graphics + transitions + captions). The edit is
+mapped ONCE (`media_pipeline/application/edit_view.py` -> `layer4_inputs.py`, clip ids = placement ids); with no edit plan
+(not requested, or `skipped_unavailable` for no speech; the root cause travels as `TaskResult.cause`) they plan the whole
+recording from the stored inspection, while a FAILED edit makes them `skipped_dependency`. The format is chosen once
+(`--format-profile`, `--output-format`, `--output-resolution`, `--sponsored` -> the style), each module maps the style's
+profile to its own unless `--<module>-profile` is given; `--no-render` keeps plans only. The report JSON lists per asset a
+`layer4` package (every plan document id and rendered asset id). The sound library is imported with
+`scratch/import_sound_library.py` into the same `--home`.
 
 ---------------------------------------------------------------------------------------------------
 

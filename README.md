@@ -26,6 +26,8 @@ uv run python -m media_house --home ./.dev-data --environment development   # is
 
 `--home DIR` (or `MEDIA_HOUSE_HOME=DIR`) keeps config, data, cache and logs under one directory.
 Without it the OS-conventional locations are used (via `platformdirs`).
+Machine-level installs (models from `scripts/fetch_models.py`, HyperFrames from
+`scripts/setup_hyperframes.py`) stay in the user cache and are still found with `--home`.
 
 ## Developer commands
 
