@@ -52,3 +52,23 @@ def test_temporary_directory_is_removed(tmp_path: Path) -> None:
 def test_user_paths_are_namespaced() -> None:
     paths = AppPaths.for_user()
     assert "media-house" in str(paths.data_dir).lower()
+
+
+def test_a_home_uses_its_own_install_else_the_machine_level_one(tmp_path: Path) -> None:
+    # E2E: with --home the fetched models and the HyperFrames runtime (user cache) were missing.
+    from dataclasses import replace
+
+    shared = tmp_path / "user-cache"
+    paths = replace(AppPaths.under_root(tmp_path / "home"), install_root=shared)
+
+    assert (
+        paths.install("content_intelligence", "models")
+        == shared / "content_intelligence" / "models"
+    )
+    own = paths.cache_dir / "content_intelligence" / "models"
+    own.mkdir(parents=True)
+    assert paths.install("content_intelligence", "models") == own
+    portable = AppPaths.under_root(tmp_path / "ci")
+    assert (
+        portable.install("x") == portable.cache_dir / "x"
+    )  # no shared root: never leaves the home

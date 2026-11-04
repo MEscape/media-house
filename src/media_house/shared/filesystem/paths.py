@@ -20,6 +20,10 @@ class AppPaths:
     data_dir: Path
     cache_dir: Path
     log_dir: Path
+    #: Machine-level installs (models, renderer runtimes) shared by every home; ``None`` = only
+    #: this home's own cache. ``scripts/fetch_models.py`` and ``setup_hyperframes.py`` install
+    #: into the user cache, which an application started with ``--home`` falls back to.
+    install_root: Path | None = None
 
     @classmethod
     def for_user(cls) -> "AppPaths":
@@ -40,6 +44,13 @@ class AppPaths:
             cache_dir=root / "cache",
             log_dir=root / "logs",
         )
+
+    def install(self, *parts: str) -> Path:
+        """A machine-level install: this home's own copy when it has one, else the shared one."""
+        own = self.cache_dir.joinpath(*parts)
+        if own.exists() or self.install_root is None:
+            return own
+        return self.install_root.joinpath(*parts)
 
     @property
     def settings_file(self) -> Path:
