@@ -5,7 +5,7 @@ exercised in tests and in ``--check`` mode without a display.
 """
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -35,6 +35,9 @@ class StartupOptions:
     log_level: LogLevel | None = None
     #: Modules to install; ``None`` means the product's default set.
     modules: Sequence[ApplicationModule] | None = None
+    #: With ``home``: still use the machine-level installs (models, HyperFrames) of the user
+    #: cache that the setup scripts fill. Off = a fully self-contained home (tests, CI).
+    shared_installs: bool = False
 
 
 class Application:
@@ -66,7 +69,14 @@ class Application:
             home = options.home or (
                 Path(options.env[HOME_ENV_KEY]) if options.env.get(HOME_ENV_KEY) else None
             )
-            paths = AppPaths.under_root(home) if home else AppPaths.for_user()
+            paths = (
+                replace(
+                    AppPaths.under_root(home),
+                    install_root=AppPaths.for_user().cache_dir if options.shared_installs else None,
+                )
+                if home
+                else AppPaths.for_user()
+            )
             settings = load_settings(
                 config_file=paths.settings_file,
                 env=options.env,

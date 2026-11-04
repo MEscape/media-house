@@ -3,6 +3,8 @@ from pathlib import Path
 import pytest
 
 from media_house import __version__
+from media_house.bootstrap import cli
+from media_house.bootstrap.application import StartupOptions
 from media_house.bootstrap.cli import main
 
 pytestmark = pytest.mark.integration
@@ -34,3 +36,20 @@ def test_check_reports_startup_failures_without_a_traceback(
     assert "Reference: ERR-" in err
     assert "phase: configuration" in err
     assert "Traceback" not in err
+
+
+def test_a_portable_home_still_finds_the_machine_level_installs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Models and HyperFrames are installed once per machine (user cache); --home must not hide them.
+    seen: list[StartupOptions] = []
+
+    def check(options: StartupOptions) -> int:
+        seen.append(options)
+        return 0
+
+    monkeypatch.setattr(cli, "run_check", check)
+
+    assert main(["--check", "--home", str(tmp_path)]) == 0
+    assert seen[0].home == tmp_path
+    assert seen[0].shared_installs

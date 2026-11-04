@@ -47,6 +47,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         environment=Environment(args.environment) if args.environment else None,
         log_level=LogLevel(args.log_level) if args.log_level else None,
         home=args.home,
+        shared_installs=True,  # models and HyperFrames are machine-level installs
     )
     if args.check:
         return run_check(options)

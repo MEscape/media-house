@@ -86,7 +86,13 @@ def test_starts_with_default_modules_and_wires_everything(tmp_path: Path) -> Non
         assert {m.name for m in application.modules} == {
             "workspace",
             "media_library",
-            "image_adjustment",
+            "visual_asset_generation",
+            "visual_style_engine",
+            "music_and_sound_design",
+            "vfx_engine",
+            "motion_graphics_engine",
+            "transition_engine",
+            "caption_engine",
             "audio_intelligence",
             "audio_improvement",
             "media_inspection",
@@ -200,3 +206,15 @@ def test_home_directory_can_come_from_the_environment(tmp_path: Path) -> None:
         assert application.paths.data_dir == tmp_path / "portable" / "data"
     finally:
         application.shutdown()
+
+
+def test_a_home_is_self_contained_unless_it_asks_for_the_machine_installs(tmp_path: Path) -> None:
+    # E2E (O6): `run_pipeline --home` found no fetched models and no HyperFrames runtime.
+    isolated = Application.start(options(tmp_path / "a"))
+    shared = Application.start(options(tmp_path / "b", shared_installs=True))
+    try:
+        assert isolated.container.resolve(AppPaths).install_root is None
+        assert shared.container.resolve(AppPaths).install_root == AppPaths.for_user().cache_dir
+    finally:
+        isolated.shutdown()
+        shared.shutdown()

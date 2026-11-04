@@ -8,19 +8,25 @@ from media_house.modules.audio_improvement.module import AudioImprovementModule
 from media_house.modules.audio_intelligence.module import AudioIntelligenceModule
 from media_house.modules.audio_visual_alignment.module import AudioVisualAlignmentModule
 from media_house.modules.broll_intelligence.module import BrollIntelligenceModule
+from media_house.modules.caption_engine.module import CaptionEngineModule
 from media_house.modules.content_intelligence.module import ContentIntelligenceModule
 from media_house.modules.continuity_intelligence.module import ContinuityIntelligenceModule
 from media_house.modules.editing_intelligence.module import EditingIntelligenceModule
-from media_house.modules.image_adjustment.module import ImageAdjustmentModule
 from media_house.modules.media_inspection.module import MediaInspectionModule
 from media_house.modules.media_library.module import MediaLibraryModule
 from media_house.modules.media_pipeline.module import MediaPipelineModule
+from media_house.modules.motion_graphics_engine.module import MotionGraphicsEngineModule
+from media_house.modules.music_and_sound_design.module import MusicAndSoundDesignModule
 from media_house.modules.pacing_intelligence.module import PacingIntelligenceModule
 from media_house.modules.proxy_manager.module import ProxyManagerModule
 from media_house.modules.reframing_intelligence.module import ReframingIntelligenceModule
 from media_house.modules.story_architecture.module import StoryArchitectureModule
+from media_house.modules.transition_engine.module import TransitionEngineModule
+from media_house.modules.vfx_engine.module import VfxEngineModule
 from media_house.modules.video_improvement.module import VideoImprovementModule
 from media_house.modules.video_intelligence.module import VideoIntelligenceModule
+from media_house.modules.visual_asset_generation.module import VisualAssetGenerationModule
+from media_house.modules.visual_style_engine.module import VisualStyleEngineModule
 from media_house.modules.workspace.module import WorkspaceModule
 
 
@@ -28,7 +34,7 @@ def installed_modules() -> Sequence[ApplicationModule]:
     return (
         WorkspaceModule(),
         MediaLibraryModule(),
-        ImageAdjustmentModule(),
+        VisualAssetGenerationModule(),
         AudioIntelligenceModule(),
         AudioImprovementModule(),
         MediaInspectionModule(),
@@ -45,4 +51,10 @@ def installed_modules() -> Sequence[ApplicationModule]:
         ContinuityIntelligenceModule(),
         ReframingIntelligenceModule(),
         EditingIntelligenceModule(),
+        VisualStyleEngineModule(),
+        MusicAndSoundDesignModule(),
+        VfxEngineModule(),
+        MotionGraphicsEngineModule(),
+        TransitionEngineModule(),
+        CaptionEngineModule(),
     )
