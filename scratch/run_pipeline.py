@@ -5,6 +5,7 @@
     uv run python scratch/run_pipeline.py --input clip.mp4 --dry-run
     uv run python scratch/run_pipeline.py --input clip.mp4 --all --output out/ -v
     uv run python scratch/run_pipeline.py --input clip.mp4 --config pipeline.toml --cpu-only
+    uv run python scratch/run_pipeline.py --input clip.mp4 --stages edit_plan,layer4         --output-format 9:16 --format-profile shorts_haul --report-json out/report.json
 
 Everything runs through the real modules and the real Media Library under ``--home`` (default
 ``~/.media_house_scratch/pipeline``). Running the same input again reports ``reused``: the owners
@@ -17,12 +18,22 @@ Not offered on purpose: ``--force`` / ``--no-cache``. The owning modules expose 
 recompute, so a flag here could only pretend. Use a fresh ``--home`` to recompute everything.
 
 A configuration file (``--config``, TOML or JSON) may set: ``stages``, ``content_uses_video``,
-``cpu_only``, ``gpu_slots``, ``cpu_slots``, ``light_slots``, ``video_analysis_profile``,
+``cpu_only``, ``allow_model_download``, ``transcription_language``, ``gpu_slots``, ``cpu_slots``, ``light_slots``, ``video_analysis_profile``,
 ``proxy_profile``, ``audio_improvement_profile``, ``video_source_profile``,
 ``video_processing_profile``, ``story_format``, ``story_llm``, ``edit_profile``,
 ``edit_target_seconds``, ``edit_target_hard``, ``pacing_profile``, ``pacing_strategy``,
-``reframing_target``, ``reframing_resolution``, ``reframing_profile``, ``reframing_safe_areas``.
-Command-line options win over the file.
+``reframing_target``, ``reframing_resolution``, ``reframing_profile``, ``reframing_safe_areas``,
+and for Layer 4: ``output_format``, ``output_resolution``, ``format_profile``, ``sponsored``,
+``graphics_profile``, ``caption_profile``, ``transition_profile``, ``vfx_profile``,
+``sound_profile``, ``layer4_render``. Command-line options win over the file.
+
+Layer 4 (``--stages layer4`` = visual_style, graphics, captions, transitions, vfx, sound_design):
+add ``edit_plan`` to work on the edit; without it (or for a recording without speech) every
+Layer 4 plan is made for the whole recording. The format comes from ONE place: ``--format-profile``
+/ ``--output-format`` resolve the channel style, and each module maps the style's format profile
+to its own unless its ``--<module>-profile`` is given. ``--report-json`` lists per asset the
+"layer4" package: every plan document id and rendered asset id. Import the sound library first
+with ``scratch/import_sound_library.py`` (same ``--home``).
 """
 
 import argparse
@@ -41,6 +52,7 @@ from pydantic import BaseModel, ConfigDict, PositiveInt, ValidationError
 from media_house.bootstrap.application import Application, StartupOptions
 from media_house.modules.media_pipeline.application.contracts import (
     DEFAULT_STAGES,
+    LAYER4_STAGES,
     AssetReport,
     Lane,
     MediaPipeline,
@@ -86,6 +98,8 @@ class RunConfig(BaseModel):
     stages: list[TaskKind] | None = None
     content_uses_video: bool | None = None
     cpu_only: bool | None = None
+    allow_model_download: bool | None = None
+    transcription_language: str | None = None
     gpu_slots: PositiveInt | None = None
     cpu_slots: PositiveInt | None = None
     light_slots: PositiveInt | None = None
@@ -108,6 +122,16 @@ class RunConfig(BaseModel):
     reframing_resolution: str | None = None
     reframing_profile: str | None = None
     reframing_safe_areas: list[str] | None = None
+    output_format: str | None = None
+    output_resolution: str | None = None
+    format_profile: str | None = None
+    sponsored: bool | None = None
+    graphics_profile: str | None = None
+    caption_profile: str | None = None
+    transition_profile: str | None = None
+    vfx_profile: str | None = None
+    sound_profile: str | None = None
+    layer4_render: bool | None = None
 
 
 class ConsoleObserver:
@@ -138,12 +162,17 @@ class ConsoleObserver:
 
 
 def parse_stages(text: str) -> list[TaskKind]:
+    """Stage names, comma separated; ``layer4`` stands for every Layer 4 stage."""
     names = [n.strip() for n in text.split(",") if n.strip()]
     try:
-        return [TaskKind(n) for n in names]
+        return [
+            kind
+            for n in names
+            for kind in (sorted(LAYER4_STAGES) if n == "layer4" else [TaskKind(n)])
+        ]
     except ValueError as exc:
         valid = ", ".join(k.value for k in TaskKind)
-        raise argparse.ArgumentTypeError(f"{exc}. Valid stages: {valid}") from exc
+        raise argparse.ArgumentTypeError(f"{exc}. Valid stages: {valid}, layer4") from exc
 
 
 def positive(text: str) -> int:
@@ -234,6 +263,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="never use the GPU (audio, video and content models run on the CPU)",
     )
     add(
+        "--allow-model-download",
+        action="store_true",
+        default=None,
+        help="video analysis may download a missing model once (pinned checksum); off by default",
+    )
+    add(
+        "--language",
+        dest="transcription_language",
+        help="pin the transcription language (ISO code such as de); default: auto-detect",
+    )
+    add(
         "--story-format",
         help="story format to plan for (generic, review, tutorial, interview, short ...)",
     )
@@ -305,6 +345,44 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="treat --edit-target as a hard constraint",
     )
+    add(
+        "--output-format",
+        dest="output_format",
+        choices=["16:9", "9:16", "1:1"],
+        help="delivery shape of every Layer 4 plan (default: the reframing target, else the "
+        "format profile's own shape)",
+    )
+    add(
+        "--output-resolution",
+        dest="output_resolution",
+        help="delivery size in pixels, WIDTHxHEIGHT (default: the standard size of the shape)",
+    )
+    add(
+        "--format-profile",
+        dest="format_profile",
+        help="channel format profile (generic, ranking, brochure_review, shopping_tour, unboxing, "
+        "compilation, nye_uncut, shorts_meme, shorts_haul, shorts_product_test, shorts_versus); "
+        "default: by story format, then output shape",
+    )
+    add(
+        "--sponsored",
+        action="store_true",
+        default=None,
+        help='a sponsored video: the mandatory "Werbung" label is planned',
+    )
+    for module in ("graphics", "caption", "transition", "vfx", "sound"):
+        add(
+            f"--{module}-profile",
+            dest=f"{module}_profile",
+            help=f"{module} profile (default: mapped from the format profile)",
+        )
+    add(
+        "--no-render",
+        dest="layer4_render",
+        action="store_false",
+        default=None,
+        help="Layer 4 plans only: render no graphics, captions, overlays, VFX clips or stem",
+    )
     add("--gpu-slots", type=positive, help="tasks that may use the GPU lane at once (default 1)")
     add("--cpu-slots", type=positive, help="tasks that may use the CPU lane at once (default 2)")
     add(
@@ -320,12 +398,14 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def parse_resolution(text: str | None) -> tuple[int, int] | None:
+def parse_resolution(
+    text: str | None, flag: str = "--reframe-resolution"
+) -> tuple[int, int] | None:
     if text is None:
         return None
     width, _, height = text.lower().partition("x")
     if not (width.isdigit() and height.isdigit()):
-        raise SystemExit(f"--reframe-resolution wants WIDTHxHEIGHT, not {text!r}")
+        raise SystemExit(f"{flag} wants WIDTHxHEIGHT, not {text!r}")
     return int(width), int(height)
 
 
@@ -363,6 +443,18 @@ def settings_from(config: RunConfig) -> StageSettings:
         reframing_profile=config.reframing_profile,
         reframing_safe_areas=parse_safe_areas(config.reframing_safe_areas),
         cpu_only=bool(config.cpu_only),
+        allow_model_download=bool(config.allow_model_download),
+        transcription_language=config.transcription_language,
+        output_format=config.output_format,
+        output_resolution=parse_resolution(config.output_resolution, "--output-resolution"),
+        format_profile=config.format_profile,
+        sponsored=bool(config.sponsored),
+        graphics_profile=config.graphics_profile,
+        caption_profile=config.caption_profile,
+        transition_profile=config.transition_profile,
+        vfx_profile=config.vfx_profile,
+        sound_profile=config.sound_profile,
+        layer4_render=config.layer4_render is not False,
     )
 
 
@@ -393,6 +485,15 @@ def print_asset(asset: AssetReport, verbose: bool) -> None:
         print(f"    note: {note}")
     for task in asset.tasks:
         print_task(task, verbose)
+    package = asset.layer4_package()
+    if package and isinstance(plans := package["plans"], dict):
+        rendered = package["rendered"]
+        lists = rendered.values() if isinstance(rendered, dict) else ()
+        count = sum(len(v) for v in lists if isinstance(v, list))
+        print(f"  layer4 ({package['path']}): {len(plans)} plans, {count} rendered assets")
+        for kind, plan in plans.items():
+            if isinstance(plan, dict):
+                print(f"        {kind:<13} {plan.get('plan_asset_id')}")
 
 
 def print_task(task: TaskReport, verbose: bool) -> None:
@@ -460,6 +561,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             key: getattr(args, key)
             for key in (
                 "cpu_only",
+                "allow_model_download",
+                "transcription_language",
                 "content_uses_video",
                 "gpu_slots",
                 "cpu_slots",
@@ -478,6 +581,16 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "reframing_resolution",
                 "reframing_profile",
                 "reframing_safe_areas",
+                "output_format",
+                "output_resolution",
+                "format_profile",
+                "sponsored",
+                "graphics_profile",
+                "caption_profile",
+                "transition_profile",
+                "vfx_profile",
+                "sound_profile",
+                "layer4_render",
             )
             if getattr(args, key) is not None
         }
@@ -495,7 +608,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     install_interrupt(token)
 
     app = Application.start(
-        StartupOptions(env={}, home=args.home, environment=Environment.DEVELOPMENT)
+        StartupOptions(
+            env={},
+            home=args.home,
+            environment=Environment.DEVELOPMENT,
+            shared_installs=True,  # models and HyperFrames are installed once per machine
+        )
     )
     try:
         pipeline = app.container.resolve(MediaPipeline)
