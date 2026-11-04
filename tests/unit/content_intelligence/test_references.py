@@ -41,6 +41,8 @@ class TestDesignations:
             "Chapter 2 starts here.",
             "Export as MP4 or H264.",
             "There is nothing named here.",
+            # E2E (owner's haul Short): a price is not the product "Neuheit 9"
+            "Einmal die Jokers in ferner Neuheit 9,99",
         ],
     )
     def test_numbers_that_do_not_name_a_product_are_not_designations(self, text: str) -> None:

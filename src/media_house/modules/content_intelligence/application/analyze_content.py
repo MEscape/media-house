@@ -362,6 +362,19 @@ class AnalyzeContent:
                     detail="caller-provided transcript",
                 )
             )
+        elif command.audio_timeline is not None:
+            # The supplied timeline already holds the transcript: asking the owner again would
+            # transcribe a second time whenever its configuration (e.g. a pinned language) differs.
+            source = source_from_transcript(command.audio_timeline.transcript)
+            records.append(
+                InputRecord(
+                    kind="transcript",
+                    how="supplied",
+                    asset_id=source.asset_id,
+                    fingerprint=source.fingerprint(),
+                    detail="from the supplied Audio Intelligence timeline",
+                )
+            )
         else:
             if asset is None or self._audio is None:
                 return Err(TranscriptUnavailable("no asset or no speech-transcript provider"))

@@ -36,10 +36,11 @@ _SUFFIX = r"\s+(?:Pro\s+Max|Pro|Max|Ultra|Plus|Mini|Lite|SE|XL|FE)"
 #: A name-like word, then a number or a letter-digit token ("Pixel 9", "iPhone 15 Pro").
 _NAMED = re.compile(
     rf"\b(?P<family>[A-Z][A-Za-z]{{2,}}|[a-z]+[A-Z][A-Za-z]*)\s+"
-    rf"(?P<value>[A-Z]?\d{{1,4}}[A-Za-z]?)(?P<suffix>{_SUFFIX})?\b"
+    # never the integer part of a decimal: "Neuheit 9,99" is a price, not the product "Neuheit 9"
+    rf"(?P<value>[A-Z]?\d{{1,4}}[A-Za-z]?)(?P<suffix>{_SUFFIX})?\b(?![.,]\d)"
 )
 #: A letter-digit code on its own: "X100V", "A7IV", "M3".
-_CODE = re.compile(r"\b(?P<family>[A-Z]{1,3})(?P<value>\d{1,4}[A-Za-z]{0,2})\b")
+_CODE = re.compile(r"\b(?P<family>[A-Z]{1,3})(?P<value>\d{1,4}[A-Za-z]{0,2})\b(?![.,]\d)")
 _LEADING_NUMBER = re.compile(r"\d+")
 _LEADING_LETTERS = re.compile(r"[a-z]+")
 #: Words that precede a number without naming a product ("Step 3", "Around 5 minutes").
@@ -51,6 +52,7 @@ _NOT_NAMES: Final = frozenset(
         "rule", "scene", "section", "shot", "since", "step", "table", "take", "then", "tip",
         "top", "track", "under", "until", "version", "week", "with", "within", "year", "years",
         "schritt", "kapitel", "tag", "folge", "seite", "teil", "etwa", "rund", "knapp",
+        "platz", "rang", "preis", "kaliber", "gewicht", "nem", "brenndauer", "brennzeit",
     }
 )  # fmt: skip
 #: Format and unit codes that look like a product code ("MP4", "H264", "CO2").

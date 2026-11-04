@@ -37,6 +37,9 @@ def _any(*phrases: str) -> str:
     return r"\b(?:" + "|".join(phrases) + r")\b"
 
 
+#: A ranking entry ("Auf Platz 3", "Platz zehn"): a list item, and where a new rank starts.
+_RANK_DE: Final = r"(?:auf )?platz (?:\d+|eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn)"
+
 # Families: each maps a cue name to (weight, regex). ``lead_*`` match at sentence start.
 _EN: Final = {
     "question_word": (0.5, _lead("what", "why", "how", "when", "where", "who", "which", "is it", "do you", "can you", "does", "are", "should")),
@@ -75,7 +78,7 @@ _EN: Final = {
     "history": (0.6, _any(r"in (?:1[0-9]{3}|20[0-2][0-9])", r"history", r"historically", r"decades? ago", r"centuries?", r"was founded", r"invented", r"war", r"ancient")),
     "comparison": (0.6, _any(r"compared (?:to|with)", r"versus", r"vs\.?", r"difference between", r"better than", r"worse than", r"bigger than", r"smaller than", r"faster than", r"cheaper than")),
     "object": (0.4, _any(r"this (?:device|tool|machine|product|camera|phone|part|piece)", r"the (?:device|tool|machine|product|camera|phone|part)", r"hold(?:ing)? (?:up|this)")),
-    "list": (0.6, _any(r"first(?:ly)?,", r"second(?:ly)?,", r"third(?:ly)?,", r"three (?:things|ways|steps|reasons)", r"two (?:things|ways|steps|reasons)", r"four (?:things|ways|steps|reasons)", r"five (?:things|ways|steps|reasons)", r"number (?:one|two|three)", r"the following")),
+    "list": (0.6, _any(r"first(?:ly)?,", r"second(?:ly)?,", r"third(?:ly)?,", r"three (?:things|ways|steps|reasons)", r"two (?:things|ways|steps|reasons)", r"four (?:things|ways|steps|reasons)", r"five (?:things|ways|steps|reasons)", r"number (?:one|two|three)", r"the following", r"number \d+")),
     "quote": (0.6, _any(r"he said", r"she said", r"they said", r"quote", r"as .{1,25} put it", r"in the words of")),
     "name_role": (0.7, _any(r"my name is", r"i'm [A-Z][a-z]+ and i", r"i am [A-Z][a-z]+", r"joining us (?:is|today)", r"our guest", r"i work as", r"i'm the")),
     "unfamiliar_term": (0.4, _any(r"so[- ]called", r"known as", r"technically called", r"what's called", r"the term")),
@@ -93,7 +96,7 @@ _DE: Final = {
     "caveat": (0.8, _lead("aber", "allerdings", "jedoch", "trotzdem", "obwohl", "außer", "es sei denn", "nur wenn", "natürlich", "fairerweise", "beachte", "beachtet", "der haken", "wichtig ist aber")),
     "hedge": (0.5, _any(r"vielleicht", r"eventuell", r"wahrscheinlich", r"könnte", r"ich glaube", r"ich denke", r"ich schätze", r"nicht sicher", r"scheint", r"ungefähr", r"etwa", r"irgendwie")),
     "counter": (0.7, _any(r"andererseits", r"manche sagen", r"kritiker", r"aber andere", r"das gegenteil", r"jedoch")),
-    "transition": (0.8, _lead("als nächstes", "nun", "weiter geht", "kommen wir", "lass uns", "lasst uns", "so jetzt", "okay", "gut", "zum nächsten", "ein weiterer punkt", "zweitens", "schließlich", "außerdem")),
+    "transition": (0.8, _lead("als nächstes", "nun", "weiter geht", "kommen wir", "lass uns", "lasst uns", "so jetzt", "okay", "gut", "zum nächsten", "ein weiterer punkt", "zweitens", "schließlich", "außerdem", _RANK_DE)),
     "recap": (0.9, _any(r"zusammengefasst", r"zusammenfassend", r"kurz gesagt", r"wie gesagt", r"bisher", r"wie wir gesehen haben", r"unterm strich", r"fazit")),
     "callback": (0.7, _any(r"wie gesagt", r"wie erwähnt", r"wie ich vorhin sagte", r"erinnert ihr euch", r"zurück zu", r"wie besprochen", r"vorhin")),
     "conclusion": (0.8, _any(r"fazit", r"zusammenfassend", r"unterm strich", r"letztendlich", r"am ende", r"insgesamt", r"alles in allem", r"abschließend")),
@@ -119,7 +122,7 @@ _DE: Final = {
     "history": (0.6, _any(r"im jahr (?:1[0-9]{3}|20[0-2][0-9])", r"in (?:1[0-9]{3}|20[0-2][0-9])", r"geschichte", r"historisch", r"vor jahrzehnten", r"jahrhunderte", r"gegründet", r"erfunden", r"krieg", r"antike")),
     "comparison": (0.6, _any(r"verglichen mit", r"im vergleich", r"gegenüber", r"unterschied zwischen", r"besser als", r"schlechter als", r"größer als", r"kleiner als", r"schneller als", r"billiger als")),
     "object": (0.4, _any(r"dieses (?:gerät|werkzeug|produkt|teil|handy)", r"diese (?:kamera|maschine)", r"dieser (?:apparat)", r"das (?:gerät|werkzeug|produkt|teil)")),
-    "list": (0.6, _any(r"erstens", r"zweitens", r"drittens", r"drei (?:dinge|wege|schritte|gründe)", r"zwei (?:dinge|wege|schritte|gründe)", r"vier (?:dinge|wege|schritte|gründe)", r"fünf (?:dinge|wege|schritte|gründe)", r"nummer (?:eins|zwei|drei)", r"folgende")),
+    "list": (0.6, _any(r"erstens", r"zweitens", r"drittens", r"drei (?:dinge|wege|schritte|gründe)", r"zwei (?:dinge|wege|schritte|gründe)", r"vier (?:dinge|wege|schritte|gründe)", r"fünf (?:dinge|wege|schritte|gründe)", r"nummer (?:eins|zwei|drei)", r"folgende", _RANK_DE)),
     "quote": (0.6, _any(r"er sagte", r"sie sagte", r"sie sagten", r"zitat", r"wie .{1,25} es ausdrückte", r"in den worten von")),
     "name_role": (0.7, _any(r"mein name ist", r"ich bin [A-ZÄÖÜ][a-zäöüß]+ und ich", r"zu gast ist", r"unser gast", r"ich arbeite als", r"ich bin der")),
     "unfamiliar_term": (0.4, _any(r"sogenannt", r"bekannt als", r"technisch genannt", r"der begriff")),

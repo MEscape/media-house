@@ -95,6 +95,10 @@ class Score:
                 raise InvariantViolation(f"Score {self.name.value} is missing without a reason")
         else:
             unit_interval(self.value, f"score {self.name.value}")
+            object.__setattr__(self, "value", float(self.value))
+        # Floats, never ints: a stored analysis reads numbers back as floats, and a computed
+        # ``0`` vs a loaded ``0.0`` gave the same analysis two identities (downstream recomputed).
+        object.__setattr__(self, "components", {k: float(v) for k, v in self.components.items()})
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

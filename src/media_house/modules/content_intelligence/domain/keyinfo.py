@@ -29,7 +29,7 @@ from media_house.modules.content_intelligence.domain.values import (
 _NUMBER = re.compile(r"\d[\d.,]*")
 _STAT_UNIT = re.compile(
     r"%|percent|prozent|million|billion|mio|mrd|[€$£]|\b(?:eur|usd|kg|km|ms|gb|mb|ghz|mhz|hours?|"
-    r"stunden|minutes?|minuten|years?|jahre|times|mal)\b",
+    r"stunden|minutes?|minuten|years?|jahre|times|mal|euro|sekunden|schuss|meter)\b",
     re.IGNORECASE,
 )
 _STRONG_CLAIM = re.compile(

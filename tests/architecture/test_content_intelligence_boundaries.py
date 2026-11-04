@@ -27,7 +27,7 @@ OTHER_MODULES = (
     "audio_intelligence",
     "video_intelligence",
     "workspace",
-    "image_adjustment",
+    "visual_asset_generation",
 )
 
 
@@ -105,7 +105,7 @@ def test_the_seams_to_other_modules_are_where_they_belong() -> None:
         "audio_improvement",
         "video_improvement",
         "workspace",
-        "image_adjustment",
+        "visual_asset_generation",
     ):
         assert users[module] == set(), f"{module} is not a source of content analysis"
     for layer_users in users.values():

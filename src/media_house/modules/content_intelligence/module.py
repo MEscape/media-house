@@ -50,14 +50,14 @@ class ContentIntelligenceModule:
         container.register_factory(
             SemanticEngine,
             lambda c: TransformersSemanticEngine(
-                c.resolve(AppPaths).cache_dir / "content_intelligence" / "models"
+                c.resolve(AppPaths).install("content_intelligence", "models")
             ),
         )
         container.register_factory(
             LanguageModel,
             lambda c: RoutedLanguageModel(
                 TransformersLanguageModel(
-                    c.resolve(AppPaths).cache_dir / "content_intelligence" / "models"
+                    c.resolve(AppPaths).install("content_intelligence", "models")
                 ),
                 LoopbackChatModel(),
             ),

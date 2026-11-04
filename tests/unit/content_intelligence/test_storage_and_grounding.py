@@ -73,6 +73,13 @@ class TestStoredForm:
 
         assert analysis_from_json(analysis_to_json(a)) == a
 
+    def test_a_loaded_result_has_the_same_text_and_so_the_same_identity(self) -> None:
+        # E2E regression: a computed ``0`` and a loaded ``0.0`` compare equal but serialise
+        # differently, so alignment saw a new content identity on the first rerun and recomputed.
+        text = analysis_to_json(sample())
+
+        assert analysis_to_json(analysis_from_json(text)) == text
+
     def test_the_stored_text_is_deterministic_and_declares_its_kind(self) -> None:
         text = analysis_to_json(sample())
 

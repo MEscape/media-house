@@ -36,6 +36,12 @@ by its own words alone:
 
 * `designations(text)`: product-like names found by shape (a name followed by a number or code: "Pixel 9", "iPhone 15
   Pro", "X100V"); two values of one family are different things. A product without a number is not recognised.
+  "Platz 10", "Kaliber 30" and other rank or spec words followed by a number are not names.
+* `commerce_facts(text, language)`: prices ("15,99 €", "2,49€", "19 Euro" -> an exact `Fraction` in euros), ranks
+  ("auf Platz 3", "Platz zehn"), firework specs (Schuss, Effekte, Höhe/Steighöhe m, Brenndauer/Brennzeit s, Kaliber
+  mm, NEM/Gewicht g), retailers named on the channel (Lidl, Aldi, Netto ...) and product designations. Each fact is
+  verbatim with character offsets; a spec needs its spec word, a price its currency. Spelled-out amounts ("neunzehn
+  Euro") are not read. Pure: call it on transcript text, a coverage concept or OCR text to print exact values.
 * `resolve_references(analysis, unit_ids)`: what "this model", "that device" or "the previous version" (English and
   German) points at. `resolved` only when the nearest statements name exactly one candidate (an older model is named
   only when the context names one); `ambiguous` when they name several; `unresolved` otherwise, and a pointer at an

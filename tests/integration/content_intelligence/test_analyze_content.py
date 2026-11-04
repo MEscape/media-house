@@ -378,6 +378,30 @@ class TestNoDuplicatedUpstreamWork:
         assert (audio.calls, video.calls) == (0, 0)
         assert result.analysis.inputs[0].how == "supplied"
 
+    def test_a_supplied_audio_timeline_is_the_transcript_and_nothing_is_retranscribed(
+        self, env: Env
+    ) -> None:
+        # E2E regression: the pipeline pins the language for audio_analysis; asking the owner
+        # again with a default configuration transcribed the whole recording a second time.
+        from tests.support.analysis_fakes import timeline
+
+        audio = SpyEngine()
+        supplied = timeline([[("Platz", 0.0, 0.4), ("neun", 0.4, 0.8), ("kostet", 0.8, 1.2)]])
+
+        result = env.run(
+            env.use_case(audio=audio),
+            AnalyzeContentCommand(
+                source_asset_id=env.asset_id, config=FAST, audio_timeline=supplied
+            ),
+        )
+
+        assert audio.calls == 0
+        transcript = next(i for i in result.analysis.inputs if i.kind == "transcript")
+        assert transcript.how == "supplied"
+        assert result.analysis.source.transcript_fingerprint == transcript.fingerprint
+        assert result.analysis.source.origin == "audio_intelligence"
+        assert result.analysis.source.upstream_segments == 1
+
     def test_a_supplied_visual_analysis_is_used_without_asking_video_intelligence(
         self, env: Env
     ) -> None:

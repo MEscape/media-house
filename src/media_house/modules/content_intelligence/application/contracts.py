@@ -28,6 +28,11 @@ from media_house.modules.content_intelligence.application.analyze_content import
     ContentAnalysisResult,
     VideoUse,
 )
+from media_house.modules.content_intelligence.domain.commerce import (
+    CommerceFact,
+    CommerceKind,
+    commerce_facts,
+)
 from media_house.modules.content_intelligence.domain.config import (
     PROFILES,
     ContentConfig,
@@ -193,6 +198,8 @@ __all__ = [
     "AudioUse",
     "Boundary",
     "CacheLayer",
+    "CommerceFact",
+    "CommerceKind",
     "ContentAnalysis",
     "ContentAnalysisResult",
     "ContentAnalyzer",
@@ -256,6 +263,7 @@ __all__ = [
     "VisualCategory",
     "analysis_from_json",
     "analysis_to_json",
+    "commerce_facts",
     "designations",
     "evidence_for",
     "highlights",

@@ -10,7 +10,7 @@ from typing import Final
 
 SCHEMA_VERSION: Final = 1
 #: Bump when any heuristic, formula or cue list changes what a result contains.
-PROCESSING_VERSION: Final = 1
+PROCESSING_VERSION: Final = 2
 VOCABULARY_VERSION: Final = 1
 DOCUMENT_TYPE: Final = "content_intelligence.analysis"
 RESULT_OPERATION: Final = "content_intelligence"
