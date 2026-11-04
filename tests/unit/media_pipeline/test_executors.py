@@ -25,7 +25,7 @@ class Recorder:
         self.answer = answer
         self.commands: list[Any] = []
 
-    def execute(self, command: Any, ctx: JobContext) -> Any:
+    def execute(self, command: Any, ctx: JobContext | None = None) -> Any:
         self.commands.append(command)
         return self.answer
 
@@ -52,6 +52,13 @@ def executors(settings: StageSettings | None = None, **owners: Any) -> ModuleExe
         reframing_analyzer=owners.get("reframing_analyzer", fail),
         edit_planner=owners.get("edit_planner", fail),
         relationships=owners.get("relationships", fail),
+        style_resolver=owners.get("style_resolver", fail),
+        graphics_planner=owners.get("graphics_planner", fail),
+        caption_planner=owners.get("caption_planner", fail),
+        transition_planner=owners.get("transition_planner", fail),
+        vfx_planner=owners.get("vfx_planner", fail),
+        sound_planner=owners.get("sound_planner", fail),
+        stem_renderer=owners.get("stem_renderer", fail),
         settings=settings,
     )
 
@@ -171,6 +178,16 @@ def test_cpu_only_sets_every_device_and_default_leaves_them_alone() -> None:
     assert cpu_video.runtime.device.value == "cpu"
     assert auto_content.config.embedding.device == "auto"
     assert cpu_content.config.embedding.device == "cpu"
+
+
+def test_model_downloads_reach_video_analysis_only_when_allowed() -> None:
+    owner = Recorder(FAILING)
+    for settings in (StageSettings(), StageSettings(allow_model_download=True)):
+        executors(settings, video_analyzer=owner).analyze_video(job(K.VIDEO_ANALYSIS))
+
+    default, allowed = owner.commands
+    assert not default.runtime.allow_model_download
+    assert allowed.runtime.allow_model_download
 
 
 def test_content_receives_the_upstream_timeline_only_when_one_was_delivered() -> None:
@@ -340,3 +357,33 @@ def test_a_capped_asset_is_partial_and_says_so() -> None:
     assert result.status is TaskStatus.PARTIAL and result.warnings == (
         "wall_clock_overlap: capped",
     )
+
+
+def test_no_speech_story_and_edit_are_skipped_not_failed() -> None:
+    class NothingToPlan(ValidationError):
+        code = "story_architecture.nothing_to_plan"
+
+    class NothingToEdit(ValidationError):
+        code = "editing_intelligence.nothing_to_edit"
+
+    planner = Recorder(Err(NothingToPlan("none", user_message="No analysed speech.")))
+    editor = Recorder(Err(NothingToEdit("none", user_message="Nothing to edit.")))
+    ex = executors(story_planner=planner, edit_planner=editor)
+
+    story = ex.story(job(K.STORY))
+    edit = ex.edit_plan(job(K.EDIT_PLAN))
+
+    assert story.status is TaskStatus.SKIPPED_UNAVAILABLE
+    assert "No analysed speech." in story.detail
+    assert edit.status is TaskStatus.SKIPPED_UNAVAILABLE
+
+
+def test_transcription_language_is_pinned_only_when_set() -> None:
+    owner = Recorder(FAILING)
+    for settings in (StageSettings(), StageSettings(transcription_language="de", cpu_only=True)):
+        executors(settings, audio_analyzer=owner).analyze_audio(job(K.AUDIO_ANALYSIS))
+
+    auto, pinned = owner.commands
+    assert auto.config.transcription.language is None
+    assert pinned.config.transcription.language == "de"
+    assert pinned.config.transcription.device == "cpu"

@@ -38,6 +38,27 @@ owning module, not guessed:
   video analysis, the pacing analysis, the B-roll analysis, the framing analysis and the
   inspection (it reads stored ones itself, and only waits so they are not missed). It is opt-in:
   see ``DEFAULT_STAGES``.
+* Layer 4 (all opt-in; none is in ``DEFAULT_STAGES``: each stores plans and renders files that
+  only mean something for a chosen delivery format). Every Layer 4 task WANTS the edit plan and
+  NEEDS the inspection: with an edit it works on the edit; without one (no speech, or no edit
+  asked for) it works on the whole recording from the inspection (the no-speech path). An edit
+  that was asked for and FAILED is never silently replaced by the whole recording: the executor
+  reports it. Nothing before ``edit_plan`` waits for Layer 4, so there is no cycle.
+* ``visual_style`` resolves the channel identity for the delivery format: the ONE place the
+  format profile is chosen. It WANTS the edit plan (project and story format) and nothing else;
+  every other Layer 4 task NEEDS it, so requesting any of them resolves the style first.
+* ``graphics`` (CPU: HyperFrames renders) WANTS the story plan (section labels, beats) and the
+  audio analysis (the words of each section, read for prices, ranks and specs).
+* ``captions`` (CPU: renders through motion graphics) WANTS ``graphics`` so a fact a graphic
+  already shows is not repeated, and the audio, content, video and framing analyses it reads.
+  It needs an audio track and a picture.
+* ``transitions`` (CPU: graphic overlays are rendered) WANTS ``graphics`` (the end screen and
+  membership plug it bookends), the continuity, pacing, audio and video analyses it reads.
+* ``vfx`` (CPU: FFmpeg renders) WANTS the video analysis (handed in memory), the audio analysis
+  (speech spans it must not retime) and the framing analysis.
+* ``sound_design`` (CPU: the stem render) WANTS ``graphics``, ``transitions`` and ``captions``
+  (their events become sync points), the story plan, pacing and audio analyses. It needs no
+  picture: music under a voice recording is still sound design.
 * Inspection joins every non-empty run (see ``plan_asset``): it is cheap, cached, and the only
   authority on which streams exist. A stage only WANTS it, so a failed inspection never blocks.
 * Improvement stages create new assets nothing downstream reads: analyses run on the original,
@@ -62,6 +83,9 @@ class Stage:
 
 def _k(*kinds: TaskKind) -> frozenset[TaskKind]:
     return frozenset(kinds)
+
+
+_LAYER4_NEEDS = _k(TaskKind.VISUAL_STYLE, TaskKind.INSPECT)
 
 
 STAGES: Mapping[TaskKind, Stage] = {
@@ -142,6 +166,68 @@ STAGES: Mapping[TaskKind, Stage] = {
         needs=_k(TaskKind.CONTENT_ANALYSIS),
         wants=_k(TaskKind.ALIGNMENT),
         needs_audio=True,
+    ),
+    TaskKind.VISUAL_STYLE: Stage(Lane.LIGHT, wants=_k(TaskKind.EDIT_PLAN, TaskKind.INSPECT)),
+    TaskKind.GRAPHICS: Stage(
+        Lane.CPU,
+        needs=_LAYER4_NEEDS,
+        wants=_k(
+            TaskKind.EDIT_PLAN, TaskKind.STORY, TaskKind.AUDIO_ANALYSIS, TaskKind.VIDEO_ANALYSIS
+        ),
+        needs_video=True,
+    ),
+    TaskKind.CAPTIONS: Stage(
+        Lane.CPU,
+        needs=_LAYER4_NEEDS,
+        wants=_k(
+            TaskKind.EDIT_PLAN,
+            TaskKind.STORY,
+            TaskKind.GRAPHICS,
+            TaskKind.AUDIO_ANALYSIS,
+            TaskKind.CONTENT_ANALYSIS,
+            TaskKind.VIDEO_ANALYSIS,
+            TaskKind.REFRAMING,
+        ),
+        needs_video=True,
+        needs_audio=True,
+    ),
+    TaskKind.TRANSITIONS: Stage(
+        Lane.CPU,
+        needs=_LAYER4_NEEDS,
+        wants=_k(
+            TaskKind.EDIT_PLAN,
+            TaskKind.STORY,
+            TaskKind.GRAPHICS,
+            TaskKind.CONTINUITY,
+            TaskKind.PACING,
+            TaskKind.AUDIO_ANALYSIS,
+            TaskKind.VIDEO_ANALYSIS,
+        ),
+        needs_video=True,
+    ),
+    TaskKind.VFX: Stage(
+        Lane.CPU,
+        needs=_LAYER4_NEEDS,
+        wants=_k(
+            TaskKind.EDIT_PLAN,
+            TaskKind.AUDIO_ANALYSIS,
+            TaskKind.VIDEO_ANALYSIS,
+            TaskKind.REFRAMING,
+        ),
+        needs_video=True,
+    ),
+    TaskKind.SOUND_DESIGN: Stage(
+        Lane.CPU,
+        needs=_LAYER4_NEEDS,
+        wants=_k(
+            TaskKind.EDIT_PLAN,
+            TaskKind.STORY,
+            TaskKind.PACING,
+            TaskKind.AUDIO_ANALYSIS,
+            TaskKind.GRAPHICS,
+            TaskKind.TRANSITIONS,
+            TaskKind.CAPTIONS,
+        ),
     ),
 }
 

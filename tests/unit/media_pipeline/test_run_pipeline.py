@@ -195,8 +195,9 @@ def test_report_serialises_to_plain_json() -> None:
 
     data = json.loads(json.dumps(report.to_dict()))
 
-    assert data["schema_version"] == 1
+    assert data["schema_version"] == 2
     assert data["assets"][0]["tasks"][0]["kind"]
+    assert data["assets"][0]["layer4"] is None  # no Layer 4 stage was asked for
     assert data["lane_capacity"] == {"light": 4, "cpu": 2, "gpu": 1}
 
 

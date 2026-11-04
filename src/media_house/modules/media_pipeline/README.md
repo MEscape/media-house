@@ -57,6 +57,22 @@ inspect (joins every run)   thumbnail                       (light lane)
                 |
           continuity (light, opt-in)  needs edit_plan, wants broll, alignment, audio_analysis,
                                       video_analysis, inspect
+
+Layer 4 (all opt-in; `--stages layer4` = all six). Each WANTS edit_plan (the edit, or else the
+whole recording: the no-speech path) and every one but the style NEEDS visual_style + inspect.
+
+          visual_style (light)   wants edit_plan, inspect             (the ONE format choice)
+                |
+          graphics (cpu)         wants edit_plan, story, audio_analysis
+                |
+          captions (cpu)         wants graphics, edit_plan, story, audio_analysis, content_analysis,
+                |                video_analysis, reframing             (needs audio + picture)
+          transitions (cpu)      wants graphics, edit_plan, story, continuity, pacing, audio_analysis,
+                |                video_analysis
+          vfx (cpu)              wants edit_plan, audio_analysis, video_analysis, reframing
+                |
+          sound_design (cpu)     wants graphics, transitions, captions, edit_plan, story, pacing,
+                                 audio_analysis                        (no picture needed)
 ```
 
 * Inspection is the only authority on which streams exist, so it is always in the graph. Audio
@@ -107,6 +123,45 @@ inspect (joins every run)   thumbnail                       (light lane)
   opt-in because it needs a chosen edit. It is `partial` when evidence was missing for some cuts, `reused` on an
   identical key, and `skipped_unavailable` when the plan has nothing to judge (`nothing_to_judge`, fewer than two
   clips).
+* **Layer 4** (`visual_style`, `graphics`, `captions`, `transitions`, `vfx`, `sound_design`; opt-in, see
+  `docs/layer4/README.md`). Nothing before `edit_plan` waits for them, so there is no cycle; they never
+  run analyses (wanted analyses are waited for when in the graph and handed over in memory).
+  * **One edit view.** `application/edit_view.py` maps the `EditPlan` (+ the story plan for beat functions and
+    section labels) ONCE into a neutral `EditView`; `application/layer4_inputs.py` maps that view into each
+    module's own DTO (`GraphicsBrief`, `CaptionTimeline`, `TransitionSequence`, `VfxShots`,
+    `SoundtrackTimeline`). Clip ids are placement ids (the ids continuity's `ProposedSequence` uses), times stay
+    exact `Rational`s, the frame rate is the edit's timebase, sections span their placements.
+  * **No-speech path.** Without an edit plan (no `edit_plan` in the run, or it was `skipped_unavailable`
+    because the recording has no speech: the root cause travels as `TaskResult.cause` through dependency
+    skips) the view is the whole recording from the STORED inspection: one clip `clip:<asset>`, timeline =
+    source, the inspected frame rate (VFR or none = `frame_rate_assumed`), `edit=None`, no sections. The
+    task's detail says why. An edit that was asked for and FAILED (or was cancelled, or a failure upstream
+    stopped it) is NOT replaced by the whole recording: every Layer 4 task is `skipped_dependency` naming it.
+  * **One format choice.** `visual_style` resolves the channel style from `--format-profile`, `--sponsored`,
+    the delivery shape (`--output-format`, else `--reframe-target`) and size (`--output-resolution`), the
+    edit's project and story format; its `StyleRef` goes to every other task (same fingerprint in every
+    plan). Each module maps the style's format profile to its own profile (`graphics`: motion's
+    `STORY_FORMAT_PROFILE`, `transitions`: `STYLE_PROFILE`, `vfx`: `FORMAT_PROFILE`, `sound_design`: the same
+    name, `captions`: the caption engine reads the style itself) unless `--<module>-profile` is given.
+  * `graphics` reads ranks, prices and specs from the words heard in each section (content's
+    `commerce_facts` over the transcript through the section's sound clips) and passes the editorial GRAPHIC
+    requests; `captions` follows `graphics` (facts shown by a graphic are not captioned again); `transitions`
+    gets the TRANSITION requests, J/L bridges and the end-screen / membership-plug bookends the graphics plan
+    placed; `vfx` gets REFRAME (emphasis) and MUSIC_CUE (reveal) requests and the transcript segments of each
+    clip (speech is never retimed); `sound_design` gets the sound clips (audio track, else the main picture),
+    sections, bridges and every visual moment as a `SyncEvent` (graphic arrivals in music's vocabulary,
+    `TransitionEvent`s with `kind=kind.value, strength=intensity/4`, emphasised caption words and drawn
+    emoji, the edit's TRANSITION / MUSIC_CUE requests); it reads speech, loud moments and pacing cues itself
+    from the analyses handed in memory, then renders the stem when music or effects were chosen.
+  * Renders (`--no-render` = plans only): graphics and captions through HyperFrames (ProRes 4444 with alpha),
+    transition overlays, VFX clips (ProRes 422 HQ), the sound stem (WAV f32). A missing renderer gives
+    `not_available` items inside a stored plan, never a failed task.
+  * Every Layer 4 task reports the same facts (`plan_asset_id`, `document_type`, `plan_version`, `state`,
+    `path`, `anchor_asset_id`, `edit_plan_id`, `edit_plan_version`, `style_asset_id`, `style_fingerprint`,
+    `rendered_asset_ids`); `AssetReport.layer4_package()` and the report JSON's per-asset `layer4` section
+    collect them for a future timeline builder. There is no separate visual-asset task: product stickers and
+    silhouettes are requested by motion graphics through `VisualAssetPreparer`, and B-roll gap images are a
+    library selection (`ImageSelector.for_gaps`) a person chooses from; a task would store nothing new.
 * Requesting a stage pulls in what it needs (`implied` in the report). A stage the media cannot
   support (picture stages on audio-only media) is `skipped_unavailable`, not a failure.
 
@@ -143,14 +198,28 @@ uv run python scratch/run_pipeline.py --input footage_dir --dry-run    # graph o
 uv run python scratch/run_pipeline.py --input clip.mp4 --all --output out/ -v
 uv run python scratch/run_pipeline.py --input clip.mp4 --config pipeline.toml --cpu-only
 uv run python scratch/run_pipeline.py --asset-id <library id> --stages video_analysis
+uv run python scratch/import_sound_library.py [--manifest M] [--home H]   # library for sound_design
+uv run python scratch/run_pipeline.py --input clip.mp4 --stages edit_plan,layer4 --output-format 9:16
+    --format-profile shorts_haul --report-json out/report.json      # (one line) the Layer 4 package
 uv run python scratch/bench_pipeline.py --media DIR --work DIR         # cold/warm/changed/sequential/...
 uv run pytest tests/unit/media_pipeline tests/integration/media_pipeline tests/architecture
 ```
 
 `pipeline.toml` keys: `stages`, `content_uses_video`, `cpu_only`, `gpu_slots`, `cpu_slots`,
 `light_slots`, `video_analysis_profile`, `proxy_profile`, `audio_improvement_profile`,
-`video_source_profile`, `video_processing_profile`, `story_format`, `story_llm`, `edit_profile`, `edit_target_seconds`, `edit_target_hard` (unknown keys are errors; the command line
+`video_source_profile`, `video_processing_profile`, `story_format`, `story_llm`, `edit_profile`, `edit_target_seconds`,
+`edit_target_hard`, the B-roll / continuity / reframing keys, `transcription_language`, and for Layer 4
+`output_format`, `output_resolution` (`"WxH"`), `format_profile`, `sponsored`, `graphics_profile`, `caption_profile`,
+`transition_profile`, `vfx_profile`, `sound_profile`, `layer4_render` (unknown keys are errors; the command line
 wins). Ctrl+C once finishes cleanly, twice stops now. The report is written atomically.
+
+Layer 4 flags: `--stages layer4` (all six), `--output-format 16:9|9:16|1:1`, `--output-resolution WxH`,
+`--format-profile`, `--sponsored`, `--graphics-profile`, `--caption-profile`, `--transition-profile`,
+`--vfx-profile`, `--sound-profile`, `--no-render`. Report schema 2 adds `assets[].layer4` (null when no Layer 4
+stage was asked for): `anchor_asset_id`, `path` (`edit` | `no_speech`), `edit` (`edit_plan_id`, `plan_version`, or
+null), `style` (`plan_asset_id`, `fingerprint`, `profile`, `identity_version`, `output`), `plans` (per task:
+`plan_asset_id`, `document_type`, `plan_version`, `state`, `profile`), `rendered` (per task: derived asset ids),
+`not_made` (per requested task that stored nothing: `status`, `detail`).
 
 Not offered, on purpose: `--force` / `--no-cache`. The owners expose no common way to recompute, so
 a flag could only pretend; use a fresh `--home`. `--cpu-only` sets the device of speech
@@ -198,6 +267,12 @@ not built.
   (16 s and 15 s) matched the spoken scripts word for word, with 34 and 33 words timed inside the
   media duration (read back through `AudioCatalog`). Real voices, noise, several speakers, HDR,
   multi-camera, long footage and the vision models are not validated.
+* Layer 4 is validated end to end on a synthetic speech-free clip only (no-speech path: every plan stored,
+  one style fingerprint, a real sound stem from a synthesised library, a fully reused second run, one real
+  HyperFrames render); the edit path is covered by mapper and executor unit tests on synthetic edit plans.
+  Layer 4 tasks are per asset: an edit of several recordings goes through the owners' contracts directly.
+* Without `edit_plan` in the run, Layer 4 plans the whole recording even if an edit plan is stored from an
+  earlier run (Layer 4 reads the edit of THIS run); add `edit_plan` (cheap, reused) to plan the edit.
 
 ## Next steps
 

@@ -10,6 +10,7 @@ from media_house.modules.audio_improvement.application.contracts import AudioImp
 from media_house.modules.audio_intelligence.application.contracts import AudioAnalyzer
 from media_house.modules.audio_visual_alignment.application.contracts import AudioVisualAligner
 from media_house.modules.broll_intelligence.application.contracts import BrollAnalyzer
+from media_house.modules.caption_engine.application.contracts import CaptionPlanner
 from media_house.modules.content_intelligence.application.contracts import ContentAnalyzer
 from media_house.modules.continuity_intelligence.application.contracts import ContinuityAnalyzer
 from media_house.modules.editing_intelligence.application.contracts import EditPlanner
@@ -18,12 +19,20 @@ from media_house.modules.media_library.application.contracts import MediaLibrary
 from media_house.modules.media_pipeline.application.contracts import MediaPipeline
 from media_house.modules.media_pipeline.application.executors import ModuleExecutors
 from media_house.modules.media_pipeline.application.run_pipeline import RunPipeline
+from media_house.modules.motion_graphics_engine.application.contracts import MotionGraphicsPlanner
+from media_house.modules.music_and_sound_design.application.contracts import (
+    SoundDesignPlanner,
+    SoundStemRenderer,
+)
 from media_house.modules.pacing_intelligence.application.contracts import PacingAnalyzer
 from media_house.modules.proxy_manager.application.contracts import ProxyManager
 from media_house.modules.reframing_intelligence.application.contracts import ReframingAnalyzer
 from media_house.modules.story_architecture.application.contracts import StoryPlanner
+from media_house.modules.transition_engine.application.contracts import TransitionPlanner
+from media_house.modules.vfx_engine.application.contracts import VfxPlanner
 from media_house.modules.video_improvement.application.contracts import VideoImprover
 from media_house.modules.video_intelligence.application.contracts import VideoAnalyzer
+from media_house.modules.visual_style_engine.application.contracts import StyleResolver
 
 
 class MediaPipelineModule:
@@ -52,6 +61,13 @@ class MediaPipelineModule:
                     reframing_analyzer=c.resolve(ReframingAnalyzer),
                     edit_planner=c.resolve(EditPlanner),
                     relationships=c.resolve(RelationshipDetection),
+                    style_resolver=c.resolve(StyleResolver),
+                    graphics_planner=c.resolve(MotionGraphicsPlanner),
+                    caption_planner=c.resolve(CaptionPlanner),
+                    transition_planner=c.resolve(TransitionPlanner),
+                    vfx_planner=c.resolve(VfxPlanner),
+                    sound_planner=c.resolve(SoundDesignPlanner),
+                    stem_renderer=c.resolve(SoundStemRenderer),
                     settings=settings,
                 ),
             ),

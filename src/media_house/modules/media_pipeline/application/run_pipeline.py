@@ -58,6 +58,20 @@ DEFAULT_STAGES: frozenset[TaskKind] = frozenset(
 )
 
 
+#: Every Layer 4 stage (``--stages layer4``): the style, graphics, captions, transitions, VFX and
+#: sound design of each asset. Opt-in: each stores plans and renders files for a chosen format.
+LAYER4_STAGES: frozenset[TaskKind] = frozenset(
+    {
+        TaskKind.VISUAL_STYLE,
+        TaskKind.GRAPHICS,
+        TaskKind.CAPTIONS,
+        TaskKind.TRANSITIONS,
+        TaskKind.VFX,
+        TaskKind.SOUND_DESIGN,
+    }
+)
+
+
 @dataclass(frozen=True, slots=True)
 class RunPipelineCommand:
     #: Files to import (identical content is stored once) ...
@@ -286,4 +300,4 @@ class RunPipeline:
         )
 
 
-__all__ = ["DEFAULT_STAGES", "RunPipeline", "RunPipelineCommand"]
+__all__ = ["DEFAULT_STAGES", "LAYER4_STAGES", "RunPipeline", "RunPipelineCommand"]

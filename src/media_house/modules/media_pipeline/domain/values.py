@@ -25,6 +25,13 @@ class TaskKind(StrEnum):
     REFRAMING = "reframing"
     EDIT_PLAN = "edit_plan"
     RELATIONSHIPS = "relationships"
+    # Layer 4: stored plans and rendered assets, after the edit plan (or from the inspection).
+    VISUAL_STYLE = "visual_style"
+    GRAPHICS = "graphics"
+    CAPTIONS = "captions"
+    TRANSITIONS = "transitions"
+    VFX = "vfx"
+    SOUND_DESIGN = "sound_design"
 
 
 class Lane(StrEnum):

@@ -7,7 +7,18 @@ from dataclasses import dataclass, field
 from media_house.modules.media_library.application.contracts import JsonValue
 from media_house.modules.media_pipeline.domain.values import Lane, TaskKind, TaskStatus
 
-REPORT_SCHEMA_VERSION = 1
+REPORT_SCHEMA_VERSION = 2
+
+#: The Layer 4 tasks whose stored plans and renders make up an asset's "Layer 4 package".
+LAYER4_KINDS: tuple[TaskKind, ...] = (
+    TaskKind.VISUAL_STYLE,
+    TaskKind.GRAPHICS,
+    TaskKind.CAPTIONS,
+    TaskKind.TRANSITIONS,
+    TaskKind.VFX,
+    TaskKind.SOUND_DESIGN,
+)
+_PLAN_FACTS = ("plan_asset_id", "document_type", "plan_version", "state", "profile")
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,6 +59,49 @@ class AssetReport:
 
     def task(self, kind: TaskKind) -> TaskReport | None:
         return next((t for t in self.tasks if t.kind is kind), None)
+
+    def layer4_package(self) -> dict[str, JsonValue] | None:
+        """Every stored Layer 4 plan document and rendered asset of this asset, in one place a
+        timeline builder can consume (ids only; the documents hold the exact times and frames).
+        ``None`` when no Layer 4 stage was asked for."""
+        asked = [
+            t
+            for t in self.tasks
+            if t.kind in LAYER4_KINDS and t.status is not TaskStatus.SKIPPED_DISABLED
+        ]
+        if not asked:
+            return None
+        made = [t for t in asked if t.status and t.status.delivered and "plan_asset_id" in t.facts]
+        style = next((t.facts for t in made if t.kind is TaskKind.VISUAL_STYLE), {})
+        plan = next((t.facts for t in made if t.kind is not TaskKind.VISUAL_STYLE), style)
+        edit_id = plan.get("edit_plan_id")
+        return {
+            "anchor_asset_id": self.asset_id,
+            "path": plan.get("path"),
+            "edit": None
+            if edit_id is None
+            else {"edit_plan_id": edit_id, "plan_version": plan.get("edit_plan_version")},
+            "style": {
+                key: style[key]
+                for key in ("plan_asset_id", "fingerprint", "profile", "identity_version", "output")
+                if key in style
+            }
+            or None,
+            "plans": {
+                t.kind.value: {key: t.facts[key] for key in _PLAN_FACTS if key in t.facts}
+                for t in made
+            },
+            "rendered": {
+                t.kind.value: list(ids)
+                for t in made
+                if isinstance(ids := t.facts.get("rendered_asset_ids"), list) and ids
+            },
+            "not_made": {
+                t.kind.value: {"status": t.status.value if t.status else None, "detail": t.detail}
+                for t in asked
+                if t not in made
+            },
+        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -125,6 +179,7 @@ class PipelineReport:
                 "origin": a.origin,
                 "notes": list(a.notes),
                 "tasks": [task(t) for t in a.tasks],
+                "layer4": a.layer4_package(),
             }
 
         return {

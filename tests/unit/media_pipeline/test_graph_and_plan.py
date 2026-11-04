@@ -121,8 +121,11 @@ def test_audio_only_asset_drops_picture_stages_and_their_dependents() -> None:
         K.CONTINUITY,
         K.EDIT_PLAN,
         K.RELATIONSHIPS,
+        K.VISUAL_STYLE,  # a voice recording still gets a style and a soundtrack
+        K.SOUND_DESIGN,
     }
     assert {K.THUMBNAIL, K.PROXY, K.VIDEO_ANALYSIS, K.ALIGNMENT} <= plan.not_applicable
+    assert {K.GRAPHICS, K.CAPTIONS, K.TRANSITIONS, K.VFX} <= plan.not_applicable
 
 
 def test_story_needs_the_content_analysis_and_only_wants_the_alignment() -> None:

@@ -19,6 +19,7 @@ from media_house.modules.media_pipeline.application.report import (
 )
 from media_house.modules.media_pipeline.application.run_pipeline import (
     DEFAULT_STAGES,
+    LAYER4_STAGES,
     RunPipelineCommand,
 )
 from media_house.modules.media_pipeline.application.tasks import RunObserver, TaskRecord
@@ -38,6 +39,7 @@ class MediaPipeline(Protocol):
 
 __all__ = [
     "DEFAULT_STAGES",
+    "LAYER4_STAGES",
     "AssetReport",
     "InputFailure",
     "Lane",

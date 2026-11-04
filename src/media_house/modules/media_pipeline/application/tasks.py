@@ -18,6 +18,9 @@ class TaskResult:
     facts: Mapping[str, JsonValue] = field(default_factory=dict)
     #: The typed in-memory result, handed to downstream tasks so they never re-read it.
     payload: object | None = None
+    #: For a dependency skip: the status at the root of the chain (``skipped_unavailable`` when
+    #: nothing failed and the media simply has nothing to work on, such as no speech).
+    cause: TaskStatus | None = None
 
 
 @dataclass(frozen=True, slots=True)

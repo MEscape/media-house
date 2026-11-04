@@ -257,6 +257,7 @@ class GraphRunner:
                 return TaskResult(
                     TaskStatus.SKIPPED_DEPENDENCY,
                     f"{reason}: {got.detail}" if got.detail else reason,
+                    cause=got.cause or got.status,
                 )
         return None
 

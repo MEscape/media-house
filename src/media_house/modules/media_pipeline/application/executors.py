@@ -41,6 +41,15 @@ from media_house.modules.broll_intelligence.application.contracts import (
 from media_house.modules.broll_intelligence.application.contracts import (
     ResultState as BrollState,
 )
+from media_house.modules.caption_engine.application.contracts import (
+    DOCUMENT_TYPE as CAPTION_DOCUMENT,
+)
+from media_house.modules.caption_engine.application.contracts import (
+    CaptionConfig,
+    CaptionPlan,
+    CaptionPlanner,
+    PlanCaptionsCommand,
+)
 from media_house.modules.content_intelligence.application.contracts import (
     AnalyzeContentCommand,
     AudioUse,
@@ -74,7 +83,24 @@ from media_house.modules.media_inspection.application.contracts import (
     InspectMediaCommand,
     MediaInspector,
 )
-from media_house.modules.media_library.application.contracts import JsonValue, MediaLibrary
+from media_house.modules.media_library.application.contracts import (
+    JsonValue,
+    MediaAssetDto,
+    MediaLibrary,
+)
+from media_house.modules.media_pipeline.application.edit_view import (
+    EditView,
+    no_speech_view,
+    view_of,
+)
+from media_house.modules.media_pipeline.application.layer4_inputs import (
+    caption_timeline,
+    graphics_brief,
+    soundtrack_timeline,
+    sync_events,
+    transition_sequence,
+    vfx_shots,
+)
 from media_house.modules.media_pipeline.application.sequence import sequence_of
 from media_house.modules.media_pipeline.application.tasks import (
     TaskExecutor,
@@ -83,6 +109,30 @@ from media_house.modules.media_pipeline.application.tasks import (
     TaskResult,
 )
 from media_house.modules.media_pipeline.domain.values import TaskId, TaskKind, TaskStatus
+from media_house.modules.motion_graphics_engine.application.contracts import (
+    DOCUMENT_TYPE as GRAPHICS_DOCUMENT,
+)
+from media_house.modules.motion_graphics_engine.application.contracts import (
+    STORY_FORMAT_PROFILE as GRAPHICS_PROFILE_OF,
+)
+from media_house.modules.motion_graphics_engine.application.contracts import (
+    GraphicsPlan,
+    ItemStatus,
+    MotionGraphicsConfig,
+    MotionGraphicsPlanner,
+    PlanGraphicsCommand,
+)
+from media_house.modules.music_and_sound_design.application.contracts import (
+    PROFILES as SOUND_PROFILES,
+)
+from media_house.modules.music_and_sound_design.application.contracts import (
+    SOUND_DESIGN_PLAN,
+    PlanSoundDesignCommand,
+    RenderSoundStemCommand,
+    SoundDesignConfig,
+    SoundDesignPlanner,
+    SoundStemRenderer,
+)
 from media_house.modules.pacing_intelligence.application.contracts import (
     AnalyzePacingCommand,
     PacingAnalysis,
@@ -122,6 +172,29 @@ from media_house.modules.story_architecture.application.contracts import (
     StoryPlan,
     StoryPlanner,
 )
+from media_house.modules.transition_engine.application.contracts import (
+    DOCUMENT_TYPE as TRANSITION_DOCUMENT,
+)
+from media_house.modules.transition_engine.application.contracts import (
+    STYLE_PROFILE as TRANSITION_PROFILE_OF,
+)
+from media_house.modules.transition_engine.application.contracts import (
+    PlanTransitionsCommand,
+    TransitionConfig,
+    TransitionPlan,
+    TransitionPlanner,
+)
+from media_house.modules.vfx_engine.application.contracts import (
+    DOCUMENT_TYPE as VFX_DOCUMENT,
+)
+from media_house.modules.vfx_engine.application.contracts import (
+    FORMAT_PROFILE as VFX_PROFILE_OF,
+)
+from media_house.modules.vfx_engine.application.contracts import (
+    PlanVfxCommand,
+    VfxConfig,
+    VfxPlanner,
+)
 from media_house.modules.video_improvement.application.contracts import (
     ImproveVideoCommand,
     VideoImprover,
@@ -134,6 +207,13 @@ from media_house.modules.video_intelligence.application.contracts import (
     VideoAnalysis,
     VideoAnalyzer,
 )
+from media_house.modules.visual_style_engine.application.contracts import (
+    DEFAULT_OUTPUT,
+    ResolveStyleCommand,
+    ResolveStyleResult,
+    StyleConfig,
+    StyleResolver,
+)
 from media_house.shared.errors import Err, InvariantViolation, Ok
 
 _UNAVAILABLE_CODES = (
@@ -142,6 +222,11 @@ _UNAVAILABLE_CODES = (
     "nothing_to_cover",
     "nothing_to_judge",
     "nothing_to_frame",
+    "nothing_to_plan",  # no speech: a meme, a compilation or an uncut take has no story to plan
+    "nothing_to_edit",
+    "nothing_to_score",  # Layer 4: a timeline with nothing to place (no clip)
+    "nothing_to_treat",
+    "nothing_to_transition",
 )
 _DEGRADED = {"not_available", "failed"}
 _NO_AUDIO = TaskResult(TaskStatus.SKIPPED_UNAVAILABLE, "the inspection found no audio stream")
@@ -188,9 +273,36 @@ class StageSettings:
     #: Reserved rectangles of the OUTPUT picture (captions, a title, an interface margin). Nothing
     #: is assumed: with none listed there is no safe-area constraint.
     reframing_safe_areas: tuple[SafeArea, ...] = ()
+    #: Pin the transcription language (ISO code such as ``de``); ``None`` = auto-detect.
+    transcription_language: str | None = None
+    # --- Layer 4 ---------------------------------------------------------------------------
+    #: The delivery shape every Layer 4 plan is made for (``16:9``, ``9:16`` or ``1:1``: the
+    #: shapes the channel style defines). ``None`` = the reframing target, else the format
+    #: profile's own shape.
+    output_format: str | None = None
+    #: The delivery size in pixels (width, height); ``None`` = the standard size of the shape.
+    output_resolution: tuple[int, int] | None = None
+    #: The channel format profile (``shorts_haul``, ``ranking`` ...: visual_style_engine's). The
+    #: ONE place the format is chosen: every Layer 4 module maps it to its own profile.
+    #: ``None`` = by the story format, then the output shape.
+    format_profile: str | None = None
+    #: A sponsored video (the "Werbung" label is mandatory over the whole timeline).
+    sponsored: bool = False
+    #: Per-module profiles; ``None`` = the module's own mapping of the style's format profile.
+    graphics_profile: str | None = None
+    caption_profile: str | None = None
+    transition_profile: str | None = None
+    vfx_profile: str | None = None
+    sound_profile: str | None = None
+    #: Render Layer 4 assets (graphics, captions, transition overlays, VFX clips, the sound
+    #: stem). Off = plans only (every plan is still complete and stored).
+    layer4_render: bool = True
     #: Never use the GPU. Only the device settings change; results keep their identity because
     #: the owners leave the device out of their cache keys.
     cpu_only: bool = False
+    #: Video intelligence may download a model that is not on disk (pinned checksum). Off by
+    #: default: without it a missing model makes that analyzer ``not_available``.
+    allow_model_download: bool = False
 
 
 def _given[T](asset_id: str, result: T | None) -> dict[str, T]:
@@ -207,6 +319,26 @@ def _from_error(error: object) -> TaskResult:
     if code.endswith(_UNAVAILABLE_CODES):
         return TaskResult(TaskStatus.SKIPPED_UNAVAILABLE, message)
     return TaskResult(TaskStatus.FAILED, f"{code}: {message}")
+
+
+@dataclass(frozen=True, slots=True)
+class _Basis:
+    """What every Layer 4 task works on: the edit (or the whole recording) and the style."""
+
+    view: EditView
+    style: ResolveStyleResult
+    #: Why there is no edit (empty when there is one).
+    note: str = ""
+
+    @property
+    def path(self) -> str:
+        return "edit" if self.view.has_edit else "no_speech"
+
+
+def _pick(explicit: str | None, mapping: Mapping[str, str], style_profile: str) -> str | None:
+    """A module's profile: the explicit choice, else its mapping of the style's format profile
+    (``None`` = the module decides from the story format)."""
+    return explicit or mapping.get(style_profile)
 
 
 def _inspection_outcome(result: InspectionResult, *, created: bool) -> TaskResult:
@@ -262,6 +394,13 @@ class ModuleExecutors:
         reframing_analyzer: ReframingAnalyzer,
         edit_planner: EditPlanner,
         relationships: RelationshipDetection,
+        style_resolver: StyleResolver,
+        graphics_planner: MotionGraphicsPlanner,
+        caption_planner: CaptionPlanner,
+        transition_planner: TransitionPlanner,
+        vfx_planner: VfxPlanner,
+        sound_planner: SoundDesignPlanner,
+        stem_renderer: SoundStemRenderer,
         settings: StageSettings | None = None,
     ) -> None:
         self._library = library
@@ -281,6 +420,13 @@ class ModuleExecutors:
         self._reframing_analyzer = reframing_analyzer
         self._edit_planner = edit_planner
         self._relationships = relationships
+        self._style_resolver = style_resolver
+        self._graphics_planner = graphics_planner
+        self._caption_planner = caption_planner
+        self._transition_planner = transition_planner
+        self._vfx_planner = vfx_planner
+        self._sound_planner = sound_planner
+        self._stem_renderer = stem_renderer
         self._settings = settings or StageSettings()
 
     def table(self) -> Mapping[TaskKind, TaskExecutor]:
@@ -301,6 +447,12 @@ class ModuleExecutors:
             TaskKind.REFRAMING: self.reframing,
             TaskKind.EDIT_PLAN: self.edit_plan,
             TaskKind.RELATIONSHIPS: self.relationships,
+            TaskKind.VISUAL_STYLE: self.visual_style,
+            TaskKind.GRAPHICS: self.graphics,
+            TaskKind.CAPTIONS: self.captions,
+            TaskKind.TRANSITIONS: self.transitions,
+            TaskKind.VFX: self.vfx,
+            TaskKind.SOUND_DESIGN: self.sound_design,
         }
 
     def peeks(self) -> Mapping[TaskKind, TaskPeek]:
@@ -414,12 +566,13 @@ class ModuleExecutors:
     def analyze_audio(self, job: TaskJob) -> TaskResult:
         if self._lacks_audio(job):
             return _NO_AUDIO
-        command = AnalyzeAudioCommand(job.id.asset_id)
-        if self._settings.cpu_only:
-            command = AnalyzeAudioCommand(
-                job.id.asset_id,
-                AudioIntelligenceConfig(transcription=TranscriptionConfig(device="cpu")),
-            )
+        transcription = TranscriptionConfig(
+            language=self._settings.transcription_language,
+            device="cpu" if self._settings.cpu_only else "auto",
+        )
+        command = AnalyzeAudioCommand(
+            job.id.asset_id, AudioIntelligenceConfig(transcription=transcription)
+        )
         match self._audio_analyzer.execute(command, job.ctx):
             case Ok(result):
                 return TaskResult(
@@ -436,7 +589,8 @@ class ModuleExecutors:
     def analyze_video(self, job: TaskJob) -> TaskResult:
         profile = self._settings.video_analysis_profile
         runtime = RuntimeConfig(
-            device=DeviceKind.CPU if self._settings.cpu_only else DeviceKind.AUTO
+            device=DeviceKind.CPU if self._settings.cpu_only else DeviceKind.AUTO,
+            allow_model_download=self._settings.allow_model_download,
         )
         command = (
             AnalyzeVideoCommand(job.id.asset_id, runtime=runtime)
@@ -847,6 +1001,386 @@ class ModuleExecutors:
                 )
             case Err(error):
                 return _from_error(error)
+
+    # --- Layer 4: stored plans and rendered assets ------------------------------------------
+    def _edit_state(self, job: TaskJob) -> EditPlan | TaskResult | str:
+        """The edit plan of this run; else WHY there is none (a ``str`` note: no speech, or no
+        edit was asked for). An edit that was asked for and did not deliver for any other reason
+        (failed, cancelled, a failed upstream) is a ``TaskResult``: the whole recording never
+        silently stands in for a failed edit."""
+        found = job.upstream.get(TaskId(job.id.asset_id, TaskKind.EDIT_PLAN))
+        if found is None:
+            return "no edit plan in this run: planned on the whole recording (no-speech path)"
+        plan = self._upstream(job, TaskKind.EDIT_PLAN, EditPlan)
+        if plan is not None:
+            return plan
+        if TaskStatus.SKIPPED_UNAVAILABLE in (found.status, found.cause):
+            why = found.detail or found.status.value
+            return f"no edit plan ({why}): planned on the whole recording (no-speech path)"
+        return TaskResult(
+            TaskStatus.SKIPPED_DEPENDENCY,
+            f"edit_plan {found.status.value}"
+            + (f": {found.detail}" if found.detail else "")
+            + "; the whole recording is never used in place of a failed edit",
+        )
+
+    def _basis(self, job: TaskJob) -> _Basis | TaskResult:
+        style = self._upstream(job, TaskKind.VISUAL_STYLE, ResolveStyleResult)
+        if style is None:
+            return TaskResult(TaskStatus.SKIPPED_DEPENDENCY, "no resolved visual style")
+        state = self._edit_state(job)
+        if isinstance(state, TaskResult):
+            return state
+        if isinstance(state, EditPlan):
+            return _Basis(view_of(state, self._upstream(job, TaskKind.STORY, StoryPlan)), style)
+        inspection = self._upstream(job, TaskKind.INSPECT, InspectionResult)
+        view = (
+            None
+            if inspection is None
+            else no_speech_view(job.id.asset_id, inspection, self._settings.story_format)
+        )
+        if view is None:
+            return TaskResult(
+                TaskStatus.SKIPPED_UNAVAILABLE,
+                "no edit plan and no inspected duration: there is nothing to place",
+            )
+        return _Basis(view, style, note=state)
+
+    def _output_size(self) -> tuple[int, int] | None:
+        """The delivery size: explicit, else the standard size of the delivery shape (the
+        output format, else the reframing target), else ``None`` (the profile's own shape)."""
+        s = self._settings
+        if s.output_resolution is not None:
+            return s.output_resolution
+        shape = s.output_format or s.reframing_target
+        if shape is None:
+            return None
+        size = DEFAULT_OUTPUT.get(shape)
+        if size is None:
+            raise InvariantViolation(
+                f"unsupported output format {shape!r}",
+                user_message=f"The channel style defines {', '.join(DEFAULT_OUTPUT)}, not {shape}.",
+            )
+        return size
+
+    def visual_style(self, job: TaskJob) -> TaskResult:
+        """Resolve (or reuse) the channel style for the delivery format: the one place the format
+        profile is chosen. Its reference goes to every other Layer 4 task."""
+        state = self._edit_state(job)
+        if isinstance(state, TaskResult):
+            return state
+        plan = state if isinstance(state, EditPlan) else None
+        s = self._settings
+        try:
+            size = self._output_size()
+        except InvariantViolation as exc:
+            return TaskResult(TaskStatus.FAILED, exc.user_message)
+        command = ResolveStyleCommand(
+            anchor_asset_id=job.id.asset_id,
+            project_id=plan.project_id if plan else None,
+            width=size[0] if size else None,
+            height=size[1] if size else None,
+            config=StyleConfig(profile=s.format_profile, sponsored=s.sponsored),
+            story_format=plan.target_format if plan else s.story_format,
+        )
+        match self._style_resolver.execute(command):
+            case Ok(result):
+                style = result.style
+                errors = tuple(c.message for c in style.checks if c.severity.value == "error")
+                return TaskResult(
+                    TaskStatus.SUCCEEDED if result.created else TaskStatus.REUSED,
+                    "" if plan else str(state),
+                    warnings=errors[:3],
+                    facts={
+                        "plan_asset_id": result.document.id,
+                        "document_type": "visual_style",
+                        "plan_version": style.style_version,
+                        "fingerprint": style.fingerprint,
+                        "profile": style.profile,
+                        "identity_version": style.identity_version,
+                        "output": f"{style.output.width}x{style.output.height}",
+                        "path": "edit" if plan else "no_speech",
+                    },
+                    payload=result,
+                )
+            case Err(error):
+                return _from_error(error)
+
+    @staticmethod
+    def _planned(
+        basis: _Basis,
+        *,
+        created: bool,
+        state: str,
+        document: MediaAssetDto,
+        document_type: str,
+        plan_version: int,
+        rendered: list[str],
+        payload: object,
+        warnings: tuple[str, ...] = (),
+        **facts: JsonValue,
+    ) -> TaskResult:
+        """One shape for every Layer 4 plan: the report's "Layer 4 package" reads these facts."""
+        partial = state == "partial"
+        view, ref = basis.view, basis.style.ref
+        why = "some items fell back or could not be made" if partial else ""
+        status = TaskStatus.SUCCEEDED if created else TaskStatus.REUSED
+        return TaskResult(
+            TaskStatus.PARTIAL if partial else status,
+            "; ".join(d for d in (why, basis.note) if d),
+            warnings=warnings[:5],
+            facts={
+                "plan_asset_id": document.id,
+                "document_type": document_type,
+                "plan_version": plan_version,
+                "state": state,
+                "path": basis.path,
+                "anchor_asset_id": view.anchor_asset_id,
+                "edit_plan_id": view.edit_plan_id,
+                "edit_plan_version": view.plan_version,
+                "style_asset_id": ref.document_id,
+                "style_fingerprint": ref.fingerprint,
+                "rendered_asset_ids": list(dict.fromkeys(rendered)),
+                **facts,
+            },
+            payload=payload,
+        )
+
+    @staticmethod
+    def _size(basis: _Basis) -> tuple[int, int]:
+        output = basis.style.style.output
+        return output.width, output.height
+
+    def graphics(self, job: TaskJob) -> TaskResult:
+        """Plan (and render) the graphics of the edit from its sections, editorial requests and
+        the commerce facts heard in each section, in the resolved style."""
+        basis = self._basis(job)
+        if isinstance(basis, TaskResult):
+            return basis
+        s = self._settings
+        width, height = self._size(basis)
+        brief = graphics_brief(
+            basis.view,
+            width=width,
+            height=height,
+            sponsored=s.sponsored,
+            transcript=self._upstream(job, TaskKind.AUDIO_ANALYSIS, AudioIntelligenceTimeline),
+            video=self._upstream(job, TaskKind.VIDEO_ANALYSIS, VideoAnalysis),
+        )
+        profile = _pick(s.graphics_profile, GRAPHICS_PROFILE_OF, basis.style.style.profile)
+        command = PlanGraphicsCommand(
+            brief=brief,
+            style=basis.style.ref,
+            config=MotionGraphicsConfig(profile=profile),
+            render=s.layer4_render,
+        )
+        match self._graphics_planner.execute(command, job.ctx):
+            case Ok(result):
+                plan = result.plan
+                return self._planned(
+                    basis,
+                    created=result.created,
+                    state=plan.state.value,
+                    document=result.document,
+                    document_type=GRAPHICS_DOCUMENT,
+                    plan_version=plan.plan_version,
+                    rendered=[
+                        g.render.asset_id for g in plan.graphics if g.render and g.render.asset_id
+                    ],
+                    payload=plan,
+                    warnings=plan.warnings,
+                    profile=plan.provenance.profile,
+                    graphics=len(plan.graphics),
+                    drawn=sum(g.status is ItemStatus.OK for g in plan.graphics),
+                )
+            case Err(error):
+                return _from_error(error)
+
+    def captions(self, job: TaskJob) -> TaskResult:
+        """Plan (and render) the captions from the transcript and content analysis of this run,
+        after the graphics (a fact a graphic shows is not captioned again)."""
+        basis = self._basis(job)
+        if isinstance(basis, TaskResult):
+            return basis
+        asset_id, s = job.id.asset_id, self._settings
+        width, height = self._size(basis)
+        command = PlanCaptionsCommand(
+            timeline=caption_timeline(basis.view, width=width, height=height),
+            style=basis.style.ref,
+            config=CaptionConfig(profile=s.caption_profile),
+            render=s.layer4_render,
+            transcripts=_given(
+                asset_id, self._upstream(job, TaskKind.AUDIO_ANALYSIS, AudioIntelligenceTimeline)
+            ),
+            contents=_given(
+                asset_id, self._upstream(job, TaskKind.CONTENT_ANALYSIS, ContentAnalysis)
+            ),
+        )
+        match self._caption_planner.execute(command, job.ctx):
+            case Ok(result):
+                plan = result.plan
+                return self._planned(
+                    basis,
+                    created=result.created,
+                    state=plan.state.value,
+                    document=result.asset,
+                    document_type=CAPTION_DOCUMENT,
+                    plan_version=plan.plan_version,
+                    rendered=[c.render.asset_id for c in plan.segments if c.render.asset_id],
+                    payload=plan,
+                    warnings=plan.warnings,
+                    mode=plan.mode.value,
+                    mode_reason=plan.mode_reason,
+                    captions=len(plan.segments),
+                )
+            case Err(error):
+                return _from_error(error)
+
+    def transitions(self, job: TaskJob) -> TaskResult:
+        """Plan the transition (and the audio transition) of every cut of the edit, bookending
+        what the graphics plan placed; graphic overlays are rendered through motion graphics."""
+        basis = self._basis(job)
+        if isinstance(basis, TaskResult):
+            return basis
+        s = self._settings
+        sequence = transition_sequence(
+            basis.view, graphics=self._upstream(job, TaskKind.GRAPHICS, GraphicsPlan)
+        )
+        profile = _pick(s.transition_profile, TRANSITION_PROFILE_OF, basis.style.style.profile)
+        command = PlanTransitionsCommand(
+            sequence,
+            style=basis.style.ref,
+            config=TransitionConfig(profile=profile),
+            render=s.layer4_render,
+        )
+        match self._transition_planner.execute(command, job.ctx):
+            case Ok(result):
+                plan = result.plan
+                return self._planned(
+                    basis,
+                    created=result.created,
+                    state=plan.state.value,
+                    document=result.asset,
+                    document_type=TRANSITION_DOCUMENT,
+                    plan_version=plan.plan_version,
+                    rendered=[
+                        t.overlay.asset_id
+                        for t in plan.transitions
+                        if t.overlay is not None and t.overlay.asset_id
+                    ],
+                    payload=plan,
+                    warnings=plan.warnings,
+                    profile=plan.profile,
+                    boundaries=len(plan.transitions),
+                    events=len(plan.events),
+                )
+            case Err(error):
+                return _from_error(error)
+
+    def vfx(self, job: TaskJob) -> TaskResult:
+        """Plan (and render) shot effects with restraint, from the video analysis of this run
+        (handed in memory) and the speech each clip carries (never retimed)."""
+        basis = self._basis(job)
+        if isinstance(basis, TaskResult):
+            return basis
+        asset_id, s = job.id.asset_id, self._settings
+        width, height = self._size(basis)
+        shots = vfx_shots(
+            basis.view,
+            width=width,
+            height=height,
+            transcript=self._upstream(job, TaskKind.AUDIO_ANALYSIS, AudioIntelligenceTimeline),
+        )
+        command = PlanVfxCommand(
+            shots,
+            style=basis.style.ref,
+            config=VfxConfig(
+                profile=_pick(s.vfx_profile, VFX_PROFILE_OF, basis.style.style.profile)
+            ),
+            render=s.layer4_render,
+            video_analyses=_given(
+                asset_id, self._upstream(job, TaskKind.VIDEO_ANALYSIS, VideoAnalysis)
+            ),
+        )
+        match self._vfx_planner.execute(command, job.ctx):
+            case Ok(result):
+                plan = result.plan
+                return self._planned(
+                    basis,
+                    created=result.created,
+                    state=plan.state.value,
+                    document=result.asset,
+                    document_type=VFX_DOCUMENT,
+                    plan_version=plan.plan_version,
+                    rendered=[t.output.asset_id for t in plan.treatments if t.output is not None],
+                    payload=plan,
+                    warnings=plan.warnings,
+                    profile=plan.provenance.profile,
+                    treatments=len(plan.treatments),
+                )
+            case Err(error):
+                return _from_error(error)
+
+    def sound_design(self, job: TaskJob) -> TaskResult:
+        """Plan music, effects and mix intent from the owner's sound library, synced to the
+        graphics, transition and caption events of this run, then render the stem."""
+        basis = self._basis(job)
+        if isinstance(basis, TaskResult):
+            return basis
+        asset_id, s = job.id.asset_id, self._settings
+        graphics = self._upstream(job, TaskKind.GRAPHICS, GraphicsPlan)
+        events = sync_events(
+            basis.view,
+            graphics=graphics,
+            transitions=self._upstream(job, TaskKind.TRANSITIONS, TransitionPlan),
+            captions=self._upstream(job, TaskKind.CAPTIONS, CaptionPlan),
+        )
+        style_profile = basis.style.style.profile
+        # Music profiles share the channel's format names; ``None`` = by the story format.
+        profile = s.sound_profile or (style_profile if style_profile in SOUND_PROFILES else None)
+        command = PlanSoundDesignCommand(
+            soundtrack_timeline(
+                basis.view, events, graphics.timeline_end_with_bookends if graphics else None
+            ),
+            config=SoundDesignConfig(profile=profile),
+            audio_timelines=_given(
+                asset_id, self._upstream(job, TaskKind.AUDIO_ANALYSIS, AudioIntelligenceTimeline)
+            ),
+            story_plan=self._upstream(job, TaskKind.STORY, StoryPlan),
+            pacing=self._upstream(job, TaskKind.PACING, PacingAnalysis),
+        )
+        planned = self._sound_planner.execute(command, job.ctx)
+        if isinstance(planned, Err):
+            return _from_error(planned.error)
+        result = planned.value
+        plan = result.plan
+        created, state, warnings = result.created, plan.state.value, plan.warnings
+        rendered: list[str] = []
+        if s.layer4_render and plan.used_asset_ids():
+            match self._stem_renderer.execute(RenderSoundStemCommand(result.asset.id), job.ctx):
+                case Ok(stem):
+                    created = created or stem.created
+                    rendered.append(stem.asset.id)
+                case Err(error):
+                    state = "partial"
+                    warnings = (f"stem not rendered: {getattr(error, 'user_message', error)}",)
+        return self._planned(
+            basis,
+            created=created,
+            state=state,
+            document=result.asset,
+            document_type=SOUND_DESIGN_PLAN,
+            plan_version=plan.plan_version,
+            rendered=rendered,
+            payload=plan,
+            warnings=warnings,
+            profile=plan.profile,
+            music_cues=len(plan.music),
+            sound_effects=len(plan.sfx),
+            missing_assets=len(plan.missing_assets),
+            sync_events=len(events),
+            credits=plan.credit_lines,
+        )
 
     @classmethod
     def _lacks_audio(cls, job: TaskJob) -> bool:

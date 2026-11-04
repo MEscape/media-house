@@ -132,7 +132,7 @@ def test_report_is_valid_deterministic_json_written_atomically(
 
     text = (out / "report.json").read_text()
     data = json.loads(text)
-    assert code == 0 and data["ok"] is True and data["schema_version"] == 1
+    assert code == 0 and data["ok"] is True and data["schema_version"] == 2
     assert list(out.iterdir()) == [out / "report.json"]  # no temporary file left behind
     assert text == json.dumps(data, indent=2, sort_keys=True)
     cold = {t["kind"]: t for t in data["assets"][0]["tasks"] if t["status"] == "succeeded"}
@@ -214,3 +214,28 @@ def test_an_interrupted_run_reports_cancelled_and_exits_130(
     data = json.loads((out / "report.json").read_text())
     assert code == 130
     assert data["cancelled"] is True and data["ok"] is False
+
+
+def test_layer4_shorthand_and_config_keys_reach_every_layer4_task(
+    cli: ModuleType, tmp_path: Path
+) -> None:
+    clip = cfr_with_audio(tmp_path / "clip.mp4", seconds=1)
+    config = tmp_path / "pipeline.toml"
+    config.write_text('format_profile = "shorts_haul"\nlayer4_render = false\n', encoding="utf-8")
+    report = tmp_path / "report.json"
+
+    code = run(
+        cli, tmp_path, "--input", str(clip), "--stages", "layer4", "--output-format", "9:16",
+        "--config", str(config), "--report-json", str(report),
+    )  # fmt: skip
+
+    package = json.loads(report.read_text())["assets"][0]["layer4"]
+    assert code == 0
+    assert set(package["plans"]) == {
+        "visual_style", "graphics", "captions", "transitions", "vfx", "sound_design"
+    }  # fmt: skip
+    assert package["path"] == "no_speech" and package["rendered"] == {}
+    assert (
+        package["style"]["profile"] == "shorts_haul" and package["style"]["output"] == "1080x1920"
+    )
+    assert package["plans"]["transitions"]["profile"] == "shorts_haul"

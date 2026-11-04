@@ -102,13 +102,14 @@ def raw_segments(
     groups: Sequence[Sequence[Word]],
     *,
     language: str = "en",
+    confidences: Mapping[str, float] | None = None,
 ) -> RawTranscription:
     segments = tuple(
         RawSegment(
             g[0][1],
             g[-1][2],
             " ".join(w for w, _, _ in g),
-            tuple(RawWord(w, s, e, 0.9) for w, s, e in g),
+            tuple(RawWord(w, s, e, (confidences or {}).get(w, 0.9)) for w, s, e in g),
         )
         for g in groups
         if g
@@ -148,13 +149,14 @@ def timeline(
     offset: float = 0.0,
     events: Sequence[AudioEvent] = (),
     delivery: Mapping[int, Delivery] | None = None,
+    confidences: Mapping[str, float] | None = None,
 ) -> AudioIntelligenceTimeline:
     """Fuse scripted words + a synthetic track. All input times are PREPARED-audio times."""
     config = config or AudioIntelligenceConfig()
     flat = [w for g in groups for w in g]
     total = duration if duration is not None else (flat[-1][2] + 1.0 if flat else 1.0)
     transcript = build_transcript(
-        raw_segments(groups),
+        raw_segments(groups, confidences=confidences),
         BuildContext("src", "aud", total, offset, 16_000, 1, 1, CREATED),
     )
     # Words and the track are in PREPARED-audio time; ``offset`` maps both to the source.
