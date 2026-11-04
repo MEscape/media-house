@@ -9,6 +9,7 @@ import numpy as np
 import pytest
 
 from media_house.modules.audio_intelligence.domain.analysis.acoustic import (
+    IMPULSE,
     PITCH_RISE,
     AcousticMeasurements,
     AcousticTrack,
@@ -24,6 +25,7 @@ from media_house.modules.audio_intelligence.domain.analysis.serialization import
 from media_house.modules.audio_intelligence.infrastructure.acoustic_extractor import (
     AcousticExtractor,
     AudioSignal,
+    ImpulseDetector,
 )
 from media_house.shared.concurrency import CancellationToken
 from media_house.shared.errors import ExternalSystemError, OperationCancelledError
@@ -170,6 +172,48 @@ def test_pluggable_detectors_add_events_and_failures_are_reported(tmp_path: Path
     assert result.identity["detector:fake-laughter"] == "9"
     with pytest.raises(ExternalSystemError, match="broken"):
         measure(tmp_path, samples, AcousticExtractor(detectors=(Broken(),)))
+
+
+def _bed(seconds: float, amplitude: float = 0.004) -> list[float]:
+    """Quiet broadband background (about -50 dBFS RMS), seeded: the same samples every run."""
+    rng = random.Random(7)  # noqa: S311  # seeded test noise, not security
+    return [rng.gauss(0.0, amplitude) for _ in range(round(seconds * 16_000))]
+
+
+def test_a_bang_in_a_quiet_bed_is_one_impulse_event(tmp_path: Path) -> None:
+    samples = _bed(3.0)
+    rng = random.Random(11)  # noqa: S311  # seeded test noise, not security
+    onset = round(1.5 * 16_000)
+    for i in range(round(0.03 * 16_000)):  # a 30 ms burst about 25 dB above the bed
+        samples[onset + i] += rng.gauss(0.0, 0.07) * math.exp(-i / 160)
+
+    result = measure(tmp_path, samples)
+
+    impulses = [e for e in result.events if e.kind == IMPULSE]
+    assert len(impulses) == 1
+    bang = impulses[0]
+    assert bang.start == pytest.approx(1.5, abs=0.01)
+    assert bang.end - bang.start < 0.1
+    assert bang.confidence is not None and 0.5 <= bang.confidence <= 1.0
+    assert 0.0 < bang.strength <= 1.0
+    assert bang.details["rise_db"] >= 20.0
+    assert bang.details["peak_dbfs"] < 0.0
+    assert result.identity["detector:impulse"] == "transient-1"
+
+
+def test_spoken_syllables_are_not_impulses(tmp_path: Path) -> None:
+    # Syllables of 120-250 ms starting abruptly (5 ms attack) out of the quiet bed.
+    starts = [(0.4, 0.12), (0.7, 0.25), (1.3, 0.18), (1.8, 0.2), (2.4, 0.15)]
+
+    def amplitude(t: float) -> float:
+        return max(
+            (0.3 * min(1.0, (t - s) / 0.005) for s, d in starts if s <= t < s + d), default=0.0
+        )
+
+    voice = harmonic(3.0, lambda _t: 140.0, amplitude)
+    samples = [a + b for a, b in zip(voice, _bed(3.0), strict=True)]
+
+    assert ImpulseDetector().detect(AudioSignal(np.array(samples, np.float32), 16_000)) == []
 
 
 def test_measurement_is_deterministic_and_stored_at_the_documented_precision(

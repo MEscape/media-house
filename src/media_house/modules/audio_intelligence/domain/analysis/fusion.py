@@ -13,6 +13,7 @@ from datetime import datetime
 
 from media_house.modules.audio_intelligence.domain.analysis import stats
 from media_house.modules.audio_intelligence.domain.analysis.acoustic import (
+    IMPULSE,
     PAUSE,
     AcousticMeasurements,
     AudioEvent,
@@ -46,7 +47,7 @@ from media_house.modules.audio_intelligence.domain.analysis.validation import (
     validate_analysis,
 )
 from media_house.modules.audio_intelligence.domain.errors import InvalidTimeline
-from media_house.modules.audio_intelligence.domain.transcript import Transcript
+from media_house.modules.audio_intelligence.domain.transcript import Transcript, TranscriptWord
 from media_house.modules.audio_intelligence.domain.validation import (
     Severity,
     validate_transcript,
@@ -107,6 +108,7 @@ def build_timeline(
             key=lambda e: (e.start, e.kind),
         ),
     )
+    impulses = [e for e in events if e.kind == IMPULSE]
     acoustics = word_acoustics(words, track, baseline, events, rates, analysis)
     segments = segment_acoustics(transcript.segments, track, baseline, rates, pauses, analysis)
     scored = scorer.score(
@@ -135,7 +137,8 @@ def build_timeline(
         events=events,
         pauses=pauses,
         words=tuple(
-            TimelineWord(w, a, s) for w, a, s in zip(words, acoustics, scored.words, strict=True)
+            TimelineWord(w, a, s, suspect=_suspect(w, impulses, analysis.suspect_word_confidence))
+            for w, a, s in zip(words, acoustics, scored.words, strict=True)
         ),
         segments=tuple(
             TimelineSegment(s, a) for s, a in zip(transcript.segments, scored.segments, strict=True)
@@ -148,3 +151,12 @@ def build_timeline(
         raise InvalidTimeline(summarize(broken))
     findings = summarize((*validate_transcript(transcript), *analysis_issues))
     return replace(timeline, metadata=replace(metadata, warnings=(*metadata.warnings, *findings)))
+
+
+def _suspect(word: TranscriptWord, impulses: list[AudioEvent], threshold: float) -> bool:
+    """A low-confidence word overlapping a bang (unknown confidence is never suspect)."""
+    return (
+        word.confidence is not None
+        and word.confidence < threshold
+        and any(e.start < word.end and e.end > word.start for e in impulses)
+    )

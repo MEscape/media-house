@@ -21,7 +21,11 @@ SILENCE = "silence"
 PAUSE = "pause"
 LAUGHTER = "laughter"
 BREATH = "breath"
-NONVERBAL_KINDS = frozenset({LAUGHTER, BREATH, "scream", "cry", "sigh", "music", "noise"})
+#: A bang, explosion or slam: a sudden broadband level jump (``ImpulseDetector``).
+IMPULSE = "impulse"
+NONVERBAL_KINDS = frozenset(
+    {LAUGHTER, BREATH, IMPULSE, "scream", "cry", "sigh", "music", "noise"},
+)
 
 
 @dataclass(frozen=True, slots=True)

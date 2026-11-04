@@ -204,7 +204,12 @@ def timeline_to_document(timeline: AudioIntelligenceTimeline) -> dict[str, Any]:
         "events": encode(timeline.events),
         "pauses": encode(timeline.pauses),
         "words": [
-            {"index": w.index, "acoustics": encode(w.acoustics), "signals": encode(w.signals)}
+            {
+                "index": w.index,
+                "acoustics": encode(w.acoustics),
+                "signals": encode(w.signals),
+                **({"suspect": True} if w.suspect else {}),
+            }
             for w in timeline.words
         ],
         "segments": [{"id": s.id, "acoustics": encode(s.acoustics)} for s in timeline.segments],
@@ -234,6 +239,7 @@ def timeline_from_json(text: str) -> AudioIntelligenceTimeline:
                 transcript.words[int(entry["index"])],
                 decode(WordAcoustics | None, entry["acoustics"]),
                 decode(WordSignals, entry["signals"]),
+                suspect=bool(entry.get("suspect", False)),
             )
             for entry in document["words"]
         )

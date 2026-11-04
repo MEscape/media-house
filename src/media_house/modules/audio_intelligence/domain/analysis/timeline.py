@@ -53,6 +53,9 @@ class TimelineWord:
     word: TranscriptWord
     acoustics: WordAcoustics | None
     signals: WordSignals
+    #: Low recognition confidence inside an ``impulse`` (bang) event: possibly a word the
+    #: recogniser invented from the bang. Kept, never deleted; captions should drop it.
+    suspect: bool = False
 
     # speech identity -------------------------------------------------------------------------
     @property

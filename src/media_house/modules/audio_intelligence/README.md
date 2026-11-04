@@ -174,8 +174,12 @@ Layers of meaning, never collapsed into one score:
 * **Events:** `AudioEvent(kind, start, end, strength, confidence, source)`. Built in:
   `pitch_rise/fall`, `energy_spike/drop` (sudden, sustained-level aware), `silence`, `pause`.
   `confidence` is the detector's own and `None` otherwise. Non-verbal detectors (`laughter`,
-  `breath`, ...) plug in via `AudioEventDetector` (see `infrastructure/acoustic_extractor.py`);
-  none ships by default because no reliable local model is bundled. Nothing is fabricated.
+  `breath`, ...) plug in via `AudioEventDetector` (see `infrastructure/acoustic_extractor.py`).
+  One ships by default: `ImpulseDetector` (`impulse`: bangs, explosions; signal processing, no
+  model; `details` carry `peak_dbfs`, `rise_db`, `background_db`; versioned in the
+  measurements' analyzer identity). Words below `AnalysisConfig.suspect_word_confidence` that
+  overlap an `impulse` are marked `TimelineWord.suspect` (kept, never deleted). Nothing is
+  fabricated.
 * **Not emotions:** terms are `arousal`, `expressiveness`, `emphasis`, `monotony` (acoustic
   descriptors). No happy/sad/angry, no irony claim; the evidence is kept for later layers.
 

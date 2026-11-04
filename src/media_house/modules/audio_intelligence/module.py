@@ -60,9 +60,7 @@ class AudioIntelligenceModule:
         container.register_factory(AcousticExtractor, lambda _c: PraatAcousticExtractor())
         container.register_factory(
             SpeakerDiarizer,
-            lambda c: PyannoteDiarizer(
-                c.resolve(AppPaths).cache_dir / "audio_intelligence" / "models"
-            ),
+            lambda c: PyannoteDiarizer(c.resolve(AppPaths).install("audio_intelligence", "models")),
         )
         container.register_factory(
             AnalyzeAudio,

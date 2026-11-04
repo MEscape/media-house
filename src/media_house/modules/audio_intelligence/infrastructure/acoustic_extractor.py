@@ -18,6 +18,7 @@ from numpy.typing import NDArray
 from scipy import signal as dsp
 
 from media_house.modules.audio_intelligence.domain.analysis.acoustic import (
+    IMPULSE,
     SILENCE_FLOOR_DB,
     AcousticMeasurements,
     AcousticTrack,
@@ -49,6 +50,20 @@ _MAX_GAP_FRAMES = 3
 _MIN_RUN_FRAMES = 3
 #: Voiced frames count as speech this far above the noise floor (a lower bar than pure energy).
 _VOICED_ACTIVITY_MARGIN_DB = 3.0
+IMPULSE_VERSION = "transient-1"
+_IMPULSE_WINDOW = 0.005
+_IMPULSE_CONTEXT = 0.3
+_IMPULSE_RISE_DB = 20.0
+_IMPULSE_ATTACK_DB = 12.0
+_IMPULSE_FULL_RISE_DB = 40.0
+_IMPULSE_RELEASE_DB = 6.0
+_IMPULSE_MAX_SECONDS = 1.0
+_IMPULSE_FLOOR_DBFS = -50.0
+#: The level 40-80 ms after the peak (windows 8-16) must lie this far below it.
+_IMPULSE_PEAK_WINDOWS = 6
+_IMPULSE_DECAY_FROM = 8
+_IMPULSE_DECAY_TO = 16
+_IMPULSE_DECAY_DB = 12.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,7 +96,10 @@ class PitchAnalyzer(Protocol):
 
 
 class AudioEventDetector(Protocol):
-    """Pluggable non-verbal event detector (laughter, breath, music, ...). None ship by default."""
+    """Pluggable non-verbal event detector (laughter, breath, music, ...).
+
+    One ships by default: ``ImpulseDetector`` (bangs, explosions, slams).
+    """
 
     @property
     def name(self) -> str: ...
@@ -92,6 +110,86 @@ class AudioEventDetector(Protocol):
     def detect(self, signal: AudioSignal) -> list[AudioEvent]:
         """Events in seconds from the start of ``signal``. Never invent confidence."""
         ...
+
+
+class ImpulseDetector:
+    """Bangs and explosions: a level jump far above the recent background within ~10 ms.
+
+    Pure signal processing on the decoded audio (no model). The level is the RMS over 5 ms
+    windows; an onset must rise ``_IMPULSE_RISE_DB`` above the median of the preceding 300 ms,
+    ``_IMPULSE_ATTACK_DB`` within two windows, and die away by ``_IMPULSE_DECAY_DB`` within
+    40-80 ms of its peak. Speech onsets pass the first two but not the decay (measured on the
+    MEsc samples: bangs decay 16-28 dB, syllables mostly under 12 dB). The event lasts until
+    the level falls back near the background (at most ``_IMPULSE_MAX_SECONDS``).
+    ``confidence`` grows with how far the jump clears the rise threshold.
+    """
+
+    @property
+    def name(self) -> str:
+        return IMPULSE
+
+    @property
+    def version(self) -> str:
+        return IMPULSE_VERSION
+
+    def detect(self, signal: AudioSignal) -> list[AudioEvent]:
+        width = max(1, round(_IMPULSE_WINDOW * signal.sample_rate))
+        count = len(signal.samples) // width
+        context = round(_IMPULSE_CONTEXT / _IMPULSE_WINDOW)
+        if count <= context + 2:
+            return []
+        samples = signal.samples[: count * width].astype(np.float64).reshape(count, width)
+        level = 10 * np.log10(np.mean(samples**2, axis=1) + _EPSILON)
+        # background[i] = median level of the ``context`` windows ending two windows before i
+        background = np.full(count, np.inf)
+        windows = np.lib.stride_tricks.sliding_window_view(level[: count - 2], context)
+        # in blocks: the median copies its input, and an hour of audio is 720k windows
+        window_medians = np.concatenate(
+            [np.median(windows[i : i + 65_536], axis=1) for i in range(0, len(windows), 65_536)]
+        )
+        background[context + 1 : count] = window_medians[: count - context - 1]
+        attack = np.full(count, -np.inf)
+        attack[2:] = level[2:] - level[:-2]
+        onsets = np.flatnonzero(
+            (level - background >= _IMPULSE_RISE_DB)
+            & (attack >= _IMPULSE_ATTACK_DB)
+            & (level >= _IMPULSE_FLOOR_DBFS)
+        )
+        events: list[AudioEvent] = []
+        free_from = 0
+        longest = round(_IMPULSE_MAX_SECONDS / _IMPULSE_WINDOW)
+        for onset in onsets.tolist():
+            if onset < free_from:
+                continue
+            peak = onset + int(np.argmax(level[onset : onset + _IMPULSE_PEAK_WINDOWS]))
+            after = level[peak + _IMPULSE_DECAY_FROM : peak + _IMPULSE_DECAY_TO]
+            if len(after) == 0 or level[peak] - float(np.median(after)) < _IMPULSE_DECAY_DB:
+                continue  # a sustained sound (a spoken syllable, music) does not die away fast
+            base = float(background[onset])
+            tail = level[onset + 1 : onset + longest]
+            fallen = np.flatnonzero(tail < base + _IMPULSE_RELEASE_DB)
+            end = onset + 1 + (int(fallen[0]) if len(fallen) else len(tail))
+            peak_db = float(level[onset:end].max())
+            sample_peak = float(np.abs(samples[onset:end]).max())
+            rise = peak_db - base
+            excess = (rise - _IMPULSE_RISE_DB) / (_IMPULSE_FULL_RISE_DB - _IMPULSE_RISE_DB)
+            events.append(
+                AudioEvent(
+                    kind=IMPULSE,
+                    start=round(onset * width / signal.sample_rate, 4),
+                    end=round(end * width / signal.sample_rate, 4),
+                    strength=round(min(1.0, max(0.0, rise / _IMPULSE_FULL_RISE_DB)), 4),
+                    confidence=round(0.5 + 0.5 * min(1.0, max(0.0, excess)), 4),
+                    source=f"{IMPULSE}/{IMPULSE_VERSION}",
+                    details={
+                        "peak_dbfs": round(20 * math.log10(max(sample_peak, _EPSILON)), 2),
+                        "rise_db": round(rise, 2),
+                        "background_db": round(base, 2),
+                    },
+                ),
+            )
+            free_from = end
+        return events
 
 
 class ParselmouthPitchAnalyzer:
@@ -302,12 +400,12 @@ class AcousticExtractor:
     def __init__(
         self,
         pitch: PitchAnalyzer | None = None,
-        detectors: tuple[AudioEventDetector, ...] = (),
+        detectors: tuple[AudioEventDetector, ...] | None = None,
         *,
         max_workers: int = 3,
     ) -> None:
         self._pitch = pitch or ParselmouthPitchAnalyzer()
-        self._detectors = detectors
+        self._detectors = (ImpulseDetector(),) if detectors is None else detectors
         self._max_workers = max_workers
 
     def identity(self, config: AcousticConfig) -> dict[str, str]:

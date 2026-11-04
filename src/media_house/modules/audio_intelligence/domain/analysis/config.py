@@ -94,6 +94,8 @@ class AnalysisConfig:
     energy_full_scale_db: float = 15.0
     #: Minimum duration of silence (no speech activity) reported as a ``silence`` event.
     min_silence: float = 0.3
+    #: Words below this recognition confidence that overlap an ``impulse`` event are suspect.
+    suspect_word_confidence: float = 0.5
 
     def __post_init__(self) -> None:
         if not 0 < self.min_pause < self.short_pause_max < self.long_pause_min:
@@ -104,6 +106,8 @@ class AnalysisConfig:
             raise InvariantViolation("Smoothing frames must be a positive odd number")
         if not 0.0 <= self.min_pitch_confidence <= 1.0:
             raise InvariantViolation("Minimum pitch confidence must be in [0, 1]")
+        if not 0.0 <= self.suspect_word_confidence <= 1.0:
+            raise InvariantViolation("Suspect word confidence must be in [0, 1]")
         if self.min_baseline_voiced_frames < 1 or self.min_word_voiced_frames < 1:
             raise InvariantViolation("Minimum voiced frame counts must be at least 1")
         positive = (

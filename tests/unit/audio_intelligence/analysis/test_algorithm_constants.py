@@ -22,6 +22,21 @@ def test_extractor_constants_are_pinned_to_the_analyzer_versions() -> None:
         "max_gap_frames": extractor._MAX_GAP_FRAMES,
         "min_run_frames": extractor._MIN_RUN_FRAMES,
         "voiced_activity_margin_db": extractor._VOICED_ACTIVITY_MARGIN_DB,
+        "impulse": (
+            extractor.IMPULSE_VERSION,
+            extractor._IMPULSE_WINDOW,
+            extractor._IMPULSE_CONTEXT,
+            extractor._IMPULSE_RISE_DB,
+            extractor._IMPULSE_ATTACK_DB,
+            extractor._IMPULSE_FULL_RISE_DB,
+            extractor._IMPULSE_RELEASE_DB,
+            extractor._IMPULSE_MAX_SECONDS,
+            extractor._IMPULSE_FLOOR_DBFS,
+            extractor._IMPULSE_PEAK_WINDOWS,
+            extractor._IMPULSE_DECAY_FROM,
+            extractor._IMPULSE_DECAY_TO,
+            extractor._IMPULSE_DECAY_DB,
+        ),
     } == {
         "energy": "rms-1",
         "loudness": "bs1770-momentary-1",
@@ -34,6 +49,7 @@ def test_extractor_constants_are_pinned_to_the_analyzer_versions() -> None:
         "max_gap_frames": 3,
         "min_run_frames": 3,
         "voiced_activity_margin_db": 3.0,
+        "impulse": ("transient-1", 0.005, 0.3, 20.0, 12.0, 40.0, 6.0, 1.0, -50.0, 6, 8, 16, 12.0),
     }
 
 

@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 
 from media_house.modules.audio_intelligence.domain.analysis.acoustic import (
+    IMPULSE,
     LAUGHTER,
     PITCH_RISE,
     AcousticMeasurements,
@@ -97,6 +98,29 @@ def test_events_are_first_class_and_filterable() -> None:
     assert all(e.kind != LAUGHTER for e in tl.events_between(0.0, 1.0))
     assert [e.start for e in tl.events] == sorted(e.start for e in tl.events)
     assert {"pause", "silence"} <= {e.kind for e in tl.events}
+
+
+def test_impulse_events_are_queryable_like_any_other_event() -> None:
+    bang = AudioEvent(IMPULSE, 2.4, 2.6, 0.7, confidence=0.8, source="impulse/transient-1")
+    tl = sample_timeline(events=[bang])
+
+    assert tl.events_between(2.0, 3.0, kinds=[IMPULSE]) == (bang,)
+
+
+def test_low_confidence_words_inside_a_bang_are_suspect_but_kept() -> None:
+    # "beta" (1.0-1.4 s) overlaps the bang; "gamma." too, but is recognised confidently.
+    bang = AudioEvent(IMPULSE, 1.0, 2.2, 0.9, confidence=0.9, source="impulse/transient-1")
+    shaky = {"alpha": 0.2, "beta": 0.2, "gamma.": 0.95}
+    tl = sample_timeline(events=[bang], confidences=shaky)
+
+    suspect = {w.raw_word: w.suspect for w in tl.words}
+    assert suspect["beta"] is True
+    assert suspect["alpha"] is False  # low confidence, but no bang
+    assert suspect["gamma."] is False  # inside the bang, but confident
+    assert len(tl.words) == len(WORDS[0]) + len(WORDS[1])
+    assert [w.suspect for w in timeline_from_json(timeline_to_json(tl)).words] == [
+        w.suspect for w in tl.words
+    ]
 
 
 def test_pause_queries_connect_words_and_gaps() -> None:
