@@ -9,7 +9,7 @@ score-conditioning profile it selects (see ``profiles.CONTENT_PROFILES``); unkno
 back to ``generic``.
 """
 
-VOCABULARY_VERSION = 1
+VOCABULARY_VERSION = 2
 
 #: label -> the sentence the model compares pictures with
 CONTENT_TYPES: dict[str, str] = {
@@ -21,6 +21,7 @@ CONTENT_TYPES: dict[str, str] = {
     "product_demo": "a product shown close up on a table",
     "gameplay": "a screenshot of a video game",
     "event": "a crowd of people at an event",
+    "fireworks_night": "fireworks exploding in a dark night sky",
     "other": "a photo",
 }
 
@@ -33,6 +34,7 @@ ENVIRONMENTS: dict[str, str] = {
     "home": "a photo of a living room or a kitchen at home",
     "street": "a photo of a city street",
     "nature": "a photo of nature, trees, mountains or a beach",
+    "night": "a photo taken outdoors at night",
 }
 
 #: label -> sentence; signs that footage is not usable material. Flags only, never acted on here.
@@ -48,6 +50,7 @@ CONTENT_PROFILE_OF: dict[str, str] = {
     "screen_recording": "tutorial_screen",
     "tutorial": "tutorial_screen",
     "vlog": "vlog",
+    "fireworks_night": "night_fireworks",
 }
 
 CONTENT_PREFIX = "content:"

@@ -192,7 +192,7 @@ def visual_quality(
         separation = m.composition.subject_separation
         intentional = separation if separation and separation >= _BLUR_SEPARATION_LIKELY else 0.2
     elif "dark_exposure" in quality.reasons:
-        intentional = 0.3
+        intentional = profile.dark_intentional
     return _score(
         ScoreName.VISUAL_QUALITY,
         profile,

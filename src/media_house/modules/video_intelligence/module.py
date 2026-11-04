@@ -109,7 +109,7 @@ class VideoIntelligenceModule:
                 UpstreamResolver(c.resolve(MediaInspector)),
                 c.resolve(FrameSource),
                 signal_analyzers(
-                    c.resolve(AppPaths).cache_dir / "video_intelligence" / "models",
+                    c.resolve(AppPaths).install("video_intelligence", "models"),
                     c.resolve(ClipRuntime),
                 ),
                 c.resolve(AppPaths),

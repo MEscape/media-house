@@ -108,6 +108,7 @@ standalone and pipeline use. It contains no probing code.
 | `triage` | shots, quality | cheapest; original-footage quality metrics, deterministic |
 | `fast` | + motion, saliency | no models |
 | `standard` | + geometry, entities, faces, text, embeddings | models; each one that is not installed is `not_available` |
+| `night_fireworks` | as `standard` | bursts on a black sky are not read as fades through black (`fade_min_frames` 20, measured on real night footage); choose it explicitly |
 | `deep` | + body, appearance (identity), descriptions (VLM) | densest sampling, 960 px colour frames |
 
 All versioned, all in `domain/profiles.py`; **every threshold is a field**, none is a constant in an

@@ -528,8 +528,27 @@ class TestScores:
         assert flat is not None and flat.ok
         assert "flat_or_log_footage" in flat.reasons
 
+    def test_a_dark_fireworks_night_shot_is_not_judged_as_badly_exposed(self) -> None:
+        fireworks = scored("fireworks_night", p50=0.04, crushed=0.85, clipped=0.01)
+        generic = scored(p50=0.04, crushed=0.85, clipped=0.01)
+
+        quality = score_of(fireworks, ScoreName.VISUAL_QUALITY)
+        assert quality.content_profile == "night_fireworks"
+        assert "dark_exposure" in quality.reasons  # still described, no longer penalised
+        assert quality.intentional_likelihood == pytest.approx(0.9)
+        assert (score_of(fireworks, ScoreName.TECHNICAL_USABILITY).value or 0) > 0.35
+        generic_quality = score_of(generic, ScoreName.VISUAL_QUALITY)
+        assert generic_quality.intentional_likelihood == pytest.approx(0.3)
+        assert (quality.value or 0) > (generic_quality.value or 1)
+
     def test_content_profiles_are_a_data_table_with_the_initial_set(self) -> None:
-        assert set(CONTENT_PROFILES) == {"generic", "talking_head", "vlog", "tutorial_screen"}
+        assert set(CONTENT_PROFILES) == {
+            "generic",
+            "talking_head",
+            "vlog",
+            "tutorial_screen",
+            "night_fireworks",
+        }
         assert CONTENT_PROFILES["vlog"].shake_half > CONTENT_PROFILES["talking_head"].shake_half
         with pytest.raises(Exception, match="positive"):
             ContentTypeProfile("x", 1, 0.0, 0.5, (1, 1, 1), True, (1, 1, 1))

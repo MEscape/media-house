@@ -81,6 +81,10 @@ class MeasurementSettings:
     detector: str = "ssdlite320_mobilenet_v3_large"
     face_min_score: float = 0.5
     text_min_score: float = 0.5
+    #: RapidOCR recognition language (``Rec.lang_type``). The shipped PP-OCRv6 model is
+    #: multilingual: ``ch`` (default) and ``de`` read umlauts, ``ß`` and ``€`` alike. Languages
+    #: of other model families (``latin`` is PP-OCRv5 only) need a model that is not shipped.
+    ocr_language: str = "ch"
     #: Persons whose box is at least this tall (fraction of the picture) get an appearance
     #: embedding.
     appearance_min_height: float = 0.15
@@ -109,6 +113,7 @@ class MeasurementSettings:
             "description_max_tokens",
         ):
             _require(getattr(self, name) >= 1, f"{name} must be at least 1")
+        _require(bool(self.ocr_language.strip()), "ocr_language must not be empty")
         for name in (
             "detect_min_score",
             "face_min_score",
@@ -140,7 +145,7 @@ _MEASUREMENT_KEYS: dict[AnalyzerId, tuple[str, ...]] = {
     AnalyzerId.ENTITIES: (*_RGB_PLAN_KEYS, "detect_every", "detect_min_score", "detector"),
     AnalyzerId.FACES: (*_RGB_PLAN_KEYS, "face_every", "face_min_score"),
     AnalyzerId.BODY: (*_RGB_PLAN_KEYS, "body_every"),
-    AnalyzerId.TEXT: (*_RGB_PLAN_KEYS, "text_every", "text_min_score"),
+    AnalyzerId.TEXT: (*_RGB_PLAN_KEYS, "text_every", "text_min_score", "ocr_language"),
     AnalyzerId.EMBEDDINGS: (*_RGB_PLAN_KEYS, "embed_every"),
     AnalyzerId.APPEARANCE: (*_RGB_PLAN_KEYS, "appearance_min_height"),
     AnalyzerId.DESCRIPTIONS: (*_RGB_PLAN_KEYS, "description_every", "description_max_tokens"),
@@ -562,11 +567,14 @@ class ContentTypeProfile:
     subject_expected: bool
     #: Weights of (motion, attention, on-screen content) in the visual-interest score.
     interest_weights: tuple[float, float, float]
+    #: How likely a dark exposure is deliberate for this kind of footage (0-1).
+    dark_intentional: float = 0.3
 
     def __post_init__(self) -> None:
         _require(bool(self.name) and self.version >= 1, "a content profile needs name and version")
         _finite_positive(self, "shake_half")
         _require(0.0 <= self.handheld_intentional <= 1.0, "handheld_intentional within [0, 1]")
+        _require(0.0 <= self.dark_intentional <= 1.0, "dark_intentional within [0, 1]")
         for weights in (self.quality_weights, self.interest_weights):
             _require(
                 all(w >= 0 for w in weights) and sum(weights) > 0,
@@ -582,7 +590,7 @@ class ContentTypeProfile:
 
 #: Version of the scoring rubrics. Never change what a score MEANS without bumping it: scores
 #: of different rubric versions are not comparable.
-RUBRIC_VERSION = 1
+RUBRIC_VERSION = 2
 DEFAULT_CONTENT_PROFILE = "generic"
 CONTENT_PROFILES: Mapping[str, ContentTypeProfile] = {
     c.name: c
@@ -592,6 +600,18 @@ CONTENT_PROFILES: Mapping[str, ContentTypeProfile] = {
         ContentTypeProfile("vlog", 1, 0.012, 0.6, (0.3, 0.3, 0.4), True, (0.5, 0.3, 0.2)),
         ContentTypeProfile(
             "tutorial_screen", 1, 0.001, 0.05, (0.6, 0.1, 0.3), False, (0.2, 0.2, 0.6)
+        ),
+        # Fireworks at night: a black sky with bright bursts is the subject, not an exposure
+        # error, so exposure does not weigh in and darkness is very likely deliberate.
+        ContentTypeProfile(
+            "night_fireworks",
+            1,
+            0.012,
+            0.8,
+            (0.5, 0.5, 0.0),
+            False,
+            (0.6, 0.2, 0.2),
+            dark_intentional=0.9,
         ),
     )
 }
@@ -645,6 +665,11 @@ class ProcessingProfile:
 
 
 _TRIAGE_SAMPLING = MeasurementSettings(candidate_fps=6.0, static_gap_seconds=0.5)
+#: Night fireworks: a burst rising out of a black sky and dying back into it ramps like a fade
+#: through black. Measured on the MEsc midnight uncut (one take, 11 min): 24 false fades with the
+#: default 4-frame ramp, none with 20 frames; real hard cuts unchanged. Lowering ``black_luma``
+#: does not help (the sky is as dark as a real black frame).
+NIGHT_SHOTS = ShotSettings(fade_min_frames=20)
 _CLASSICAL = (AnalyzerId.SHOTS, AnalyzerId.QUALITY, AnalyzerId.MOTION, AnalyzerId.SALIENCY)
 _STANDARD = (
     *_CLASSICAL,
@@ -682,6 +707,17 @@ PROFILES: Mapping[str, ProcessingProfile] = {
             ),
             analyzers=_STANDARD,
             measurement=MeasurementSettings(candidate_fps=12.0),
+        ),
+        ProcessingProfile(
+            name="night_fireworks",
+            version=1,
+            description=(
+                "Standard, for night footage with bright bursts on a black sky: bursts are not "
+                "read as fades through black. Chosen explicitly for such footage."
+            ),
+            analyzers=_STANDARD,
+            measurement=MeasurementSettings(candidate_fps=12.0),
+            shots=NIGHT_SHOTS,
         ),
         ProcessingProfile(
             name="deep",

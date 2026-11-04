@@ -365,6 +365,34 @@ class TestOnScreenText:
         assert len(read) == len(expected), read
         assert errors / sum(len(e) for e in expected) <= 0.15, read
 
+    def test_german_text_and_euro_prices_are_read_exactly(self, venv: VideoEnv) -> None:
+        ocr = require(RapidOcrAnalyzer())
+        font: ImageFont.FreeTypeFont | None = None
+        for name in ("arial.ttf", "DejaVuSans.ttf"):  # Pillow's default font has no umlauts
+            try:
+                font = ImageFont.truetype(name, 40)
+                break
+            except OSError:
+                continue
+        if font is None:
+            pytest.skip("no TrueType font with umlauts and the euro sign is installed")
+        expected = ["Größe 19,99 €", "Höhe 30 m", "Brenndauer"]
+        sheet = Image.new("RGB", SIZE, "white")
+        draw = ImageDraw.Draw(sheet)
+        for row, line in enumerate(expected):
+            draw.text((20, 60 + 90 * row), line, fill="black", font=font)
+        frame = np.asarray(sheet, dtype=np.float64) / 255.0
+        path = write_clip(
+            venv.media_dir / "preise.mp4", lambda _i: frame, frames=15, fps="30", audio=False
+        )
+        base = fast_models(AnalyzerId.TEXT)
+        german = replace(base, measurement=replace(base.measurement, ocr_language="de"))
+
+        analysis = analyse(venv, venv.import_clip(path), german, ocr)
+
+        read = [i.text for i in sorted(analysis.shots[0].text.items, key=lambda i: i.box.y0)]
+        assert read == expected
+
     def test_a_watermark_is_recognised_across_the_video(self, venv: VideoEnv) -> None:
         ocr = require(RapidOcrAnalyzer())
         astronaut = picture("astronaut")

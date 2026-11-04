@@ -5,7 +5,7 @@ from dataclasses import replace
 import pytest
 
 from media_house.modules.video_intelligence.domain.errors import InvalidProfile
-from media_house.modules.video_intelligence.domain.profiles import ShotSettings
+from media_house.modules.video_intelligence.domain.profiles import NIGHT_SHOTS, ShotSettings
 from media_house.modules.video_intelligence.domain.shot_detection import detect_transitions
 from media_house.modules.video_intelligence.domain.signals import ShotSignals
 from media_house.modules.video_intelligence.domain.values import BoundaryKind
@@ -108,6 +108,43 @@ def test_a_fade_through_black_is_one_gradual_boundary_in_the_middle_of_the_black
     assert [t.kind for t in found] == [BoundaryKind.FADE_THROUGH_BLACK]
     assert 38 <= found[0].frame <= 44
     assert found[0].gradual and found[0].black_adjacent
+
+
+def _bursts(frame: int) -> float:
+    """Night sky (mean luma 0.01) with two small bursts: each brightens the frame over 6 frames
+    and dies over 12 (sparks cover little of the picture, so the mean rises only to 0.046)."""
+    for start in (20, 60):
+        if start <= frame < start + 6:
+            return 0.01 + 0.006 * (frame - start + 1)
+        if start + 6 <= frame < start + 18:
+            return 0.046 - 0.003 * (frame - start - 5)
+    return 0.01
+
+
+def test_bursts_in_a_night_sky_are_not_fades_with_the_night_preset() -> None:
+    sky = lambda i: 0.03 if _bursts(i) <= 0.015 else 0.1  # noqa: E731  # sparks add contrast
+    steps = lambda i: QUIET + abs(_bursts(i) - _bursts(i - 1))  # noqa: E731
+    signals = shot_signals(frames=120, luma=_bursts, spread=sky, steps=steps)
+
+    default = detect_transitions(signals, SETTINGS).transitions
+    night = detect_transitions(signals, NIGHT_SHOTS).transitions
+
+    assert [t.kind for t in default] == [BoundaryKind.FADE_THROUGH_BLACK]  # the measured problem
+    assert night == ()
+
+
+def test_the_night_preset_still_finds_cuts_and_long_fades() -> None:
+    cuts = detect_transitions(shot_signals(cuts=(40, 90)), NIGHT_SHOTS).transitions
+
+    def slow(i: int) -> float:  # a fade through black with 25-frame ramps
+        return 0.5 * min(1.0, abs(i - 60) / 25)
+
+    fade = shot_signals(frames=120, luma=slow, spread=lambda i: 0.0 if slow(i) < 0.03 else 0.2)
+
+    assert [t.frame for t in cuts] == [40, 90]
+    assert [t.kind for t in detect_transitions(fade, NIGHT_SHOTS).transitions] == [
+        BoundaryKind.FADE_THROUGH_BLACK
+    ]
 
 
 def test_black_at_the_start_of_the_video_is_not_a_boundary() -> None:

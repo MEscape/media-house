@@ -63,9 +63,10 @@ class RapidOcrAnalyzer:
         frames = own(video)
         chosen = usable_rgb_frames(frames, request.rgb_plan)[:: request.settings.text_every]
         minimum = request.settings.text_min_score
+        language = request.settings.ocr_language
 
         def work() -> TextSignals:
-            engine = self._engine.get("rapidocr", _create)
+            engine = self._engine.get(f"rapidocr:{language}", lambda: _create(language))
             rows: list[TextRow] = []
             for frame in chosen:
                 cancellation.raise_if_cancelled()
@@ -78,10 +79,10 @@ class RapidOcrAnalyzer:
         return guarded("Reading on-screen text", work)
 
 
-def _create() -> Any:
+def _create(language: str) -> Any:
     from rapidocr import RapidOCR
 
-    return RapidOCR()
+    return RapidOCR(params={"Rec.lang_type": language})
 
 
 def _rows(frame: int, picture: Any, output: Any, minimum: float) -> list[TextRow]:

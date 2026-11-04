@@ -18,8 +18,8 @@ from media_house.modules.video_intelligence.domain.profiles import (
 from media_house.modules.video_intelligence.domain.values import AnalyzerId, CostTier
 
 
-def test_the_four_named_profiles_exist_and_are_versioned() -> None:
-    assert set(PROFILES) == {"triage", "fast", "standard", "deep"}
+def test_the_named_profiles_exist_and_are_versioned() -> None:
+    assert set(PROFILES) == {"triage", "fast", "standard", "night_fireworks", "deep"}
     assert DEFAULT_PROFILE in PROFILES
     assert all(p.version >= 1 and p.description for p in PROFILES.values())
 
@@ -175,3 +175,42 @@ def test_optional_dependencies_order_but_do_not_force_analyzers() -> None:
         AnalyzerId.ENTITIES,
         AnalyzerId.APPEARANCE,
     )  # a REQUIRED dependency is added
+
+
+def test_the_ocr_language_keys_only_the_text_signals_and_reaches_the_engine(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import sys
+    import types
+
+    from media_house.modules.video_intelligence.infrastructure import rapidocr_text
+
+    base = get_profile("standard").measurement
+    german = dataclasses.replace(base, ocr_language="de")
+
+    assert base.ocr_language == "ch"  # the default is unchanged
+    assert german.config_for(AnalyzerId.TEXT) != base.config_for(AnalyzerId.TEXT)
+    others = [a for a in AnalyzerId if a is not AnalyzerId.TEXT]
+    assert all(german.config_for(a) == base.config_for(a) for a in others)
+    with pytest.raises(InvalidProfile):
+        dataclasses.replace(base, ocr_language=" ")
+
+    created: list[object] = []
+
+    class FakeRapidOcr:
+        def __init__(self, params: object = None) -> None:
+            created.append(params)
+
+    monkeypatch.setitem(sys.modules, "rapidocr", types.SimpleNamespace(RapidOCR=FakeRapidOcr))
+    rapidocr_text._create("de")
+
+    assert created == [{"Rec.lang_type": "de"}]
+
+
+def test_the_night_fireworks_profile_only_changes_how_fades_are_read() -> None:
+    night, standard = get_profile("night_fireworks"), get_profile("standard")
+
+    assert night.analyzers == standard.analyzers
+    assert night.measurement == standard.measurement
+    assert night.shots.fade_min_frames == 20 > standard.shots.fade_min_frames
+    assert dataclasses.replace(night.shots, fade_min_frames=4) == standard.shots
