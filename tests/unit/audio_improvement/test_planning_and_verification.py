@@ -275,3 +275,22 @@ def test_measurements_round_trip_through_json() -> None:
     original = measurements(snr_db=17.5, hum_hz=60.0, hum_prominence_db=20.0)
 
     assert QualityMeasurements.from_json_value(original.to_json_value()) == original
+
+
+def test_ambience_preserving_plans_no_cleanup_on_bangs_over_a_quiet_bed() -> None:
+    # Bangs measure as "speech", the night ambience as "noise", and the bang tails as reverb.
+    bangs = measurements(
+        snr_db=8.0,
+        noise_floor_dbfs=-40.0,
+        reverb_rt60=1.5,
+        clipping_ratio=0.002,
+        speech_dynamics_db=45.0,
+        rumble_db=-10.0,
+        sibilance_peak_db=-3.0,
+    )
+
+    default = {s.stage for s in plan_processing(bangs, PROFILE).planned}
+    ambience = plan_processing(bangs, resolve_profile("ambience_preserving"))
+
+    assert {Stage.NOISE_REDUCTION, Stage.DEREVERBERATION, Stage.DYNAMICS} <= default
+    assert ambience.planned == ()

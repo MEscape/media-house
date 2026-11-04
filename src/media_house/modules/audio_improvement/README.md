@@ -55,8 +55,10 @@ read_provenance(asset.metadata)   # the same facts for any asset, without callin
 
 `default → built-in profile → user overrides → resolved AudioProfile`. Built-ins:
 `youtube` (default, −14 LUFS), `social_video` (−14, tighter dynamics, firmer de-essing),
-`podcast` (−16, most natural), `cinematic` (−23, wide dynamics), and `custom` (the defaults plus
-your overrides). A profile only states how it differs from the default.
+`podcast` (−16, most natural), `cinematic` (−23, wide dynamics), `ambience_preserving` (−14;
+no denoise, dereverb, high-pass, compression or de-essing, declip only on heavy clipping: for
+fireworks, night tests and other ambience/impulse audio that the speech measurements misread),
+and `custom` (the defaults plus your overrides). A profile only states how it differs from the default.
 
 Overrides are dotted paths (`"noise.max_strength"`, `"eq.highpass_hz"`, `"mix.duck_ratio"`),
 type-checked and validated by the setting they land in (`InvalidProfile` says what is wrong). A

@@ -35,6 +35,7 @@ def test_profiles_differ_in_delivery_standard_only_where_intended() -> None:
     assert targets["podcast"] == -16.0
     assert targets["cinematic"] == -23.0
     assert targets["youtube"] == targets["social_video"] == -14.0
+    assert targets["ambience_preserving"] == -14.0
 
 
 def test_user_overrides_win_and_leave_everything_else_alone() -> None:

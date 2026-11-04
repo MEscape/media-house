@@ -13,10 +13,13 @@ from typing import Any
 from media_house.modules.audio_improvement.domain.errors import InvalidProfile
 from media_house.modules.audio_improvement.domain.settings import (
     AudioProfile,
+    ClippingSettings,
     DeEsserSettings,
+    DereverbSettings,
     DynamicsSettings,
     EqSettings,
     MasteringSettings,
+    NoiseSettings,
 )
 from media_house.modules.audio_improvement.domain.values import JsonValue
 from media_house.shared.errors import InvariantViolation
@@ -51,6 +54,19 @@ _BUILTIN: dict[str, AudioProfile] = {
         name="cinematic",
         dynamics=DynamicsSettings(dynamics_trigger_db=46.0, ratio=1.5),
         mastering=MasteringSettings(target_lufs=-23.0, true_peak_ceiling_dbtp=-2.0),
+    ),
+    # Ambience and impulses (fireworks, night tests): every measurement assumes speech, so bangs
+    # read as "speech" and the ambience as "noise". The cleanup triggers are set out of reach
+    # and declip needs far more evidence; only the loudness delivery (-14 LUFS / -1 dBTP) stays.
+    "ambience_preserving": replace(
+        _BASE,
+        name="ambience_preserving",
+        clipping=ClippingSettings(min_ratio=0.005),
+        noise=NoiseSettings(target_snr_db=-100.0),
+        dereverb=DereverbSettings(min_rt60=100.0, full_strength_rt60=200.0),
+        eq=EqSettings(rumble_trigger_db=100.0),
+        dynamics=DynamicsSettings(dynamics_trigger_db=1000.0),
+        de_ess=DeEsserSettings(trigger_db=100.0),
     ),
 }
 
