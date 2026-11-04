@@ -1,0 +1,2499 @@
+{
+ "schema": "media-house/layer4/channel-evidence@1",
+ "generated": "2026-11-02",
+ "channel": {
+  "name": "MEsc",
+  "id": "UCqItgDUUug-qhhpc0pfLkDg",
+  "handle": "@MEscapYT",
+  "subscribers": 15100,
+  "long_videos": 218,
+  "shorts": 196,
+  "language": "de (titles auto-translated to English in the default listing)",
+  "season": "uploads cluster Oct-Jan (channel description: 'ab November/Dezember geht's richtig los')",
+  "category": "Entertainment"
+ },
+ "method": {
+  "taxonomy": "keyword rules over all 218 long + 196 Short titles (scratchpad/scripts/classify.py); heuristic, ~5% misfiled",
+  "cuts": "ffmpeg select gt(scene,0.3) on 360p; 'cut_events' merge detections closer than 1 s to suppress firework flashes/animated graphics; jump cuts in identical framing are under-counted",
+  "loudness": "ffmpeg ebur128 on the 360p AAC stream",
+  "colours": "deterministic k-means (numpy, seed 0) on crops of native 640x360 / 360x640 frames, optional HSV filter"
+ },
+ "formats": {
+  "brochure_catalog_review": {
+   "kind": "long",
+   "samples": [
+    "9etWVDZnyOs"
+   ],
+   "subject": "Retailer New-Year's-Eve fireworks brochures/leaks walked through page by page (Lidl, Aldi Nord/Sued, Netto, Kaufland, Penny, Norma, Edeka, Jawoll, Thomas Philipps ...), with prices, novelties and regional availability.",
+   "structure": "hook ('Das Prospekt ist da, meine Freunde') -> exclusivity claim -> page-by-page walkthrough with price commentary -> regional map -> opinion prompt -> catchphrase outro -> fire end screen",
+   "aspect_ratio": "16:9",
+   "shot_types": [
+    "face-cam picture-in-picture (gaming room, RGB/aurora LED backlight) top-left with thin white border + drop shadow",
+    "full-height brochure page scans right, drop shadow",
+    "dark fireworks footage as background plate"
+   ],
+   "pacing": "page change roughly every 10 s; 5.9 merged cut events/min (9etWVDZnyOs)",
+   "speech": "dense German VO, 172 words/min over duration (densest sample)",
+   "captions": "none (only 'WERBUNG' label top-right on sponsored episode)",
+   "titles_graphics": "brochure pages are the graphics; regional availability map",
+   "transitions": "pixelated mosaic dissolve at start and into end screen",
+   "music": "assumption (medium): bed under VO; auto-subs tag [musik] twice",
+   "restraint": "high: static layout, no effects during walkthrough",
+   "audience_expectation": "complete, fast, accurate price/novelty information on release day",
+   "confidence": "medium (1 sampled episode, layout cross-checked against 56 titles + thumbnails)",
+   "count": 56,
+   "median_views": 4950.0,
+   "max_views": 30000,
+   "median_duration_s": 481.5,
+   "in_newest_60_of_kind": 21,
+   "measured": [
+    {
+     "id": "9etWVDZnyOs",
+     "duration_s": 734.56,
+     "cut_events_per_min": 5.88,
+     "speech_wpm_over_duration": 172.0,
+     "integrated_lufs": -14.2
+    }
+   ]
+  },
+  "assortment_product_videos": {
+   "kind": "long",
+   "samples": [
+    "_Ka5c6jMYRg",
+    "ZUSKEXTAuKI",
+    "tDi6cJFBP0s"
+   ],
+   "subject": "Full range of one retailer/brand ('ALLE NETTO LESLI BATTERIEN', 'Sortiment + Produktvideos'), where-to-buy guides, relabel detective work.",
+   "structure": "either (a) uncommented compilation of manufacturer product videos with chapters per item, or (b) VO over product stickers + test clips, ordered by category, catchphrase outro",
+   "aspect_ratio": "16:9",
+   "shot_types": [
+    "manufacturer/third-party test footage with their own lower thirds and credit watermarks",
+    "product cut-out stickers over fireworks or orange plates",
+    "brochure scans",
+    "full-screen emojis and meme stock clips (2024)"
+   ],
+   "pacing": "3.2 (compilation) to 13.0 merged cut events/min (meme-heavy 2024, caption-driven 2023)",
+   "speech": "0 (compilation) or ~121 words/min VO",
+   "captions": "2023 sample: burned-in word-group captions, condensed ALL CAPS white with black stroke and yellow keyword (#F1E11D); 2024/25 samples: none",
+   "transitions": "radial zoom blur, light flashes, pixel dissolve to end screen",
+   "music": "compilation carries manufacturer audio (fireworks) – loudest sample: I -11.0 LUFS, LRA 14.1, true peak +3.8 dBFS",
+   "restraint": "low in 2024 meme-driven guide; very high in compilation",
+   "audience_expectation": "see every product effect before buying; know where to get it",
+   "confidence": "medium",
+   "count": 31,
+   "median_views": 10000,
+   "max_views": 44000,
+   "median_duration_s": 534,
+   "in_newest_60_of_kind": 14,
+   "measured": [
+    {
+     "id": "ZUSKEXTAuKI",
+     "duration_s": 1020.84,
+     "cut_events_per_min": 13.05,
+     "speech_wpm_over_duration": 121.4,
+     "integrated_lufs": -16.4
+    },
+    {
+     "id": "_Ka5c6jMYRg",
+     "duration_s": 833.11,
+     "cut_events_per_min": 3.24,
+     "speech_wpm_over_duration": 0,
+     "integrated_lufs": -11.0
+    },
+    {
+     "id": "tDi6cJFBP0s",
+     "duration_s": 507.08,
+     "cut_events_per_min": 13.02,
+     "speech_wpm_over_duration": 120.6,
+     "integrated_lufs": -17.2
+    }
+   ]
+  },
+  "ranking_topN": {
+   "kind": "long",
+   "samples": [
+    "t_BTkcPy5sw",
+    "d2ChnPz3FRg",
+    "bw7fkdSK1Vk"
+   ],
+   "subject": "Top 5/10/20 lists, tier rankings, budget shopping lists, 'must-haves for NYE'.",
+   "structure": "claim hook (~25 s) -> membership plug -> countdown 'Platz 10' .. 'Platz 1' (~45-55 s each: rank card, product sticker, price, where to buy, test footage) -> recap -> comment prompt -> catchphrase -> ~20 s end screen; YouTube chapters per rank",
+   "aspect_ratio": "16:9",
+   "shot_types": [
+    "product cut-outs with white outer glow over night fireworks or orange fire plate",
+    "own daylight ignition close-ups (gloves, lighter)",
+    "night test footage (own + credited third-party)",
+    "studio presenter holding product to camera (sponsored 2025)"
+   ],
+   "pacing": "4.2-5.6 merged cut events/min",
+   "speech": "VO 146 wpm (favourite), 93 wpm (2021), 75 wpm scripted sponsored",
+   "captions": "none; text only on rank/spec/price cards",
+   "titles_graphics": "'PLATZ N' cards (white geometric bold; 2025 with red outline #C4131A), spec cards 'Schuss/Hoehe/Brenndauer/Kosten' white on black, price 'NN,99 EUR' white, retailer logo stickers, black silhouette teasers for upcoming rank, emoji pops",
+   "transitions": "radial zoom tunnel, whip/motion blur, white flash + salmon light leak (2025), horizontal carousel slide between ranks (2025), pixel dissolve to end screen",
+   "music": "assumption (medium): continuous bed; [Musik]/[Applaus] tags at intro and outro",
+   "restraint": "medium: graphics on every rank, but test footage plays uninterrupted",
+   "audience_expectation": "clear verdict, price, availability; fun to watch",
+   "confidence": "high for structure (3 samples over 4 years + chapters), medium for graphics details",
+   "count": 21,
+   "median_views": 8100,
+   "max_views": 71000,
+   "median_duration_s": 628,
+   "in_newest_60_of_kind": 7,
+   "measured": [
+    {
+     "id": "bw7fkdSK1Vk",
+     "duration_s": 671.99,
+     "cut_events_per_min": 4.2,
+     "speech_wpm_over_duration": 92.5,
+     "integrated_lufs": -16.1
+    },
+    {
+     "id": "d2ChnPz3FRg",
+     "duration_s": 549.15,
+     "cut_events_per_min": 4.59,
+     "speech_wpm_over_duration": 75.5,
+     "integrated_lufs": -17.5
+    },
+    {
+     "id": "t_BTkcPy5sw",
+     "duration_s": 580.34,
+     "cut_events_per_min": 5.58,
+     "speech_wpm_over_duration": 146.2,
+     "integrated_lufs": -17.4
+    }
+   ]
+  },
+  "shopping_tour": {
+   "kind": "long",
+   "samples": [
+    "dru73YpbQ4Y"
+   ],
+   "subject": "XXL 600-800 EUR sales-day shopping tour with friends from ~4:30 am through specialist store, Lidl opening rush and discounters; ends with haul spread on the ground.",
+   "structure": "letterboxed cold-open teaser 'In diesem Video...' -> meme sketch wake-up -> title card 'Einkaufstour 2025/26' -> chronological stores -> car loading -> haul presentation with close-ups -> catchphrase -> end screen",
+   "aspect_ratio": "16:9 (cold open letterboxed ~2.39:1)",
+   "shot_types": [
+    "wide-angle action cam handheld/chest POV (barrel distortion uncorrected)",
+    "night street/car travel",
+    "crowded store interiors",
+    "haul close-ups"
+   ],
+   "pacing": "7.0 merged cut events/min over 22 min",
+   "speech": "spontaneous group talk, 117 wpm; auto-subs tag [gelächter], [musik] (34 tags)",
+   "captions": "only teaser text and title card",
+   "titles_graphics": "title card: 'Einkaufstour' gold #D5A50A + '2025/26' white, geometric bold, soft glow, centred",
+   "transitions": "TV colour-bar glitch, hard cuts",
+   "music": "assumption (medium): music under travel/montage parts ([musik] tags)",
+   "restraint": "low grading effort, high authenticity; no stabilisation/lens correction visible",
+   "audience_expectation": "vicarious thrill, crowd chaos, what was bought and for how much",
+   "confidence": "medium (1 episode; 13 titles; owner favourite)",
+   "count": 13,
+   "median_views": 5300,
+   "max_views": 40000,
+   "median_duration_s": 660,
+   "in_newest_60_of_kind": 7,
+   "measured": [
+    {
+     "id": "dru73YpbQ4Y",
+     "duration_s": 1341.7,
+     "cut_events_per_min": 7.02,
+     "speech_wpm_over_duration": 117.3,
+     "integrated_lufs": -13.2
+    }
+   ]
+  },
+  "unboxing": {
+   "kind": "long",
+   "samples": [
+    "OkjnKFjRFt4"
+   ],
+   "subject": "Shop/sponsor packages (Pyroland, Pyro Team Store, Lidl, WECO surprise boxes) opened item by item.",
+   "structure": "cold open of the final product pile -> zoom tunnel + membership plug -> opening boxes -> item-by-item -> final pile pan -> sponsor thanks -> catchphrase -> end screen",
+   "aspect_ratio": "16:9",
+   "shot_types": [
+    "wide-angle desk shot in studio with red neon 'MEsc' sign, wooden slat wall, red LED strip",
+    "handheld close-ups of products"
+   ],
+   "pacing": "4.1 merged cut events/min (jump cuts inside same framing are under-counted)",
+   "speech": "138 wpm",
+   "captions": "none; 'WERBUNG' bold caps top-right",
+   "music": "unknown; no [Musik] tags",
+   "restraint": "high",
+   "audience_expectation": "see novelties first, honest reactions",
+   "confidence": "medium",
+   "count": 13,
+   "median_views": 2300,
+   "max_views": 7600,
+   "median_duration_s": 598,
+   "in_newest_60_of_kind": 8,
+   "measured": [
+    {
+     "id": "OkjnKFjRFt4",
+     "duration_s": 710.88,
+     "cut_events_per_min": 4.05,
+     "speech_wpm_over_duration": 138.4,
+     "integrated_lufs": -12.9
+    }
+   ]
+  },
+  "nye_vlog_midnight": {
+   "kind": "long",
+   "samples": [
+    "y_mj09m0XB4"
+   ],
+   "subject": "Midnight fireworks 'ESKALATION' uncut, NYE vlogs.",
+   "structure": "single continuous POV take: fuse-chain prep with aluminium foil under headlamp -> phone clock 23:59 -> ignition -> ~6 min of sky -> end screen",
+   "aspect_ratio": "16:9",
+   "shot_types": [
+    "head/chest-mounted wide POV",
+    "night sky"
+   ],
+   "pacing": "0.09 cut events/min (one take)",
+   "speech": "none recognised by auto-captions",
+   "exposure": "sky section: mean luma 10.4/255, 86% of pixels <=16, 0.16% clipped",
+   "music": "none evidenced; I -18.1 LUFS, only 0.1% of momentary loudness above -12 LUFS (bangs appear compressed by camera AGC - assumption)",
+   "restraint": "maximal",
+   "confidence": "medium",
+   "count": 6,
+   "median_views": 2850.0,
+   "max_views": 26000,
+   "median_duration_s": 826.5,
+   "in_newest_60_of_kind": 2,
+   "measured": [
+    {
+     "id": "y_mj09m0XB4",
+     "duration_s": 665.23,
+     "cut_events_per_min": 0.09,
+     "speech_wpm_over_duration": 0,
+     "integrated_lufs": -18.1
+    }
+   ]
+  },
+  "pyro_news_politics": {
+   "kind": "long",
+   "samples": [
+    "sgUxhOUxqZ0"
+   ],
+   "subject": "Fireworks-ban news/opinion 2020-2022 (Corona sales bans), reactions.",
+   "structure": "greeting 'Was geht ab/herzlich willkommen' -> subscribe ask -> disclaimer card -> news VO -> catchphrase -> 'THANKS FOR WATCHING' template outro",
+   "aspect_ratio": "16:9",
+   "shot_types": [
+    "stock/third-party fireworks footage as background",
+    "persistent lower bar: fire strip, wolf badge, 'INSTA: EB.MARVIN'"
+   ],
+   "pacing": "0.7 cut events/min",
+   "speech": "160 wpm",
+   "music": "[Musik] at start/end; I -27.4 LUFS (very quiet master)",
+   "status": "dormant: 72 titles but only 1 in the newest 60 uploads",
+   "confidence": "medium",
+   "count": 72,
+   "median_views": 7200.0,
+   "max_views": 30000,
+   "median_duration_s": 349.5,
+   "in_newest_60_of_kind": 1,
+   "measured": [
+    {
+     "id": "sgUxhOUxqZ0",
+     "duration_s": 254.33,
+     "cut_events_per_min": 0.71,
+     "speech_wpm_over_duration": 159.7,
+     "integrated_lufs": -27.4
+    }
+   ]
+  },
+  "short_meme": {
+   "kind": "short",
+   "samples": [
+    "zIxejdVAa0E",
+    "P_L7KHcB-_Y"
+   ],
+   "subject": "POV/relatable memes about sales day, Lidl rush, buddies ('Markiere deinen Bro').",
+   "structure": "single 7 s shot, caption visible from frame 1, loopable",
+   "aspect_ratio": "9:16",
+   "captions": "static sentence-case caption in upper third, white geometric bold with dark outline ('POV: ...', 'Bro und ich am 29.12 im Lidl')",
+   "graphics": "animated pile of product cut-outs with yellow 'Nur regional erhaeltlich' stickers (zIxejdVAa0E)",
+   "pacing": "0 cuts",
+   "audio": "I -17.6 / -22.6 LUFS, LRA <=2.2 (trend sound - assumption)",
+   "notes": "footage appears to show people other than the creator (assumption, low-medium: possibly licensed/meme templates)",
+   "confidence": "medium",
+   "count": 73,
+   "median_views": 16000,
+   "max_views": 985000,
+   "median_duration_s": null,
+   "in_newest_60_of_kind": 14,
+   "measured": [
+    {
+     "id": "P_L7KHcB-_Y",
+     "duration_s": 7.19,
+     "cut_events_per_min": 0.0,
+     "speech_wpm_over_duration": 100.1,
+     "integrated_lufs": -22.6
+    },
+    {
+     "id": "zIxejdVAa0E",
+     "duration_s": 6.89,
+     "cut_events_per_min": 0.0,
+     "speech_wpm_over_duration": 0,
+     "integrated_lufs": -17.6
+    }
+   ]
+  },
+  "short_sponsored_lidl": {
+   "kind": "short",
+   "samples": [
+    "xCoOYkqzgDo",
+    "hPWgWyzYtq8"
+   ],
+   "subject": "[WERBUNG] Lidl battery tests and 'so much fireworks for 50/100/150 EUR' hauls.",
+   "structure": "test: title card (product + Lidl logo + name + price on teal grid #317087) -> raw night test; haul: split layout face-cam top, product cut-outs on charcoal grid bottom with green prices",
+   "aspect_ratio": "9:16",
+   "captions": "none; 'Werbung' label top-right",
+   "graphics": "price in bright green #01D402 with dark shadow; geometric bold white titles",
+   "pacing": "2.9-3.3 cut events/min",
+   "audio": "haul VO 144 wpm, I -12.8 LUFS",
+   "confidence": "medium",
+   "count": 31,
+   "median_views": 5300,
+   "max_views": 67000,
+   "median_duration_s": null,
+   "in_newest_60_of_kind": 14,
+   "measured": [
+    {
+     "id": "hPWgWyzYtq8",
+     "duration_s": 53.89,
+     "cut_events_per_min": 3.34,
+     "speech_wpm_over_duration": 143.6,
+     "integrated_lufs": -12.8
+    },
+    {
+     "id": "xCoOYkqzgDo",
+     "duration_s": 20.71,
+     "cut_events_per_min": 2.9,
+     "speech_wpm_over_duration": 0,
+     "integrated_lufs": -16.3
+    }
+   ]
+  },
+  "short_pyroland_product": {
+   "kind": "short",
+   "samples": [
+    "y1q4lpEEFcI"
+   ],
+   "subject": "Pyroland product tests (2025/26 season, all in the newest 60 Shorts).",
+   "structure": "short product presentation -> raw handheld night test (2:41)",
+   "aspect_ratio": "9:16",
+   "captions": "none; 'Werbung' label",
+   "pacing": "3.7 cut events/min",
+   "performance": "weakest Shorts format (median 865 views)",
+   "confidence": "medium",
+   "count": 29,
+   "median_views": 865,
+   "max_views": 17000,
+   "median_duration_s": null,
+   "in_newest_60_of_kind": 29,
+   "measured": [
+    {
+     "id": "y1q4lpEEFcI",
+     "duration_s": 160.81,
+     "cut_events_per_min": 3.73,
+     "speech_wpm_over_duration": 22.8,
+     "integrated_lufs": -15.7
+    }
+   ]
+  },
+  "short_versus_poll": {
+   "kind": "short",
+   "samples": [
+    "r8A57tnbyKA"
+   ],
+   "subject": "'Was ist besser?' A vs B product polls with community result.",
+   "structure": "8 s motion graphic: product A -> 'VS' -> product B -> clock (vote moment) -> result split red/blue with percentages",
+   "aspect_ratio": "9:16",
+   "graphics": "charcoal grid #302F2F, product stickers with white glow, 'VS' white with red stroke, result panels red #B60F00 / blue #055183, white bold percentages, red progress bar at top",
+   "confidence": "medium",
+   "count": 21,
+   "median_views": 15000,
+   "max_views": 106000,
+   "median_duration_s": null,
+   "in_newest_60_of_kind": 3,
+   "measured": [
+    {
+     "id": "r8A57tnbyKA",
+     "duration_s": 8.06,
+     "cut_events_per_min": 7.44,
+     "speech_wpm_over_duration": 67.0,
+     "integrated_lufs": -21.4
+    }
+   ]
+  },
+  "short_haul_spend": {
+   "kind": "short",
+   "samples": [
+    "nsIVE20ixMM"
+   ],
+   "subject": "'Wir haben fuer 600 EURO Feuerwerk gekauft' haul recaps.",
+   "structure": "31 s rapid montage of the shopping day with running VO",
+   "aspect_ratio": "9:16",
+   "captions": "word-group captions ALL CAPS, condensed comic/bold white with black outline, lower-middle",
+   "pacing": "31.5 merged cut events/min",
+   "speech": "220 wpm",
+   "confidence": "medium",
+   "count": 10,
+   "median_views": 73500.0,
+   "max_views": 590000,
+   "median_duration_s": null,
+   "in_newest_60_of_kind": 0,
+   "measured": [
+    {
+     "id": "nsIVE20ixMM",
+     "duration_s": 30.51,
+     "cut_events_per_min": 31.47,
+     "speech_wpm_over_duration": 220.3,
+     "integrated_lufs": -18.0
+    }
+   ]
+  },
+  "short_stunt_curiosity": {
+   "kind": "short",
+   "samples": [
+    "NEfxufh6YLw"
+   ],
+   "subject": "'What happens if ...' stunts, loudest legal firecracker.",
+   "captions": "hook question in condensed ALL CAPS white, keyword highlighted yellow #F4DE19",
+   "aspect_ratio": "9:16",
+   "confidence": "low-medium (1 sample, possibly re-edited third-party clip)",
+   "count": 5,
+   "median_views": 11000,
+   "max_views": 571000,
+   "median_duration_s": null,
+   "in_newest_60_of_kind": 0,
+   "measured": [
+    {
+     "id": "NEfxufh6YLw",
+     "duration_s": 11.61,
+     "cut_events_per_min": 5.17,
+     "speech_wpm_over_duration": 129.2,
+     "integrated_lufs": -21.8
+    }
+   ]
+  }
+ },
+ "taxonomy_stats": {
+  "pyro_news_politics": {
+   "kind": "long",
+   "count": 72,
+   "median_views": 7200.0,
+   "max_views": 30000,
+   "median_duration_s": 349.5,
+   "in_newest_60": 1,
+   "top": "H-Raeg4yS44"
+  },
+  "brochure_catalog_review": {
+   "kind": "long",
+   "count": 56,
+   "median_views": 4950.0,
+   "max_views": 30000,
+   "median_duration_s": 481.5,
+   "in_newest_60": 21,
+   "top": "tEcYYOVchXk"
+  },
+  "assortment_product_videos": {
+   "kind": "long",
+   "count": 31,
+   "median_views": 10000,
+   "max_views": 44000,
+   "median_duration_s": 534,
+   "in_newest_60": 14,
+   "top": "ZUSKEXTAuKI"
+  },
+  "ranking_topN": {
+   "kind": "long",
+   "count": 21,
+   "median_views": 8100,
+   "max_views": 71000,
+   "median_duration_s": 628,
+   "in_newest_60": 7,
+   "top": "bw7fkdSK1Vk"
+  },
+  "shopping_tour": {
+   "kind": "long",
+   "count": 13,
+   "median_views": 5300,
+   "max_views": 40000,
+   "median_duration_s": 660,
+   "in_newest_60": 7,
+   "top": "yO-5Oka95bM"
+  },
+  "unboxing": {
+   "kind": "long",
+   "count": 13,
+   "median_views": 2300,
+   "max_views": 7600,
+   "median_duration_s": 598,
+   "in_newest_60": 8,
+   "top": "evd9mcAMeKY"
+  },
+  "nye_vlog_midnight": {
+   "kind": "long",
+   "count": 6,
+   "median_views": 2850.0,
+   "max_views": 26000,
+   "median_duration_s": 826.5,
+   "in_newest_60": 2,
+   "top": "X8P3tdXq7yo"
+  },
+  "legacy_offtopic": {
+   "kind": "long",
+   "count": 4,
+   "median_views": 2428.5,
+   "max_views": 18000,
+   "median_duration_s": 510.0,
+   "in_newest_60": 0,
+   "top": "hkFSpRDX04I"
+  },
+  "other": {
+   "kind": "long",
+   "count": 2,
+   "median_views": 9600.0,
+   "max_views": 12000,
+   "median_duration_s": 638.0,
+   "in_newest_60": 0,
+   "top": "NR2SmsH3QQc"
+  },
+  "short_meme": {
+   "kind": "shorts",
+   "count": 73,
+   "median_views": 16000,
+   "max_views": 985000,
+   "median_duration_s": null,
+   "in_newest_60": 14,
+   "top": "zIxejdVAa0E"
+  },
+  "short_sponsored_lidl": {
+   "kind": "shorts",
+   "count": 31,
+   "median_views": 5300,
+   "max_views": 67000,
+   "median_duration_s": null,
+   "in_newest_60": 14,
+   "top": "nzGNQjTAgZA"
+  },
+  "short_pyroland_product": {
+   "kind": "shorts",
+   "count": 29,
+   "median_views": 865,
+   "max_views": 17000,
+   "median_duration_s": null,
+   "in_newest_60": 29,
+   "top": "7Htgp7icRSQ"
+  },
+  "short_versus_poll": {
+   "kind": "shorts",
+   "count": 21,
+   "median_views": 15000,
+   "max_views": 106000,
+   "median_duration_s": null,
+   "in_newest_60": 3,
+   "top": "r8A57tnbyKA"
+  },
+  "short_haul_spend": {
+   "kind": "shorts",
+   "count": 10,
+   "median_views": 73500.0,
+   "max_views": 590000,
+   "median_duration_s": null,
+   "in_newest_60": 0,
+   "top": "nsIVE20ixMM"
+  },
+  "short_nye_footage": {
+   "kind": "shorts",
+   "count": 8,
+   "median_views": 2950.0,
+   "max_views": 10000,
+   "median_duration_s": null,
+   "in_newest_60": 0,
+   "top": "NW8uXDVBUJM"
+  },
+  "short_brochure": {
+   "kind": "shorts",
+   "count": 7,
+   "median_views": 5900,
+   "max_views": 19000,
+   "median_duration_s": null,
+   "in_newest_60": 0,
+   "top": "nAO64oRPqZo"
+  },
+  "short_other": {
+   "kind": "shorts",
+   "count": 7,
+   "median_views": 2500,
+   "max_views": 21000,
+   "median_duration_s": null,
+   "in_newest_60": 0,
+   "top": "71cS3X2tdcY"
+  },
+  "short_stunt_curiosity": {
+   "kind": "shorts",
+   "count": 5,
+   "median_views": 11000,
+   "max_views": 571000,
+   "median_duration_s": null,
+   "in_newest_60": 0,
+   "top": "NEfxufh6YLw"
+  },
+  "short_guess_battery": {
+   "kind": "shorts",
+   "count": 5,
+   "median_views": 6300,
+   "max_views": 20000,
+   "median_duration_s": null,
+   "in_newest_60": 0,
+   "top": "TtD8NQeX_Ko"
+  }
+ },
+ "measured_colours": [
+  {
+   "name": "banner_text_MESC",
+   "evidence": [
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/thumbs/banner.png"
+   ],
+   "box": [
+    0.27,
+    0.39,
+    0.62,
+    0.6
+   ],
+   "filter": {
+    "smax": 0.12,
+    "vmin": 0.55
+   },
+   "n_pixels": 22147,
+   "clusters": [
+    [
+     "#ECECEC",
+     0.372
+    ],
+    [
+     "#C1C1C1",
+     0.316
+    ],
+    [
+     "#9B9B9B",
+     0.312
+    ]
+   ]
+  },
+  {
+   "name": "banner_background",
+   "evidence": [
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/thumbs/banner.png"
+   ],
+   "box": [
+    0,
+    0.36,
+    1,
+    0.64
+   ],
+   "filter": {
+    "smin": 0.35
+   },
+   "n_pixels": 25573,
+   "clusters": [
+    [
+     "#240E0C",
+     0.317
+    ],
+    [
+     "#691207",
+     0.315
+    ],
+    [
+     "#693F28",
+     0.17
+    ],
+    [
+     "#CE4E1D",
+     0.108
+    ],
+    [
+     "#EBB864",
+     0.089
+    ]
+   ]
+  },
+  {
+   "name": "avatar_palette",
+   "evidence": [
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/thumbs/avatar.jpg"
+   ],
+   "box": null,
+   "filter": null,
+   "n_pixels": 60000,
+   "clusters": [
+    [
+     "#170D16",
+     0.324
+    ],
+    [
+     "#691113",
+     0.237
+    ],
+    [
+     "#C32F15",
+     0.151
+    ],
+    [
+     "#EDE3C6",
+     0.112
+    ],
+    [
+     "#EC904E",
+     0.101
+    ],
+    [
+     "#7F6D7F",
+     0.075
+    ]
+   ]
+  },
+  {
+   "name": "avatar_eyes_cyan",
+   "evidence": [
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/thumbs/avatar.jpg"
+   ],
+   "box": [
+    0.4,
+    0.3,
+    0.75,
+    0.5
+   ],
+   "filter": {
+    "smin": 0.4,
+    "vmin": 0.5,
+    "hmin": 170,
+    "hmax": 215
+   },
+   "n_pixels": 3120,
+   "clusters": [
+    [
+     "#3ADCEE",
+     0.521
+    ],
+    [
+     "#207AA9",
+     0.479
+    ]
+   ]
+  },
+  {
+   "name": "product_card_orange_bg",
+   "evidence": [
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames/hi/t_BTkcPy5sw_hi_00507.3.png"
+   ],
+   "box": [
+    0,
+    0,
+    0.25,
+    1
+   ],
+   "filter": null,
+   "n_pixels": 57600,
+   "clusters": [
+    [
+     "#8F2408",
+     0.853
+    ],
+    [
+     "#560E0A",
+     0.111
+    ],
+    [
+     "#BB9C91",
+     0.036
+    ]
+   ]
+  },
+  {
+   "name": "endscreen_fire_bg",
+   "evidence": [
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames/hi/t_BTkcPy5sw_hi_00565.0.png"
+   ],
+   "box": null,
+   "filter": null,
+   "n_pixels": 60000,
+   "clusters": [
+    [
+     "#7C2A0F",
+     0.388
+    ],
+    [
+     "#3F0807",
+     0.268
+    ],
+    [
+     "#D0410A",
+     0.163
+    ],
+    [
+     "#F3BC19",
+     0.129
+    ],
+    [
+     "#F5F4F4",
+     0.051
+    ]
+   ]
+  },
+  {
+   "name": "endscreen_text",
+   "evidence": [
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames/hi/t_BTkcPy5sw_hi_00565.0.png"
+   ],
+   "box": [
+    0.07,
+    0.2,
+    0.36,
+    0.32
+   ],
+   "filter": {
+    "smax": 0.15,
+    "vmin": 0.8
+   },
+   "n_pixels": 2392,
+   "clusters": [
+    [
+     "#FDFEFE",
+     0.939
+    ],
+    [
+     "#DFDDDD",
+     0.061
+    ]
+   ]
+  },
+  {
+   "name": "title_card_einkaufstour_gold",
+   "evidence": [
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames/hi/dru73YpbQ4Y_hi_00097.0.png"
+   ],
+   "box": [
+    0.3,
+    0.38,
+    0.72,
+    0.5
+   ],
+   "filter": {
+    "smin": 0.45,
+    "vmin": 0.5
+   },
+   "n_pixels": 3127,
+   "clusters": [
+    [
+     "#D5A50A",
+     0.643
+    ],
+    [
+     "#B19437",
+     0.357
+    ]
+   ]
+  },
+  {
+   "name": "sponsored_grid_bg",
+   "evidence": [
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames/hi/d2ChnPz3FRg_hi_00003.6.png",
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames/hi/d2ChnPz3FRg_hi_00063.9.png"
+   ],
+   "box": [
+    0,
+    0.82,
+    1,
+    1
+   ],
+   "filter": null,
+   "n_pixels": 60000,
+   "clusters": [
+    [
+     "#302F2F",
+     0.957
+    ],
+    [
+     "#AF151A",
+     0.023
+    ],
+    [
+     "#F9F1EF",
+     0.021
+    ]
+   ]
+  },
+  {
+   "name": "platz_label_red_outline",
+   "evidence": [
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames/hi/d2ChnPz3FRg_hi_00063.9.png"
+   ],
+   "box": [
+    0.3,
+    0.75,
+    0.65,
+    0.92
+   ],
+   "filter": {
+    "smin": 0.55,
+    "vmin": 0.35
+   },
+   "n_pixels": 2652,
+   "clusters": [
+    [
+     "#C4131A",
+     0.547
+    ],
+    [
+     "#811516",
+     0.453
+    ]
+   ]
+  },
+  {
+   "name": "studio_red_led",
+   "evidence": [
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames/hi/d2ChnPz3FRg_hi_00026.6.png",
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames/hi/OkjnKFjRFt4_hi_00037.0.png"
+   ],
+   "box": [
+    0.5,
+    0,
+    1,
+    0.5
+   ],
+   "filter": {
+    "smin": 0.5,
+    "vmin": 0.4,
+    "hmin": 330,
+    "hmax": 360
+   },
+   "n_pixels": 2604,
+   "clusters": [
+    [
+     "#EF3A54",
+     0.401
+    ],
+    [
+     "#D51C30",
+     0.313
+    ],
+    [
+     "#860B13",
+     0.286
+    ]
+   ]
+  },
+  {
+   "name": "neon_MEsc_sign",
+   "evidence": [
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames/hi/OkjnKFjRFt4_hi_00037.0.png"
+   ],
+   "box": [
+    0.5,
+    0.33,
+    0.7,
+    0.45
+   ],
+   "filter": {
+    "smin": 0.35,
+    "vmin": 0.6
+   },
+   "n_pixels": 1913,
+   "clusters": [
+    [
+     "#DE243C",
+     0.838
+    ],
+    [
+     "#F26F82",
+     0.162
+    ]
+   ]
+  },
+  {
+   "name": "versus_poll_blue_panel",
+   "evidence": [
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames/hi/r8A57tnbyKA_hi_00006.6.png"
+   ],
+   "box": [
+    0,
+    0,
+    1,
+    0.28
+   ],
+   "filter": null,
+   "n_pixels": 60000,
+   "clusters": [
+    [
+     "#055183",
+     0.518
+    ],
+    [
+     "#503A35",
+     0.285
+    ],
+    [
+     "#C6C4C2",
+     0.197
+    ]
+   ]
+  },
+  {
+   "name": "versus_poll_red_panel",
+   "evidence": [
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames/hi/r8A57tnbyKA_hi_00006.6.png"
+   ],
+   "box": [
+    0,
+    0.33,
+    1,
+    0.55
+   ],
+   "filter": null,
+   "n_pixels": 50760,
+   "clusters": [
+    [
+     "#B60F00",
+     0.976
+    ],
+    [
+     "#CE7065",
+     0.013
+    ],
+    [
+     "#F6E8E5",
+     0.012
+    ]
+   ]
+  },
+  {
+   "name": "versus_vs_text",
+   "evidence": [
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames/hi/r8A57tnbyKA_hi_00002.0.png"
+   ],
+   "box": [
+    0.2,
+    0.4,
+    0.8,
+    0.6
+   ],
+   "filter": {
+    "smin": 0.5,
+    "vmin": 0.3
+   },
+   "n_pixels": 1546,
+   "clusters": [
+    [
+     "#841410",
+     0.519
+    ],
+    [
+     "#631612",
+     0.399
+    ],
+    [
+     "#A64844",
+     0.082
+    ]
+   ]
+  },
+  {
+   "name": "price_text_green",
+   "evidence": [
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames/hi/hPWgWyzYtq8_hi_00016.8.png"
+   ],
+   "box": [
+    0.2,
+    0.78,
+    0.8,
+    0.92
+   ],
+   "filter": {
+    "smin": 0.5,
+    "vmin": 0.4
+   },
+   "n_pixels": 3121,
+   "clusters": [
+    [
+     "#01D402",
+     0.834
+    ],
+    [
+     "#169A19",
+     0.166
+    ]
+   ]
+  },
+  {
+   "name": "caption_keyword_yellow_short",
+   "evidence": [
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames/hi/NEfxufh6YLw_hi_00000.7.png",
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames/hi/NEfxufh6YLw_hi_00002.2.png"
+   ],
+   "box": [
+    0,
+    0.4,
+    1,
+    0.6
+   ],
+   "filter": {
+    "smin": 0.5,
+    "vmin": 0.6,
+    "hmin": 35,
+    "hmax": 70
+   },
+   "n_pixels": 3214,
+   "clusters": [
+    [
+     "#F4DE19",
+     0.786
+    ],
+    [
+     "#BEA61D",
+     0.214
+    ]
+   ]
+  },
+  {
+   "name": "caption_keyword_yellow_long",
+   "evidence": [
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames/hi/ZUSKEXTAuKI_hi_00292.9.png",
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames/hi/ZUSKEXTAuKI_hi_00207.0.png"
+   ],
+   "box": [
+    0,
+    0.35,
+    1,
+    0.6
+   ],
+   "filter": {
+    "smin": 0.5,
+    "vmin": 0.6,
+    "hmin": 35,
+    "hmax": 70
+   },
+   "n_pixels": 5614,
+   "clusters": [
+    [
+     "#F1E11D",
+     0.777
+    ],
+    [
+     "#BAAA1E",
+     0.223
+    ]
+   ]
+  },
+  {
+   "name": "sponsored_test_title_teal_bg",
+   "evidence": [
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames/hi/xCoOYkqzgDo_hi_00001.3.png"
+   ],
+   "box": [
+    0,
+    0.75,
+    1,
+    1
+   ],
+   "filter": null,
+   "n_pixels": 57600,
+   "clusters": [
+    [
+     "#317087",
+     0.544
+    ],
+    [
+     "#2C6071",
+     0.447
+    ],
+    [
+     "#EFF6F9",
+     0.009
+    ]
+   ]
+  },
+  {
+   "name": "legacy_2020_fire_bar",
+   "evidence": [
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames/hi/sgUxhOUxqZ0_hi_00012.4.png"
+   ],
+   "box": [
+    0,
+    0.95,
+    1,
+    1
+   ],
+   "filter": null,
+   "n_pixels": 11520,
+   "clusters": [
+    [
+     "#F7B82B",
+     0.772
+    ],
+    [
+     "#EFE7CD",
+     0.141
+    ],
+    [
+     "#3D2B23",
+     0.086
+    ]
+   ]
+  },
+  {
+   "name": "legacy_2021_product_card_bg",
+   "evidence": [
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames/hi/bw7fkdSK1Vk_hi_00092.5.png"
+   ],
+   "box": [
+    0,
+    0.75,
+    1,
+    1
+   ],
+   "filter": null,
+   "n_pixels": 57600,
+   "clusters": [
+    [
+     "#29101A",
+     0.417
+    ],
+    [
+     "#BE8156",
+     0.206
+    ],
+    [
+     "#552A2F",
+     0.2
+    ],
+    [
+     "#8F5742",
+     0.177
+    ]
+   ]
+  },
+  {
+   "name": "thumbnails_newest30_palette",
+   "evidence": [
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/thumbs/all/dru73YpbQ4Y.jpg",
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/thumbs/all/y_mj09m0XB4.jpg",
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/thumbs/all/_Ka5c6jMYRg.jpg",
+    "... +27 more"
+   ],
+   "box": null,
+   "filter": null,
+   "n_pixels": 60000,
+   "clusters": [
+    [
+     "#18161C",
+     0.223
+    ],
+    [
+     "#3B465F",
+     0.216
+    ],
+    [
+     "#A5938D",
+     0.129
+    ],
+    [
+     "#577BAB",
+     0.102
+    ],
+    [
+     "#F6F5F3",
+     0.099
+    ],
+    [
+     "#BEC3CC",
+     0.098
+    ],
+    [
+     "#AA4731",
+     0.076
+    ],
+    [
+     "#F3D72A",
+     0.057
+    ]
+   ]
+  },
+  {
+   "name": "thumbnails_newest30_saturated_accents",
+   "evidence": [
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/thumbs/all/dru73YpbQ4Y.jpg",
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/thumbs/all/y_mj09m0XB4.jpg",
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/thumbs/all/_Ka5c6jMYRg.jpg",
+    "... +27 more"
+   ],
+   "box": null,
+   "filter": {
+    "smin": 0.6,
+    "vmin": 0.6
+   },
+   "n_pixels": 60000,
+   "clusters": [
+    [
+     "#C9282A",
+     0.23
+    ],
+    [
+     "#245FA7",
+     0.216
+    ],
+    [
+     "#FCE608",
+     0.177
+    ],
+    [
+     "#CA8627",
+     0.133
+    ],
+    [
+     "#F2D141",
+     0.123
+    ],
+    [
+     "#3F9AE3",
+     0.121
+    ]
+   ]
+  },
+  {
+   "name": "thumbnail_yellow_headline_PROSPEKT",
+   "evidence": [
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/thumbs/all/jWEqTQYbL8U.jpg",
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/thumbs/all/tP_zixDMEj8.jpg"
+   ],
+   "box": [
+    0,
+    0,
+    0.5,
+    0.3
+   ],
+   "filter": {
+    "smin": 0.5,
+    "vmin": 0.6,
+    "hmin": 40,
+    "hmax": 70
+   },
+   "n_pixels": 3724,
+   "clusters": [
+    [
+     "#E3D448",
+     0.548
+    ],
+    [
+     "#B9A826",
+     0.452
+    ]
+   ]
+  },
+  {
+   "name": "thumbnails_2020_21_palette",
+   "evidence": [
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/thumbs/all/hvevvrJmpiY.jpg",
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/thumbs/all/YwmnwF_eH9U.jpg",
+    "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/thumbs/all/NlZdufsBGcI.jpg",
+    "... +32 more"
+   ],
+   "box": null,
+   "filter": null,
+   "n_pixels": 60000,
+   "clusters": [
+    [
+     "#321810",
+     0.344
+    ],
+    [
+     "#B92F18",
+     0.252
+    ],
+    [
+     "#FCF8F6",
+     0.144
+    ],
+    [
+     "#D0C2BD",
+     0.09
+    ],
+    [
+     "#BF8863",
+     0.086
+    ],
+    [
+     "#62565C",
+     0.085
+    ]
+   ]
+  }
+ ],
+ "videos": [
+  {
+   "id": "9etWVDZnyOs",
+   "url": "https://www.youtube.com/watch?v=9etWVDZnyOs",
+   "title_listing": "OFFICIAL Lidl Fireworks Brochure 2025/26 with Albert Fireworks 😍",
+   "title_info": "OFFIZIELLES Lidl Feuerwerk Prospekt 2025/26 mit Albert Feuerwerk 😍",
+   "format": "brochure_catalog_review",
+   "upload_date": "20251204",
+   "duration_s": 734.56,
+   "views": 2447,
+   "likes": 65,
+   "width": 640,
+   "height": 360,
+   "fps": 30,
+   "aspect": "16:9",
+   "language": "de",
+   "scene_changes_0_3": 145,
+   "cut_events_merged_1s": 72,
+   "cut_events_per_min": 5.88,
+   "audio": {
+    "integrated_lufs": -14.2,
+    "lra_lu": 4.9,
+    "true_peak_dbfs": 0.0,
+    "silences_over_1s_below_-40dB": 0,
+    "rms_level_db": -16.602781,
+    "peak_level_db": 0.045187,
+    "momentary_p10_p50_p90": [
+     -19.7,
+     -14.7,
+     -11.7
+    ],
+    "share_momentary_above_-12": 0.123
+   },
+   "transcript_words": 2106,
+   "transcript_sound_tags": 2,
+   "speech_wpm_over_duration": 172.0,
+   "signature_outro_phrase_present": true,
+   "contact_sheets": {
+    "scene": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\9etWVDZnyOs\\sheet_scene.png",
+    "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\9etWVDZnyOs\\sheet_interval.png",
+    "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\9etWVDZnyOs\\sheet_intro.png"
+   },
+   "description_head": "[WERBUNG] | Das Warten hat ein Ende! Lidl hat mir vorab das offizielle Feuerwerks-Prospekt für 2025/26 zugeschickt – und ich kann euch sagen: Es wird spektakulär!",
+   "why_chosen": "newest Lidl brochure walkthrough (sponsored)"
+  },
+  {
+   "id": "NEfxufh6YLw",
+   "url": "https://www.youtube.com/watch?v=NEfxufh6YLw",
+   "title_listing": "This is what happens when you throw 1000 firecrackers on the ground... #fireworks",
+   "title_info": "Das passiert wenn man 1000 Knallerbsen auf den Boden wirft...  #feuerwerk",
+   "format": "short_stunt_curiosity",
+   "upload_date": "20231203",
+   "duration_s": 11.61,
+   "views": 571576,
+   "likes": 19702,
+   "width": 360,
+   "height": 640,
+   "fps": 30,
+   "aspect": "9:16",
+   "language": "de",
+   "scene_changes_0_3": 1,
+   "cut_events_merged_1s": 1,
+   "cut_events_per_min": 5.17,
+   "audio": {
+    "integrated_lufs": -21.8,
+    "lra_lu": 3.3,
+    "true_peak_dbfs": -3.0,
+    "silences_over_1s_below_-40dB": 0,
+    "rms_level_db": -25.994149,
+    "peak_level_db": -2.948105,
+    "momentary_p10_p50_p90": [
+     -36.5,
+     -23.6,
+     -19.9
+    ],
+    "share_momentary_above_-12": 0.0
+   },
+   "transcript_words": 25,
+   "transcript_sound_tags": 0,
+   "speech_wpm_over_duration": 129.2,
+   "signature_outro_phrase_present": false,
+   "contact_sheets": {
+    "scene": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\NEfxufh6YLw\\sheet_scene.png",
+    "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\NEfxufh6YLw\\sheet_interval.png",
+    "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\NEfxufh6YLw\\sheet_intro.png"
+   },
+   "description_head": "[Inhalt] |  | Pyro Kollege: |  | ✔️Seriöse Feuerwerk Online Shops✔️ | ▪️ Pyro Team Store: https://www.pyroteam-store.de/?wsa=MEsc | GUTSCHEIN Pyro Team Store in Kombi mit L",
+   "why_chosen": "most-viewed stunt/curiosity Short (572k)"
+  },
+  {
+   "id": "OkjnKFjRFt4",
+   "url": "https://www.youtube.com/watch?v=OkjnKFjRFt4",
+   "title_listing": "PYROLAND SENT ME FIREWORKS! 🛒🔥 | UNBOXING",
+   "title_info": "PYROLAND HAT MIR FEUERWERK GESCHICKT! 🛒🔥| UNBOXING",
+   "format": "unboxing",
+   "upload_date": "20251224",
+   "duration_s": 710.88,
+   "views": 550,
+   "likes": 44,
+   "width": 640,
+   "height": 360,
+   "fps": 30,
+   "aspect": "16:9",
+   "language": "de",
+   "scene_changes_0_3": 52,
+   "cut_events_merged_1s": 48,
+   "cut_events_per_min": 4.05,
+   "audio": {
+    "integrated_lufs": -12.9,
+    "lra_lu": 6.6,
+    "true_peak_dbfs": 1.0,
+    "silences_over_1s_below_-40dB": 0,
+    "rms_level_db": -15.916584,
+    "peak_level_db": 0.659959,
+    "momentary_p10_p50_p90": [
+     -29.6,
+     -13.9,
+     -10.5
+    ],
+    "share_momentary_above_-12": 0.273
+   },
+   "transcript_words": 1640,
+   "transcript_sound_tags": 0,
+   "speech_wpm_over_duration": 138.4,
+   "signature_outro_phrase_present": true,
+   "contact_sheets": {
+    "scene": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\OkjnKFjRFt4\\sheet_scene.png",
+    "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\OkjnKFjRFt4\\sheet_interval.png",
+    "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\OkjnKFjRFt4\\sheet_intro.png"
+   },
+   "description_head": "Pyroland: https://bit.ly/pyrol4nd |  | Einer der größten Pyro Discords in Deutschland: | ▪️ Pyro Discord: https://discord.gg/dPRH8D6 | Hier könnt ihr euch mit anderen P",
+   "why_chosen": "newest unboxing (sponsored package)"
+  },
+  {
+   "id": "P_L7KHcB-_Y",
+   "url": "https://www.youtube.com/watch?v=P_L7KHcB-_Y",
+   "title_listing": "A fight is about to break out... #shoppingtrip #fireworks #memes #lidl",
+   "title_info": "Gleich gibts Schlägerrei... #einkaufstour  #feuerwerk #memes #lidl",
+   "format": "short_meme",
+   "upload_date": "20251226",
+   "duration_s": 7.19,
+   "views": 78126,
+   "likes": 1177,
+   "width": 360,
+   "height": 640,
+   "fps": 30,
+   "aspect": "9:16",
+   "language": "de",
+   "scene_changes_0_3": 0,
+   "cut_events_merged_1s": 0,
+   "cut_events_per_min": 0.0,
+   "audio": {
+    "integrated_lufs": -22.6,
+    "lra_lu": 1.5,
+    "true_peak_dbfs": -9.1,
+    "silences_over_1s_below_-40dB": 0,
+    "rms_level_db": -26.161092,
+    "peak_level_db": -9.14673,
+    "momentary_p10_p50_p90": [
+     -31.3,
+     -23.5,
+     -20.3
+    ],
+    "share_momentary_above_-12": 0.0
+   },
+   "transcript_words": 12,
+   "transcript_sound_tags": 0,
+   "speech_wpm_over_duration": 100.1,
+   "signature_outro_phrase_present": false,
+   "contact_sheets": {
+    "scene": null,
+    "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\P_L7KHcB-_Y\\sheet_interval.png",
+    "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\P_L7KHcB-_Y\\sheet_intro.png"
+   },
+   "description_head": "✔️Seriöse Feuerwerk Online Shops✔️ | ▪️ Pyro Team Store: https://www.pyroteam-store.de/?wsa=MEsc | GUTSCHEIN Pyro Team Store in Kombi mit Link: 5MESCYT |  | ▪️ Pyroland",
+   "why_chosen": "newest meme Short"
+  },
+  {
+   "id": "ZUSKEXTAuKI",
+   "url": "https://www.youtube.com/watch?v=ZUSKEXTAuKI",
+   "title_listing": "DAS GESAMMTE LIDL FEUERWERK SORTIMENT 2023/24 + Produktvideos",
+   "title_info": "DAS GESAMMTE LIDL FEUERWERK SORTIMENT 2023/24 + Produktvideos",
+   "format": "assortment_product_videos",
+   "upload_date": "20231202",
+   "duration_s": 1020.84,
+   "views": 44715,
+   "likes": 1052,
+   "width": 640,
+   "height": 360,
+   "fps": 30,
+   "aspect": "16:9",
+   "language": "de",
+   "scene_changes_0_3": 515,
+   "cut_events_merged_1s": 222,
+   "cut_events_per_min": 13.05,
+   "audio": {
+    "integrated_lufs": -16.4,
+    "lra_lu": 8.5,
+    "true_peak_dbfs": 0.3,
+    "silences_over_1s_below_-40dB": 1,
+    "rms_level_db": -19.479852,
+    "peak_level_db": 0.278144,
+    "momentary_p10_p50_p90": [
+     -27.7,
+     -17.5,
+     -13.7
+    ],
+    "share_momentary_above_-12": 0.019
+   },
+   "transcript_words": 2065,
+   "transcript_sound_tags": 2,
+   "speech_wpm_over_duration": 121.4,
+   "signature_outro_phrase_present": true,
+   "contact_sheets": {
+    "scene": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\ZUSKEXTAuKI\\sheet_scene.png",
+    "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\ZUSKEXTAuKI\\sheet_interval.png",
+    "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\ZUSKEXTAuKI\\sheet_intro.png"
+   },
+   "description_head": "In diesem Video präsentiere ich euch das gesammte Lidl Feuerwerk Sortiment von Silvester 2023/24, mit allen Neuheiten, umlabelungen und den Produktvideos dazu! | ",
+   "why_chosen": "most-viewed assortment video (44k, 2023)"
+  },
+  {
+   "id": "_Ka5c6jMYRg",
+   "url": "https://www.youtube.com/watch?v=_Ka5c6jMYRg",
+   "title_listing": "ALLE NETTO LESLI FEUERWERK BATTERIEN 2025/26",
+   "title_info": "ALLE NETTO LESLI FEUERWERK BATTERIEN 2025/26",
+   "format": "assortment_product_videos",
+   "upload_date": "20251225",
+   "duration_s": 833.11,
+   "views": 3957,
+   "likes": 40,
+   "width": 640,
+   "height": 360,
+   "fps": 30,
+   "aspect": "16:9",
+   "language": null,
+   "scene_changes_0_3": 58,
+   "cut_events_merged_1s": 45,
+   "cut_events_per_min": 3.24,
+   "audio": {
+    "integrated_lufs": -11.0,
+    "lra_lu": 14.1,
+    "true_peak_dbfs": 3.8,
+    "silences_over_1s_below_-40dB": 1,
+    "rms_level_db": -15.593441,
+    "peak_level_db": 3.671852,
+    "momentary_p10_p50_p90": [
+     -30.0,
+     -14.6,
+     -8.1
+    ],
+    "share_momentary_above_-12": 0.36
+   },
+   "transcript_words": 0,
+   "transcript_sound_tags": 0,
+   "speech_wpm_over_duration": 0,
+   "signature_outro_phrase_present": false,
+   "contact_sheets": {
+    "scene": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\_Ka5c6jMYRg\\sheet_scene.png",
+    "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\_Ka5c6jMYRg\\sheet_interval.png",
+    "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\_Ka5c6jMYRg\\sheet_intro.png"
+   },
+   "description_head": "Timestamps für die Feuerwerk Artikel: | 00:00 Final Showcase | 01:22 City Of Angels | 02:12 Sumo Games | 03:18 Bull Shark | 04:21 Yakuza Showtime Box | 05:15 Blue Mamba | 07:",
+   "why_chosen": "newest 'all batteries' manufacturer-video compilation"
+  },
+  {
+   "id": "bw7fkdSK1Vk",
+   "url": "https://www.youtube.com/watch?v=bw7fkdSK1Vk",
+   "title_listing": "TOP 10 BEST LIDL BATTERIES II WECO FIREWORKS",
+   "title_info": "TOP 10 BESTE LIDL BATTERIEN II WECO FEUERWERK",
+   "format": "ranking_topN",
+   "upload_date": "20211120",
+   "duration_s": 671.99,
+   "views": 71131,
+   "likes": 1325,
+   "width": 640,
+   "height": 360,
+   "fps": 30,
+   "aspect": "16:9",
+   "language": "de",
+   "scene_changes_0_3": 56,
+   "cut_events_merged_1s": 47,
+   "cut_events_per_min": 4.2,
+   "audio": {
+    "integrated_lufs": -16.1,
+    "lra_lu": 9.8,
+    "true_peak_dbfs": 1.4,
+    "silences_over_1s_below_-40dB": 1,
+    "rms_level_db": -19.627561,
+    "peak_level_db": 1.399362,
+    "momentary_p10_p50_p90": [
+     -27.0,
+     -17.9,
+     -13.3
+    ],
+    "share_momentary_above_-12": 0.047
+   },
+   "transcript_words": 1036,
+   "transcript_sound_tags": 2,
+   "speech_wpm_over_duration": 92.5,
+   "signature_outro_phrase_present": true,
+   "contact_sheets": {
+    "scene": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\bw7fkdSK1Vk\\sheet_scene.png",
+    "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\bw7fkdSK1Vk\\sheet_interval.png",
+    "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\bw7fkdSK1Vk\\sheet_intro.png"
+   },
+   "description_head": "In diesem Video präsentiere ich euch meine top 10 Lidl Feuerwerks Batterien! Jede der genannten Batterien lohnen sich extrem und können auch um 0 Uhr an Silvest",
+   "why_chosen": "most-viewed long video of the channel (71k, 2021)"
+  },
+  {
+   "id": "d2ChnPz3FRg",
+   "url": "https://www.youtube.com/watch?v=d2ChnPz3FRg",
+   "title_listing": "Top 10 BEST Lidl Firework Batteries for New Year's Eve 2025/26!🛒🔥",
+   "title_info": "Top 10 BESTE Lidl Feuerwerk Batterien für Silvester 2025/26!🛒🔥",
+   "format": "ranking_topN",
+   "upload_date": "20251217",
+   "duration_s": 549.15,
+   "views": 2212,
+   "likes": 46,
+   "width": 640,
+   "height": 360,
+   "fps": 24,
+   "aspect": "16:9",
+   "language": "de",
+   "scene_changes_0_3": 81,
+   "cut_events_merged_1s": 42,
+   "cut_events_per_min": 4.59,
+   "audio": {
+    "integrated_lufs": -17.5,
+    "lra_lu": 16.6,
+    "true_peak_dbfs": 0.6,
+    "silences_over_1s_below_-40dB": 0,
+    "rms_level_db": -20.894302,
+    "peak_level_db": 0.621752,
+    "momentary_p10_p50_p90": [
+     -35.7,
+     -23.5,
+     -14.2
+    ],
+    "share_momentary_above_-12": 0.041
+   },
+   "transcript_words": 691,
+   "transcript_sound_tags": 0,
+   "speech_wpm_over_duration": 75.5,
+   "signature_outro_phrase_present": false,
+   "contact_sheets": {
+    "scene": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\d2ChnPz3FRg\\sheet_scene.png",
+    "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\d2ChnPz3FRg\\sheet_interval.png",
+    "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\d2ChnPz3FRg\\sheet_intro.png"
+   },
+   "description_head": "Einer der größten Pyro Discords in Deutschland: | ▪️ Pyro Discord: https://discord.gg/dPRH8D6 | Hier könnt ihr euch mit anderen Pyros unterhalten und Neuigkeiten au",
+   "why_chosen": "newest ranking, scripted Lidl-sponsored production"
+  },
+  {
+   "id": "dru73YpbQ4Y",
+   "url": "https://www.youtube.com/watch?v=dru73YpbQ4Y",
+   "title_listing": "XXL €800 New Year's Eve Fireworks Shopping Tour 2025/26 🔥🛒",
+   "title_info": "XXL 800€ Silvester Feuerwerk Einkaufstour 2025/26 🔥🛒",
+   "format": "shopping_tour",
+   "upload_date": "20251230",
+   "duration_s": 1341.7,
+   "views": 8667,
+   "likes": 268,
+   "width": 640,
+   "height": 360,
+   "fps": 24,
+   "aspect": "16:9",
+   "language": "de",
+   "scene_changes_0_3": 165,
+   "cut_events_merged_1s": 157,
+   "cut_events_per_min": 7.02,
+   "audio": {
+    "integrated_lufs": -13.2,
+    "lra_lu": 9.1,
+    "true_peak_dbfs": 1.4,
+    "silences_over_1s_below_-40dB": 0,
+    "rms_level_db": -15.907418,
+    "peak_level_db": 1.003436,
+    "momentary_p10_p50_p90": [
+     -24.9,
+     -15.1,
+     -10.1
+    ],
+    "share_momentary_above_-12": 0.275
+   },
+   "transcript_words": 2623,
+   "transcript_sound_tags": 5,
+   "speech_wpm_over_duration": 117.3,
+   "signature_outro_phrase_present": true,
+   "contact_sheets": {
+    "scene": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\dru73YpbQ4Y\\sheet_scene.png",
+    "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\dru73YpbQ4Y\\sheet_interval.png",
+    "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\dru73YpbQ4Y\\sheet_intro.png"
+   },
+   "description_head": "Heute ging’s richtig rund! Wir waren auf großer Feuerwerkeinkaufstour unterwegs und haben insgesamt 800€ auf den Tisch gelegt 💸🎆 | Mit dabei: Lidl, Thomas Philipp",
+   "why_chosen": "owner favourite; newest long video; shopping tour 2025/26"
+  },
+  {
+   "id": "hPWgWyzYtq8",
+   "url": "https://www.youtube.com/watch?v=hPWgWyzYtq8",
+   "title_listing": "You can get this much fireworks for €150 at @Lidl [ADVERTISEMENT] #lidlde #lidlworthit #fireworks...",
+   "title_info": "So viel Feuerwerk kriegst du für 150€ bei @Lidl [WERBUNG] #lidlde #lidllohntsich #feuerwerklidl",
+   "format": "short_sponsored_lidl",
+   "upload_date": "20251218",
+   "duration_s": 53.89,
+   "views": 22687,
+   "likes": 215,
+   "width": 360,
+   "height": 640,
+   "fps": 24,
+   "aspect": "9:16",
+   "language": "de",
+   "scene_changes_0_3": 8,
+   "cut_events_merged_1s": 3,
+   "cut_events_per_min": 3.34,
+   "audio": {
+    "integrated_lufs": -12.8,
+    "lra_lu": 1.4,
+    "true_peak_dbfs": 0.1,
+    "silences_over_1s_below_-40dB": 0,
+    "rms_level_db": -15.334217,
+    "peak_level_db": 0.027252,
+    "momentary_p10_p50_p90": [
+     -17.4,
+     -12.8,
+     -10.7
+    ],
+    "share_momentary_above_-12": 0.309
+   },
+   "transcript_words": 129,
+   "transcript_sound_tags": 0,
+   "speech_wpm_over_duration": 143.6,
+   "signature_outro_phrase_present": false,
+   "contact_sheets": {
+    "scene": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\hPWgWyzYtq8\\sheet_scene.png",
+    "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\hPWgWyzYtq8\\sheet_interval.png",
+    "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\hPWgWyzYtq8\\sheet_intro.png"
+   },
+   "description_head": "Einer der größten Pyro Discords in Deutschland: | ▪️ Pyro Discord: https://discord.gg/dPRH8D6 | Hier könnt ihr euch mit anderen Pyros unterhalten und Neuigkeiten au",
+   "why_chosen": "sponsored Lidl budget-haul Short with price graphics"
+  },
+  {
+   "id": "nsIVE20ixMM",
+   "url": "https://www.youtube.com/watch?v=nsIVE20ixMM",
+   "title_listing": "WE BOUGHT FIREWORKS FOR 600 EUROS! #fireworks #shoppingtrip #newyearseve",
+   "title_info": "WIR HABEN FÜR 600 EURO FEUERWERK GEKAUFT! #feuerwerk #einkaufstour #silvester",
+   "format": "short_haul_spend",
+   "upload_date": "20241208",
+   "duration_s": 30.51,
+   "views": 590741,
+   "likes": 9431,
+   "width": 360,
+   "height": 640,
+   "fps": 30,
+   "aspect": "9:16",
+   "language": "de",
+   "scene_changes_0_3": 23,
+   "cut_events_merged_1s": 16,
+   "cut_events_per_min": 31.47,
+   "audio": {
+    "integrated_lufs": -18.0,
+    "lra_lu": 1.9,
+    "true_peak_dbfs": -4.0,
+    "silences_over_1s_below_-40dB": 0,
+    "rms_level_db": -20.437724,
+    "peak_level_db": -3.979995,
+    "momentary_p10_p50_p90": [
+     -22.0,
+     -18.3,
+     -15.9
+    ],
+    "share_momentary_above_-12": 0.0
+   },
+   "transcript_words": 112,
+   "transcript_sound_tags": 0,
+   "speech_wpm_over_duration": 220.3,
+   "signature_outro_phrase_present": false,
+   "contact_sheets": {
+    "scene": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\nsIVE20ixMM\\sheet_scene.png",
+    "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\nsIVE20ixMM\\sheet_interval.png",
+    "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\nsIVE20ixMM\\sheet_intro.png"
+   },
+   "description_head": "✔️Seriöse Feuerwerk Online Shops✔️ | ▪️ Pyro Team Store: https://www.pyroteam-store.de/?wsa=MEsc | GUTSCHEIN Pyro Team Store in Kombi mit Link: 5MESCYT |  | ▪️ Pyroland",
+   "why_chosen": "most-viewed haul Short (591k)"
+  },
+  {
+   "id": "r8A57tnbyKA",
+   "url": "https://www.youtube.com/watch?v=r8A57tnbyKA",
+   "title_listing": "What do you prefer? Let us know in the comments! #fireworks #newyearseve #shoppingtrip",
+   "title_info": "Was findest du besser schreibs in die Kommentare!  #feuerwerk #silvester #einkaufstour",
+   "format": "short_versus_poll",
+   "upload_date": "20251216",
+   "duration_s": 8.06,
+   "views": 106828,
+   "likes": 1224,
+   "width": 360,
+   "height": 640,
+   "fps": 24,
+   "aspect": "9:16",
+   "language": "de",
+   "scene_changes_0_3": 1,
+   "cut_events_merged_1s": 1,
+   "cut_events_per_min": 7.44,
+   "audio": {
+    "integrated_lufs": -21.4,
+    "lra_lu": 7.0,
+    "true_peak_dbfs": -6.9,
+    "silences_over_1s_below_-40dB": 0,
+    "rms_level_db": -25.721371,
+    "peak_level_db": -6.93649,
+    "momentary_p10_p50_p90": [
+     -30.6,
+     -27.5,
+     -18.0
+    ],
+    "share_momentary_above_-12": 0.0
+   },
+   "transcript_words": 9,
+   "transcript_sound_tags": 1,
+   "speech_wpm_over_duration": 67.0,
+   "signature_outro_phrase_present": false,
+   "contact_sheets": {
+    "scene": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\r8A57tnbyKA\\sheet_scene.png",
+    "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\r8A57tnbyKA\\sheet_interval.png",
+    "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\r8A57tnbyKA\\sheet_intro.png"
+   },
+   "description_head": "✔️Seriöse Feuerwerk Online Shops✔️ | ▪️ Pyro Team Store: https://www.pyroteam-store.de/?wsa=MEsc | GUTSCHEIN Pyro Team Store in Kombi mit Link: 5MESCYT |  | ▪️ Pyroland",
+   "why_chosen": "most-viewed versus/poll Short (107k)"
+  },
+  {
+   "id": "sgUxhOUxqZ0",
+   "url": "https://www.youtube.com/watch?v=sgUxhOUxqZ0",
+   "title_listing": "😍🚧 Pyro News zum Feuerwerksverbot II Doch Feuerwerksverkauf erlaubt !? 🚧😍",
+   "title_info": "😍🚧 Pyro News zum Feuerwerksverbot II Doch Feuerwerksverkauf erlaubt !? 🚧😍",
+   "format": "pyro_news_politics",
+   "upload_date": "20201218",
+   "duration_s": 254.33,
+   "views": 30519,
+   "likes": 1548,
+   "width": 640,
+   "height": 360,
+   "fps": 30,
+   "aspect": "16:9",
+   "language": "de",
+   "scene_changes_0_3": 21,
+   "cut_events_merged_1s": 3,
+   "cut_events_per_min": 0.71,
+   "audio": {
+    "integrated_lufs": -27.4,
+    "lra_lu": 11.1,
+    "true_peak_dbfs": -7.7,
+    "silences_over_1s_below_-40dB": 0,
+    "rms_level_db": -29.267126,
+    "peak_level_db": -7.736475,
+    "momentary_p10_p50_p90": [
+     -35.6,
+     -30.7,
+     -24.9
+    ],
+    "share_momentary_above_-12": 0.0
+   },
+   "transcript_words": 677,
+   "transcript_sound_tags": 1,
+   "speech_wpm_over_duration": 159.7,
+   "signature_outro_phrase_present": true,
+   "contact_sheets": {
+    "scene": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\sgUxhOUxqZ0\\sheet_scene.png",
+    "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\sgUxhOUxqZ0\\sheet_interval.png",
+    "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\sgUxhOUxqZ0\\sheet_intro.png"
+   },
+   "description_head": "😍🚧 Pyro News zum Feuerwerksverbot II Doch Feuerwerksverkauf erlaubt !? 🚧😍 |  | Link zum Beweisfoto zum Feuerwerksverkauf: https://www.mediafire.com/file/xyq4l6s63ku",
+   "why_chosen": "most-viewed pyro-news video tier (30k, 2020), dormant format"
+  },
+  {
+   "id": "tDi6cJFBP0s",
+   "url": "https://www.youtube.com/watch?v=tDi6cJFBP0s",
+   "title_listing": "Dort bekommst du die BESTEN BÖLLER für Silvester! 🔥",
+   "title_info": "Dort bekommst du die BESTEN BÖLLER für Silvester! 🔥",
+   "format": "assortment_product_videos",
+   "upload_date": "20241224",
+   "duration_s": 507.08,
+   "views": 34438,
+   "likes": 941,
+   "width": 640,
+   "height": 360,
+   "fps": 30,
+   "aspect": "16:9",
+   "language": "de",
+   "scene_changes_0_3": 148,
+   "cut_events_merged_1s": 110,
+   "cut_events_per_min": 13.02,
+   "audio": {
+    "integrated_lufs": -17.2,
+    "lra_lu": 10.6,
+    "true_peak_dbfs": 1.9,
+    "silences_over_1s_below_-40dB": 0,
+    "rms_level_db": -20.313952,
+    "peak_level_db": 1.893427,
+    "momentary_p10_p50_p90": [
+     -32.3,
+     -19.6,
+     -14.0
+    ],
+    "share_momentary_above_-12": 0.027
+   },
+   "transcript_words": 1019,
+   "transcript_sound_tags": 0,
+   "speech_wpm_over_duration": 120.6,
+   "signature_outro_phrase_present": true,
+   "contact_sheets": {
+    "scene": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\tDi6cJFBP0s\\sheet_scene.png",
+    "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\tDi6cJFBP0s\\sheet_interval.png",
+    "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\tDi6cJFBP0s\\sheet_intro.png"
+   },
+   "description_head": "🚀💥 Die besten Böller für Silvester 2024! 🎆 | In diesem Video zeige ich dir, wo du die krassesten Böller für das ultimative Silvester-Feuerwerk bekommst. Von klass",
+   "why_chosen": "most-viewed 2024/25 'where to buy' video (34k)"
+  },
+  {
+   "id": "t_BTkcPy5sw",
+   "url": "https://www.youtube.com/watch?v=t_BTkcPy5sw",
+   "title_listing": "THESE 10 FIREWORKS YOU NEED FOR NEW YEAR'S EVE! 🔥",
+   "title_info": "DIESE 10 FEUERWERK ARTIKEL BRAUCHST DU FÜR SILVESTER! 🔥",
+   "format": "ranking_topN",
+   "upload_date": "20241206",
+   "duration_s": 580.34,
+   "views": 51661,
+   "likes": 1340,
+   "width": 640,
+   "height": 360,
+   "fps": 30,
+   "aspect": "16:9",
+   "language": "en-US",
+   "scene_changes_0_3": 69,
+   "cut_events_merged_1s": 54,
+   "cut_events_per_min": 5.58,
+   "audio": {
+    "integrated_lufs": -17.4,
+    "lra_lu": 5.1,
+    "true_peak_dbfs": 0.7,
+    "silences_over_1s_below_-40dB": 0,
+    "rms_level_db": -19.529958,
+    "peak_level_db": 0.393812,
+    "momentary_p10_p50_p90": [
+     -27.4,
+     -19.2,
+     -14.4
+    ],
+    "share_momentary_above_-12": 0.018
+   },
+   "transcript_words": 1414,
+   "transcript_sound_tags": 2,
+   "speech_wpm_over_duration": 146.2,
+   "signature_outro_phrase_present": true,
+   "contact_sheets": {
+    "scene": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\t_BTkcPy5sw\\sheet_scene.png",
+    "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\t_BTkcPy5sw\\sheet_interval.png",
+    "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\t_BTkcPy5sw\\sheet_intro.png"
+   },
+   "description_head": "In diesem Video zeige ich dir die Top 10 Feuerwerk-Artikel, die auf keinen Fall an Silvester fehlen dürfen! 💥 Egal ob Raketen, Batterien oder spektakuläre Fontä",
+   "why_chosen": "owner favourite; most-viewed ranking of 2024/25 (51k)"
+  },
+  {
+   "id": "xCoOYkqzgDo",
+   "url": "https://www.youtube.com/watch?v=xCoOYkqzgDo",
+   "title_listing": "Gargoyle WECO Feuerwerkbatterie aus dem @Lidl [WERBUNG] #lidlde #lidllohntsich #feuerwerklidl",
+   "title_info": "Gargoyle WECO Feuerwerkbatterie aus dem @Lidl [WERBUNG] #lidlde #lidllohntsich #feuerwerklidl",
+   "format": "short_sponsored_lidl",
+   "upload_date": "20251227",
+   "duration_s": 20.71,
+   "views": 5554,
+   "likes": 91,
+   "width": 360,
+   "height": 640,
+   "fps": 24,
+   "aspect": "9:16",
+   "language": null,
+   "scene_changes_0_3": 1,
+   "cut_events_merged_1s": 1,
+   "cut_events_per_min": 2.9,
+   "audio": {
+    "integrated_lufs": -16.3,
+    "lra_lu": 11.5,
+    "true_peak_dbfs": 0.3,
+    "silences_over_1s_below_-40dB": 0,
+    "rms_level_db": -18.960023,
+    "peak_level_db": 0.247256,
+    "momentary_p10_p50_p90": [
+     -33.4,
+     -23.0,
+     -12.9
+    ],
+    "share_momentary_above_-12": 0.072
+   },
+   "transcript_words": 0,
+   "transcript_sound_tags": 0,
+   "speech_wpm_over_duration": 0,
+   "signature_outro_phrase_present": false,
+   "contact_sheets": {
+    "scene": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\xCoOYkqzgDo\\sheet_scene.png",
+    "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\xCoOYkqzgDo\\sheet_interval.png",
+    "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\xCoOYkqzgDo\\sheet_intro.png"
+   },
+   "description_head": "Einer der größten Pyro Discords in Deutschland: | ▪️ Pyro Discord: https://discord.gg/dPRH8D6 | Hier könnt ihr euch mit anderen Pyros unterhalten und Neuigkeiten au",
+   "why_chosen": "newest sponsored Lidl battery-test Short"
+  },
+  {
+   "id": "y1q4lpEEFcI",
+   "url": "https://www.youtube.com/watch?v=y1q4lpEEFcI",
+   "title_listing": "Tip Tap Tube rocket assortment from @pyroland #newyearseve #fireworks #pyroland",
+   "title_info": "Tip Tap Tube Raketensortiment von @pyroland #silvester #feuerwerk #pyroland",
+   "format": "short_pyroland_product",
+   "upload_date": "20260115",
+   "duration_s": 160.81,
+   "views": 16470,
+   "likes": 453,
+   "width": 360,
+   "height": 640,
+   "fps": 30,
+   "aspect": "9:16",
+   "language": "de",
+   "scene_changes_0_3": 10,
+   "cut_events_merged_1s": 10,
+   "cut_events_per_min": 3.73,
+   "audio": {
+    "integrated_lufs": -15.7,
+    "lra_lu": 12.5,
+    "true_peak_dbfs": 1.1,
+    "silences_over_1s_below_-40dB": 0,
+    "rms_level_db": -19.488144,
+    "peak_level_db": 0.782503,
+    "momentary_p10_p50_p90": [
+     -31.6,
+     -21.6,
+     -12.1
+    ],
+    "share_momentary_above_-12": 0.093
+   },
+   "transcript_words": 61,
+   "transcript_sound_tags": 1,
+   "speech_wpm_over_duration": 22.8,
+   "signature_outro_phrase_present": false,
+   "contact_sheets": {
+    "scene": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\y1q4lpEEFcI\\sheet_scene.png",
+    "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\y1q4lpEEFcI\\sheet_interval.png",
+    "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\y1q4lpEEFcI\\sheet_intro.png"
+   },
+   "description_head": "✔️Seriöse Feuerwerk Online Shops✔️ | ▪️ Pyro Team Store: https://www.pyroteam-store.de/?wsa=MEsc | GUTSCHEIN Pyro Team Store in Kombi mit Link: 5MESCYT |  | ▪️ Pyroland",
+   "why_chosen": "newest Short; most-viewed Pyroland product short"
+  },
+  {
+   "id": "y_mj09m0XB4",
+   "url": "https://www.youtube.com/watch?v=y_mj09m0XB4",
+   "title_listing": "0 UHR FEUERWERK ESKALATION 🔥😍 | UNCUT",
+   "title_info": "0 UHR FEUERWERK ESKALATION 🔥😍 | UNCUT",
+   "format": "nye_vlog_midnight",
+   "upload_date": "20251226",
+   "duration_s": 665.23,
+   "views": 757,
+   "likes": 45,
+   "width": 640,
+   "height": 360,
+   "fps": 30,
+   "aspect": "16:9",
+   "language": null,
+   "scene_changes_0_3": 1,
+   "cut_events_merged_1s": 1,
+   "cut_events_per_min": 0.09,
+   "audio": {
+    "integrated_lufs": -18.1,
+    "lra_lu": 6.3,
+    "true_peak_dbfs": 1.1,
+    "silences_over_1s_below_-40dB": 0,
+    "rms_level_db": -20.805984,
+    "peak_level_db": 1.051805,
+    "momentary_p10_p50_p90": [
+     -26.5,
+     -18.9,
+     -15.5
+    ],
+    "share_momentary_above_-12": 0.001
+   },
+   "transcript_words": 0,
+   "transcript_sound_tags": 0,
+   "speech_wpm_over_duration": 0,
+   "signature_outro_phrase_present": false,
+   "contact_sheets": {
+    "scene": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\y_mj09m0XB4\\sheet_scene.png",
+    "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\y_mj09m0XB4\\sheet_interval.png",
+    "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\y_mj09m0XB4\\sheet_intro.png"
+   },
+   "description_head": "✔️Seriöse Feuerwerk Online Shops✔️ | ▪️ Pyro Team Store: https://www.pyroteam-store.de/?wsa=MEsc | GUTSCHEIN Pyro Team Store in Kombi mit Link: 5MESCYT |  | ▪️ Pyroland",
+   "why_chosen": "newest midnight/uncut format"
+  },
+  {
+   "id": "zIxejdVAa0E",
+   "url": "https://www.youtube.com/watch?v=zIxejdVAa0E",
+   "title_listing": "HAHAH Markiere Bro... #einkaufstour #feuerwerk #pyro #meme",
+   "title_info": "HAHAH Markiere Bro... #einkaufstour #feuerwerk #pyro #meme",
+   "format": "short_meme",
+   "upload_date": "20251219",
+   "duration_s": 6.89,
+   "views": 985896,
+   "likes": 7325,
+   "width": 360,
+   "height": 640,
+   "fps": 30,
+   "aspect": "9:16",
+   "language": null,
+   "scene_changes_0_3": 0,
+   "cut_events_merged_1s": 0,
+   "cut_events_per_min": 0.0,
+   "audio": {
+    "integrated_lufs": -17.6,
+    "lra_lu": 2.2,
+    "true_peak_dbfs": -6.1,
+    "silences_over_1s_below_-40dB": 0,
+    "rms_level_db": -21.354506,
+    "peak_level_db": -6.159543,
+    "momentary_p10_p50_p90": [
+     -29.8,
+     -18.9,
+     -14.8
+    ],
+    "share_momentary_above_-12": 0.0
+   },
+   "transcript_words": 0,
+   "transcript_sound_tags": 0,
+   "speech_wpm_over_duration": 0,
+   "signature_outro_phrase_present": false,
+   "contact_sheets": {
+    "scene": null,
+    "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\zIxejdVAa0E\\sheet_interval.png",
+    "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\zIxejdVAa0E\\sheet_intro.png"
+   },
+   "description_head": "✔️Seriöse Feuerwerk Online Shops✔️ | ▪️ Pyro Team Store: https://www.pyroteam-store.de/?wsa=MEsc | GUTSCHEIN Pyro Team Store in Kombi mit Link: 5MESCYT |  | ▪️ Pyroland",
+   "why_chosen": "most-viewed Short of the channel (986k), meme"
+  }
+ ],
+ "recurring_elements": [
+  {
+   "element": "fire end screen (~20 s): lava/fire plate with wolf mascot, 'ABONNIEREN' / 'WEITER SCHAUEN' comic caps, Instagram handles, entered via pixel dissolve",
+   "observed_in": [
+    "t_BTkcPy5sw",
+    "9etWVDZnyOs",
+    "d2ChnPz3FRg",
+    "OkjnKFjRFt4",
+    "dru73YpbQ4Y",
+    "tDi6cJFBP0s",
+    "_Ka5c6jMYRg",
+    "y_mj09m0XB4"
+   ],
+   "of_long_samples": 11,
+   "confidence": "high",
+   "evidence": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames/hi/t_BTkcPy5sw_hi_00565.0.png"
+  },
+  {
+   "element": "outro catchphrase 'abonnieren, liken und Schwarzpulver inhalieren'",
+   "observed_in": [
+    "9etWVDZnyOs",
+    "OkjnKFjRFt4",
+    "ZUSKEXTAuKI",
+    "bw7fkdSK1Vk",
+    "dru73YpbQ4Y",
+    "sgUxhOUxqZ0",
+    "tDi6cJFBP0s",
+    "t_BTkcPy5sw"
+   ],
+   "note": "absent only in no-speech videos and the scripted sponsored ranking",
+   "confidence": "high"
+  },
+  {
+   "element": "radial zoom-tunnel transition into channel-membership plug ('Kanalmitglied werden', 'EMOJIS', 'NEU') on fire/wolf plate in first 30 s",
+   "observed_in": [
+    "t_BTkcPy5sw",
+    "d2ChnPz3FRg",
+    "OkjnKFjRFt4",
+    "tDi6cJFBP0s",
+    "bw7fkdSK1Vk",
+    "ZUSKEXTAuKI"
+   ],
+   "confidence": "high",
+   "evidence": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames/hi/d2ChnPz3FRg_hi_00018.9.png"
+  },
+  {
+   "element": "product cut-out 'stickers' with white outer glow, slight tilt, over night fireworks or orange fire plate",
+   "observed_in": [
+    "t_BTkcPy5sw",
+    "d2ChnPz3FRg",
+    "bw7fkdSK1Vk",
+    "ZUSKEXTAuKI",
+    "tDi6cJFBP0s",
+    "r8A57tnbyKA",
+    "hPWgWyzYtq8",
+    "zIxejdVAa0E"
+   ],
+   "confidence": "high"
+  },
+  {
+   "element": "sponsor disclosure label 'Werbung'/'WERBUNG' top-right for the whole video",
+   "observed_in": [
+    "9etWVDZnyOs",
+    "d2ChnPz3FRg",
+    "OkjnKFjRFt4",
+    "xCoOYkqzgDo",
+    "hPWgWyzYtq8",
+    "y1q4lpEEFcI"
+   ],
+   "confidence": "high"
+  },
+  {
+   "element": "full-screen emojis and meme stock clips as punchlines",
+   "observed_in": [
+    "t_BTkcPy5sw",
+    "tDi6cJFBP0s",
+    "ZUSKEXTAuKI",
+    "bw7fkdSK1Vk"
+   ],
+   "confidence": "high"
+  },
+  {
+   "element": "credited third-party test footage (watermarks top-right / credits in description)",
+   "observed_in": [
+    "tDi6cJFBP0s",
+    "bw7fkdSK1Vk",
+    "_Ka5c6jMYRg"
+   ],
+   "confidence": "high"
+  }
+ ],
+ "thumbnail_system": {
+  "evidence": [
+   "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/thumbs/sheet_long_00.png",
+   "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/thumbs/sheet_long_01.png",
+   "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/thumbs/sheet_long_02.png",
+   "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/thumbs/sheet_long_03.png",
+   "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/thumbs/sheet_long_04.png",
+   "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/thumbs/sheet_long_05.png",
+   "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/thumbs/sheet_long_06.png",
+   "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/thumbs/sheet_long_07.png"
+  ],
+  "era_2022_2025": "blue radial speed-line/warp background, grey-white diagonal corner stripes (same motif as banner), 1-2 words huge comic caps (white, yellow or green) with black outline, big retailer logo, product cut-outs, retailer-style price tags, thick white or red arrows, emoji (heart eyes, mind blown, scream), black mystery box with '?', creator reaction pose",
+  "era_2020_2021": "red/orange fire background, wolf badge bottom-left, white comic caps with red/black outline, politician/meme photos",
+  "measured": [
+   "thumbnails_newest30_palette",
+   "thumbnails_newest30_saturated_accents",
+   "thumbnail_yellow_headline_PROSPEKT",
+   "thumbnails_2020_21_palette"
+  ],
+  "confidence": "high (218 thumbnails viewed at 320x180)"
+ },
+ "contact_sheets": {
+  "9etWVDZnyOs": {
+   "scene": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\9etWVDZnyOs\\sheet_scene.png",
+   "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\9etWVDZnyOs\\sheet_interval.png",
+   "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\9etWVDZnyOs\\sheet_intro.png"
+  },
+  "NEfxufh6YLw": {
+   "scene": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\NEfxufh6YLw\\sheet_scene.png",
+   "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\NEfxufh6YLw\\sheet_interval.png",
+   "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\NEfxufh6YLw\\sheet_intro.png"
+  },
+  "OkjnKFjRFt4": {
+   "scene": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\OkjnKFjRFt4\\sheet_scene.png",
+   "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\OkjnKFjRFt4\\sheet_interval.png",
+   "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\OkjnKFjRFt4\\sheet_intro.png"
+  },
+  "P_L7KHcB-_Y": {
+   "scene": null,
+   "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\P_L7KHcB-_Y\\sheet_interval.png",
+   "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\P_L7KHcB-_Y\\sheet_intro.png"
+  },
+  "ZUSKEXTAuKI": {
+   "scene": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\ZUSKEXTAuKI\\sheet_scene.png",
+   "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\ZUSKEXTAuKI\\sheet_interval.png",
+   "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\ZUSKEXTAuKI\\sheet_intro.png"
+  },
+  "_Ka5c6jMYRg": {
+   "scene": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\_Ka5c6jMYRg\\sheet_scene.png",
+   "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\_Ka5c6jMYRg\\sheet_interval.png",
+   "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\_Ka5c6jMYRg\\sheet_intro.png"
+  },
+  "bw7fkdSK1Vk": {
+   "scene": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\bw7fkdSK1Vk\\sheet_scene.png",
+   "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\bw7fkdSK1Vk\\sheet_interval.png",
+   "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\bw7fkdSK1Vk\\sheet_intro.png"
+  },
+  "d2ChnPz3FRg": {
+   "scene": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\d2ChnPz3FRg\\sheet_scene.png",
+   "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\d2ChnPz3FRg\\sheet_interval.png",
+   "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\d2ChnPz3FRg\\sheet_intro.png"
+  },
+  "dru73YpbQ4Y": {
+   "scene": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\dru73YpbQ4Y\\sheet_scene.png",
+   "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\dru73YpbQ4Y\\sheet_interval.png",
+   "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\dru73YpbQ4Y\\sheet_intro.png"
+  },
+  "hPWgWyzYtq8": {
+   "scene": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\hPWgWyzYtq8\\sheet_scene.png",
+   "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\hPWgWyzYtq8\\sheet_interval.png",
+   "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\hPWgWyzYtq8\\sheet_intro.png"
+  },
+  "nsIVE20ixMM": {
+   "scene": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\nsIVE20ixMM\\sheet_scene.png",
+   "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\nsIVE20ixMM\\sheet_interval.png",
+   "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\nsIVE20ixMM\\sheet_intro.png"
+  },
+  "r8A57tnbyKA": {
+   "scene": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\r8A57tnbyKA\\sheet_scene.png",
+   "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\r8A57tnbyKA\\sheet_interval.png",
+   "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\r8A57tnbyKA\\sheet_intro.png"
+  },
+  "sgUxhOUxqZ0": {
+   "scene": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\sgUxhOUxqZ0\\sheet_scene.png",
+   "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\sgUxhOUxqZ0\\sheet_interval.png",
+   "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\sgUxhOUxqZ0\\sheet_intro.png"
+  },
+  "tDi6cJFBP0s": {
+   "scene": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\tDi6cJFBP0s\\sheet_scene.png",
+   "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\tDi6cJFBP0s\\sheet_interval.png",
+   "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\tDi6cJFBP0s\\sheet_intro.png"
+  },
+  "t_BTkcPy5sw": {
+   "scene": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\t_BTkcPy5sw\\sheet_scene.png",
+   "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\t_BTkcPy5sw\\sheet_interval.png",
+   "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\t_BTkcPy5sw\\sheet_intro.png"
+  },
+  "xCoOYkqzgDo": {
+   "scene": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\xCoOYkqzgDo\\sheet_scene.png",
+   "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\xCoOYkqzgDo\\sheet_interval.png",
+   "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\xCoOYkqzgDo\\sheet_intro.png"
+  },
+  "y1q4lpEEFcI": {
+   "scene": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\y1q4lpEEFcI\\sheet_scene.png",
+   "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\y1q4lpEEFcI\\sheet_interval.png",
+   "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\y1q4lpEEFcI\\sheet_intro.png"
+  },
+  "y_mj09m0XB4": {
+   "scene": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\y_mj09m0XB4\\sheet_scene.png",
+   "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\y_mj09m0XB4\\sheet_interval.png",
+   "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\y_mj09m0XB4\\sheet_intro.png"
+  },
+  "zIxejdVAa0E": {
+   "scene": null,
+   "interval": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\zIxejdVAa0E\\sheet_interval.png",
+   "intro": "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames\\zIxejdVAa0E\\sheet_intro.png"
+  },
+  "shorts_composites": [
+   "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames/shorts_a.png",
+   "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/frames/shorts_b.png"
+  ],
+  "brand_assets": [
+   "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/thumbs/banner_small.png",
+   "C:/Users/L14/AppData/Local/Temp/claude/C--Users-L14-Documents-Programming-media-house/b2b35f84-7051-4739-8a2a-328ac470981f/scratchpad/channel/thumbs/avatar_small.png"
+  ]
+ },
+ "not_accessible": [
+  "YouTube Analytics (retention, CTR, traffic sources)",
+  "upload dates for non-sampled videos (flat listing)",
+  "audio listening (no human listening; music/SFX claims are inferred)",
+  "font files / project files",
+  "livestreams, community posts, channel trailer",
+  "Instagram/Discord/TikTok presence",
+  "durations of non-sampled Shorts"
+ ]
+}
