@@ -130,6 +130,8 @@ def test_only_the_pipeline_its_consumers_and_the_composition_root_depend_on_paci
         "media_house.modules.media_pipeline",
         "media_house.modules.editing_intelligence",
         "media_house.modules.broll_intelligence",
+        "media_house.modules.music_and_sound_design",  # Layer 4 reads the stored result
+        "media_house.modules.transition_engine",  # Layer 4 reads the stored result
         "media_house.bootstrap",
     )
     offenders = [

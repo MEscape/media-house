@@ -19,6 +19,7 @@ from media_house.modules.pacing_intelligence.domain.model import (
     Recommendation,
 )
 from media_house.modules.pacing_intelligence.domain.values import (
+    STORY_RUNTIME_BASIS,
     IssueKind,
     RecommendationType,
     Severity,
@@ -166,10 +167,11 @@ def _runtime(analysis: PacingAnalysis, add) -> None:  # type: ignore[no-untyped-
     d = analysis.duration
     if d.current_seconds is None or d.proposed_seconds is None:
         return
-    delta = sum(r.delta_seconds or 0.0 for r in analysis.recommendations)
-    if abs(d.current_seconds + delta - d.proposed_seconds) > 0.01 + 0.001 * len(
-        analysis.recommendations
-    ):
+    # Same rule as the engine: the story's runtime changes only inside its sections.
+    story_based = d.current_basis == STORY_RUNTIME_BASIS
+    counted = [r for r in analysis.recommendations if not story_based or r.section_id is not None]
+    delta = sum(r.delta_seconds or 0.0 for r in counted)
+    if abs(d.current_seconds + delta - d.proposed_seconds) > 0.01 + 0.001 * len(counted):
         add(
             IssueKind.DURATION,
             Severity.ERROR,

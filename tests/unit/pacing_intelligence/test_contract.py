@@ -385,3 +385,8 @@ def test_savings_in_material_the_story_left_out_do_not_change_the_story_runtime(
     assert result.pauses_of(PauseVerdict.LONG) or result.pauses_of(PauseVerdict.DEAD_AIR)
     assert result.duration.current_seconds == 4.0
     assert result.duration.proposed_seconds == 4.0  # the nine seconds are not in the story
+    # E2E regression (real ranking excerpt): the validator summed EVERY recommendation and
+    # rejected the engine's own story-runtime result as inconsistent.
+    outside = [r for r in result.recommendations if r.section_id is None and r.delta_seconds]
+    assert outside
+    assert not [e for e in checked(result, evidence) if e.kind is IssueKind.DURATION]

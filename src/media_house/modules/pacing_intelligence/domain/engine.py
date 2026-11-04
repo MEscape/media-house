@@ -62,6 +62,7 @@ from media_house.modules.pacing_intelligence.domain.validation import validate
 from media_house.modules.pacing_intelligence.domain.values import (
     ANALYZER_VERSION,
     SCHEMA_VERSION,
+    STORY_RUNTIME_BASIS,
     VOCABULARY_VERSION,
     IssueKind,
     RecommendationType,
@@ -352,7 +353,7 @@ def _current_runtime(
     run: _Run, evidence: Mapping[str, AssetEvidence], order: tuple[str, ...]
 ) -> tuple[float | None, str]:
     if run.narrative.total_seconds is not None:
-        return run.narrative.total_seconds, "story plan section lengths"
+        return run.narrative.total_seconds, STORY_RUNTIME_BASIS
     seconds = [t.seconds for t in run.timeline if t.seconds is not None]
     if seconds and len(seconds) == len([a for a in order if a in evidence]):
         return sum(seconds), "recording lengths added"

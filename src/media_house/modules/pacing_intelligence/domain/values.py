@@ -36,6 +36,8 @@ ANALYZER_VERSION = 1
 VOCABULARY_VERSION = 1
 DOCUMENT_TYPE = "pacing_analysis"
 RESULT_OPERATION = "pacing_analysis"
+#: ``DurationEstimate.current_basis`` when the runtime is the story's own section lengths.
+STORY_RUNTIME_BASIS = "story plan section lengths"
 
 
 class Basis(StrEnum):
