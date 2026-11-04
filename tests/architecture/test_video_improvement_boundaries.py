@@ -18,7 +18,7 @@ LIBRARY_CONTRACT = "media_house.modules.media_library.application.contracts"
 OTHERS = (
     "media_house.modules.audio_improvement",
     "media_house.modules.audio_intelligence",
-    "media_house.modules.image_adjustment",
+    "media_house.modules.visual_asset_generation",
     "media_house.modules.workspace",
 )
 

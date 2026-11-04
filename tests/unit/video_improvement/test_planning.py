@@ -415,3 +415,32 @@ class TestWarningsAndBypass:
 
         assert result.color is not None
         assert result.color.input_color == REC709
+
+
+class TestNightPreserve:
+    NIGHT = measurements(
+        luma_p1=0.0,
+        luma_p50=0.2,
+        luma_p99=0.45,
+        linear_p50=0.04,
+        linear_p99=1.0,
+        highlight_clip=0.005,
+        mean_saturation=0.08,
+        noise_sigma=0.012,
+        sharpness=0.05,
+    )
+
+    def test_natural_lifts_the_night_sky(self) -> None:
+        result = plan(self.NIGHT)
+
+        lifted = {"exposure", "midtone_lift", "contrast", "saturation"}
+        assert any(op(result, n).status is StageStatus.APPLIED for n in lifted)
+
+    def test_night_preserve_keeps_the_dark_sky_as_shot(self) -> None:
+        result = plan(self.NIGHT, profile=resolve_processing_profile("night_preserve"))
+
+        for name in ("exposure", "midtone_lift", "saturation"):
+            assert op(result, name).status is StageStatus.SKIPPED, name
+        assert result.operation("contrast") is None
+        assert result.denoise is None
+        assert result.sharpen is None

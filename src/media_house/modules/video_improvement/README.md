@@ -56,7 +56,7 @@ Two independent choices, both plain data:
 | | Answers | Examples |
 | --- | --- | --- |
 | **Source profile** (`domain/source.py`) | what the capture IS: colour encoding, how scene-referred footage is rendered | `generic`, `rec709`, `studio_camera`, `gopro_hero_9`, `gopro_flat`, `sony_slog3`, `panasonic_vlog` |
-| **Processing profile** (`domain/profiles.py`) | how it should LOOK and how much may be done | `natural` (default, least), `studio`, `outdoor`, `social` |
+| **Processing profile** (`domain/profiles.py`) | how it should LOOK and how much may be done | `natural` (default, least), `studio`, `outdoor`, `social`, `night_preserve` (night/fireworks: no exposure, lift, contrast or saturation push, no sharpening) |
 
 A camera is one entry in `_BUILTIN`; it never adds processing code. The source profile decides
 which processing profile is the default (a GoPro defaults to `outdoor`, a studio camera to

@@ -78,6 +78,21 @@ _BUILTIN: dict[str, ProcessingProfile] = {
         ),
         sharpen=SharpenSettings(soft_below=0.10, max_amount=0.9),
     ),
+    # Night footage (fireworks, night tests): the dark sky is intentional. No exposure, lift,
+    # contrast or saturation push (lifting it raises noise and banding), denoise only for heavy
+    # noise, no sharpening. White balance, black point and the highlight roll-off stay.
+    "night_preserve": replace(
+        _BASE,
+        name="night_preserve",
+        color=ColorSettings(
+            exposure_strength=0.0,
+            lift_strength=0.0,
+            max_contrast_boost=1.0,
+            saturation_strength=0.0,
+        ),
+        denoise=DenoiseSettings(trigger_sigma=0.03, full_strength_sigma=0.06),
+        sharpen=SharpenSettings(enabled=False),
+    ),
 }
 
 
