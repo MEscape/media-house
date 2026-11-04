@@ -36,6 +36,9 @@ class EditingProfile:
     pause_confirm: float = 0.8
     #: Emphasis score of the next word from which a pause is treated as deliberate.
     hold_before_emphasis: float = 0.7
+    #: Keep a long gap that is not confirmed silence (a loud gap is footage: a firework test
+    #: between two comments). Truly silent gaps are still shortened.
+    keep_unconfirmed_gaps: bool = False
     # --- content ---
     cut_fillers: bool = True
     cut_redundant: bool = True
@@ -131,6 +134,7 @@ _PROFILES: tuple[EditingProfile, ...] = (
         protected_functions=frozenset({"hook", "payoff", "caveat", "turning_point", "claim"}),
         pause_max=1.2,
         pause_keep=0.5,
+        keep_unconfirmed_gaps=True,
         cover_appetite=0.7,
         reveal_cue=True,
         section_transitions=True,
@@ -140,6 +144,7 @@ _PROFILES: tuple[EditingProfile, ...] = (
         "product_introduction",
         "A product shown and explained: claims need their demonstration.",
         protected_functions=frozenset({"hook", "payoff", "caveat", "demonstration", "claim"}),
+        keep_unconfirmed_gaps=True,
         cover_appetite=0.6,
     ),
     _profile(
@@ -148,6 +153,7 @@ _PROFILES: tuple[EditingProfile, ...] = (
         protected_functions=frozenset(
             {"hook", "payoff", "caveat", "demonstration", "claim", "evidence", "counterpoint"}
         ),
+        keep_unconfirmed_gaps=True,
         cover_appetite=0.6,
         trim_greeting=True,
     ),
@@ -157,6 +163,7 @@ _PROFILES: tuple[EditingProfile, ...] = (
         protected_functions=frozenset({"hook", "payoff", "caveat", "demonstration", "example"}),
         pause_max=1.6,
         pause_keep=0.7,
+        keep_unconfirmed_gaps=True,
         cut_fillers=False,
         cover_appetite=0.4,
         reveal_cue=True,

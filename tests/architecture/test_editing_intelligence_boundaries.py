@@ -19,13 +19,19 @@ EDITING = "media_house.modules.editing_intelligence"
 DOMAIN = f"{EDITING}.domain"
 MODULES_DIR = SRC / "media_house" / "modules"
 
-#: Responsibilities of modules that are planned but not built. Nothing may depend on them, and
-#: no empty package may reserve their names.
-FUTURE_MODULES = (
+#: Layer 4 modules run after the edit plan: the editor must never depend on them.
+LAYER4_MODULES = (
     "music_and_sound_design",
     "transition_engine",
     "motion_graphics_engine",
     "visual_style_engine",
+    "caption_engine",
+    "vfx_engine",
+    "visual_asset_generation",
+)
+#: Responsibilities of modules that are planned but not built. Nothing may depend on them, and
+#: no empty package may reserve their names.
+FUTURE_MODULES = (
     "edit_plan_compiler",
     "timeline_builder",
     "resolve_adapter",
@@ -144,7 +150,7 @@ def test_editing_names_no_timeline_backend_and_depends_on_no_future_module() -> 
     backends = re.compile(
         r"davinci|resolve_script|DaVinciResolveScript|fusionscript", re.IGNORECASE
     )
-    future = re.compile("|".join(FUTURE_MODULES))
+    future = re.compile("|".join(FUTURE_MODULES + LAYER4_MODULES))
     offenders = []
     for path in module_files():
         text = path.read_text(encoding="utf-8")

@@ -372,6 +372,8 @@ def _pause_cut(
         and pause.silence_ratio is not None
         and pause.silence_ratio >= profile.pause_confirm
     )
+    if not confirmed and profile.keep_unconfirmed_gaps:
+        return None
     confident = all((c.confidence or 0.0) >= profile.min_auto_confidence for c in (out_cp, in_cp))
     executable = confirmed and confident and ctx.audio.audio.word_level
     ratio = (

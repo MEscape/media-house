@@ -329,7 +329,9 @@ def continuity_facts(analysis: ContinuityAnalysis) -> ContinuityFacts:
         notes=tuple(notes),
         identity="",
     )
-    return replace(facts, identity=_digest(analysis.continuity_analysis_id, asdict(facts)))
+    # Content only: a new analysis id with the same verdicts must not re-plan the edit (the
+    # edit -> continuity -> edit loop never converged when the id was part of the key).
+    return replace(facts, identity=_digest(asdict(replace(facts, analysis_id=""))))
 
 
 # --- framing ---------------------------------------------------------------------------------
@@ -377,7 +379,7 @@ def framing_facts(analysis: ReframingAnalysis) -> FramingFacts:
         spans=tuple(spans),
         identity="",
     )
-    return replace(facts, identity=_digest(analysis.reframing_analysis_id, asdict(facts)))
+    return replace(facts, identity=_digest(asdict(replace(facts, analysis_id=""))))
 
 
 # --- b-roll ----------------------------------------------------------------------------------

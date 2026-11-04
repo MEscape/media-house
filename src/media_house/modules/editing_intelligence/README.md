@@ -119,6 +119,9 @@ forbids the owners' analysers and `ProcessRunner`).
 `generic`, `top_n`, `product_introduction`, `review`, `unboxing`, `talking_head`, `tutorial`, `interview`, `podcast`,
 `documentary`, `short`, `montage`. A profile is data: pause limits, filler/repeat policy, protected story functions,
 cover appetite, effects budget, whether jump cuts are part of the style. It never switches off a hard constraint.
+`keep_unconfirmed_gaps` (on in `top_n`, `unboxing`, `review`, `product_introduction`) keeps a long gap between
+words that is NOT confirmed silence: a loud gap is footage (a firework test between two comments). Silent gaps are
+still shortened.
 Default: the profile named like the story's format, else `generic`. Pass your own `EditingProfile` for one run.
 `TargetDuration(low, high, mode)`: `soft` (preference) or `hard` (constraint); without one, the story's target is a
 soft preference.

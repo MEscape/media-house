@@ -472,3 +472,19 @@ def test_media_the_inspection_found_unusable_is_reported() -> None:
     plan = plan_edit(st, {"a1": broken}, EditConfig(), meta())
 
     assert any(i.severity is Severity.WARNING and "unusable" in i.detail for i in plan.issues)
+
+
+@pytest.mark.parametrize("fmt", ["top_n", "talking_head"])
+def test_a_loud_gap_is_kept_as_footage_only_where_the_profile_says_so(fmt: str) -> None:
+    sentences = [S("jetzt zünden wir die batterie"), S("das war richtig stark", gap=8.0)]
+    config = EditConfig(profile=fmt)
+    loud, silent = (talk(sentences, silence=ratio) for ratio in (0.1, 0.95))
+    loud_plan = edit(story(loud, [Sec("all", (0, 1), "essential")], fmt=fmt), loud, config)
+    silent_plan = edit(story(silent, [Sec("all", (0, 1), "essential")], fmt=fmt), silent, config)
+
+    if fmt == "top_n":  # the firework test between two comments stays whole
+        assert len(audio(loud_plan)) == 1
+    else:
+        (trim,) = decision(loud_plan, "dec:0:u001").trims
+        assert trim.executability is Executability.NEEDS_REVIEW
+    assert len(audio(silent_plan)) == 2  # a truly silent gap is still shortened

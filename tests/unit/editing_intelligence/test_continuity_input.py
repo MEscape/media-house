@@ -113,3 +113,17 @@ def test_findings_are_shown_as_notes_and_the_stage_is_reported() -> None:
     assert stage.state is StageState.OK
     missing = next(s for s in base.stages if s.stage == "continuity_analysis")
     assert missing.state is StageState.NOT_AVAILABLE
+
+
+def test_the_continuity_identity_is_its_verdicts_not_the_analysis_id() -> None:
+    # E2E regression: with the analysis id in the identity every pipeline run re-planned the edit.
+    from dataclasses import replace
+
+    from media_house.modules.editing_intelligence.application.views import continuity_facts
+    from tests.support.cont_fakes import jump_analysis
+
+    found = jump_analysis()
+    again = replace(found, continuity_analysis_id="ca-rerun")
+
+    assert continuity_facts(again).identity == continuity_facts(found).identity
+    assert continuity_facts(again).analysis_id == "ca-rerun"  # provenance still names it
