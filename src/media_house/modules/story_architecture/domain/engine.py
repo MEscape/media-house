@@ -115,6 +115,12 @@ def plan_story(
     drafts = build_drafts(assets)
     if not drafts:
         raise NothingToPlan("the content analysis has no passages")
+    rates = [_words_per_minute(a) for a in assets]
+    if all(r is not None and r < t.min_words_per_minute for r in rates):
+        raise NothingToPlan(
+            f"only {max(r or 0.0 for r in rates):.1f} words per minute of recording: "
+            "too little speech to carry a story"
+        )
     index = Index(drafts, assets)
     beats_of = {d.section_id: build_beats(d) for d in drafts}
     all_beats = tuple(b for d in drafts for b in beats_of[d.section_id])
@@ -525,3 +531,12 @@ def _confidence(
         value=round(sum(v for _, v in components) / len(components), 4),
         components=tuple(components),
     )
+
+
+def _words_per_minute(asset: AssetFacts) -> float | None:
+    """Spoken words per minute of the whole recording (``None``: its length is unknown).
+
+    Words, not segment spans: one passage may join two shouts a minute apart."""
+    if not asset.duration or asset.duration <= 0:
+        return None
+    return sum(g.words for g in asset.segments) * 60.0 / asset.duration

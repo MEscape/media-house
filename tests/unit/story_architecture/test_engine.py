@@ -109,6 +109,18 @@ def test_an_empty_analysis_has_nothing_to_plan() -> None:
         plan_of(asset([], []))
 
 
+def test_a_few_shouts_over_a_long_take_are_no_story() -> None:
+    # E2E regression: 6 shouted words over an 85 s fireworks take became a 4 s edit (content
+    # joined the shouts 54 s apart into ONE passage, so the passage span is no speech measure).
+    shouts = [seg(1, "Feuerzeug! Jetzt, jetzt, jetzt! Los! Neues!", start=0.3, seconds=54.2)]
+    talk = " ".join(["Diese Batterie hat richtig viele Effekte und kostet wenig."] * 6)
+    spoken = [seg(1, talk, start=0.0, seconds=40.0), seg(2, talk, start=40.0, seconds=40.0)]
+
+    with pytest.raises(NothingToPlan, match="too little speech to carry a story"):
+        plan_of(replace(asset(shouts, [topic(1, 1, 2)]), duration=85.0))
+    assert plan_of(replace(asset(spoken, [topic(1, 1, 2)]), duration=85.0)).beats
+
+
 def test_a_bad_configuration_is_refused_before_any_work() -> None:
     with pytest.raises(InvalidStoryConfig):
         StoryConfig("no-such-format").resolve()

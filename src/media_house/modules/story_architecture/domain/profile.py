@@ -42,6 +42,9 @@ class Thresholds:
     #: A total this much (as a share) outside its target is flagged.
     duration_tolerance: float = 0.15
     visual_necessity_strength: float = 0.6
+    #: Fewer words per minute of recording than this (shouts over an uncut fireworks take;
+    #: talking is ~150) is no story: the recording takes the no-speech path and is kept whole.
+    min_words_per_minute: float = 15.0
 
     def problems(self) -> list[str]:
         unit = (
@@ -59,6 +62,8 @@ class Thresholds:
             out.append("optional_importance must be below essential_importance")
         if self.monotone_run < 2:
             out.append("monotone_run must be at least 2")
+        if self.min_words_per_minute < 0:
+            out.append("min_words_per_minute must not be negative")
         if self.long_section_seconds <= 0:
             out.append("long_section_seconds must be positive")
         return out

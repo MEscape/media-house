@@ -131,6 +131,18 @@ changes what is asked of the recording, never what the recording contains: an un
 an issue in the plan, not invented material. Thresholds are one `Thresholds` object; pass your own
 `FormatProfile` for a one-off format.
 
+Channel formats map onto these names; no new format is needed for them (decision F07 in
+`docs/layer4/cross-layer-reassessment.md`). Pass the name as `--story-format` and `--edit-profile`:
+
+| Channel format | Story format | Why |
+| --- | --- | --- |
+| Ranking ("Platz N") | `top_n` | preserved order; each "Platz N" starts its own segment |
+| Brochure / catalogue review | `unboxing` | preserved page order (`review` reorders by dependency) |
+| Shopping tour, unboxing | `unboxing` | preserved, chronological |
+| Assortment with voice-over | `top_n` or `unboxing` | as the recording is ordered |
+| Short with speech (haul, sponsored test) | `short` | |
+| Anything without speech (meme, versus poll, compilation, uncut take) | none: the no-speech path | the `story` task is `skipped_unavailable` (`nothing_to_plan`), not failed, and the tasks that need its plan are skipped with that reason |
+
 ## Wording model (optional, `domain/refine.py`)
 
 Off by default (`llm=False`), because the plan must be reproducible. When on, a model may only
