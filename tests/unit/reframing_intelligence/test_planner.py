@@ -267,6 +267,22 @@ def test_a_shot_without_tracks_is_a_placeholder_that_must_not_be_applied_unseen(
     assert score(p, ScoreName.SUBJECT_VISIBILITY) is None  # not stated, never read as good
 
 
+def test_a_night_sky_with_no_person_gets_an_executable_attention_crop_under_fireworks_sky() -> None:
+    sky = shot(attention=(0.7, 0.4))
+
+    fireworks = plan(sky, target=T916, prof=profile("fireworks_sky"))
+    shorts = plan(sky, target=T916, prof=profile("shorts_reels"))
+
+    assert fireworks.strategy is Strategy.STATIC_CROP and fireworks.executable
+    assert fireworks.feasibility is Feasibility.TRADEOFFS and fireworks.tradeoffs
+    assert fireworks.reasons == ("attention-point crop, no subject tracked",)
+    assert fireworks.keyframes[0].crop.center[0] == pytest.approx(0.7, abs=1e-3)
+    assert fireworks.confidence.value is None  # no subject evidence: never claimed as confident
+    assert any(i.kind is IssueKind.MISSING_EVIDENCE for i in fireworks.issues)
+    assert shorts.feasibility is Feasibility.UNCERTAIN and not shorts.executable
+    assert plan(shot(), target=T916, prof=profile("fireworks_sky")).executable is False
+
+
 def test_missing_tracks_in_a_source_of_the_right_shape_leave_the_framing_alone() -> None:
     p = plan(shot(), target=T169)
 

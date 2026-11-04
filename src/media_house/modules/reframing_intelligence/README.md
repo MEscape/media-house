@@ -9,7 +9,9 @@ recommends only: it never modifies media, renders, touches a timeline backend or
 ## Public API (`application/contracts.py` is the only importable file)
 
 ```python
-command = AnalyzeReframingCommand((asset_id,), TargetFormat.of("9:16"), ReframingConfig(profile="talking_head"))
+command = AnalyzeReframingCommand(
+    (asset_id,), TargetFormat.of("9:16"), ReframingConfig(profile="talking_head")
+)
 result = analyzer.execute(command, ctx)  # blocking (library reads): run it as a job
 analysis = result.value.analysis  # ReframingAnalysis; result.value.created is False on a cache hit
 for rec in analysis.covering(asset_id, start, end):  # what applies to a source range
@@ -133,8 +135,11 @@ placeholder that is NOT executable).
 
 ## Profiles and configuration (`domain/profile.py`)
 
-`generic talking_head interview_podcast product_review tutorial shorts_reels cinematic` are data (composition, motion,
-emphasis, quality policy, participants, adjacency); the story format picks one. A profile changes the recommendation, never a
+`generic talking_head interview_podcast product_review tutorial shorts_reels fireworks_sky cinematic` are data
+(composition, motion, emphasis, quality policy, participants, adjacency); the story format picks one. With
+`attention_crop_executable` (on only in `fireworks_sky`, opt-in), a shot where no subject was tracked gets an executable
+static window on the picture's attention point (`feasible_with_tradeoffs`, confidence unstated, the missing-subject
+issue kept) instead of a placeholder: a night sky has no person to track. A profile changes the recommendation, never a
 measurement. `ReframingConfig(profile, custom, safe_areas)` and `TargetFormat.of("9:16", width=, height=)` are the whole
 configuration (standard 16:9, 9:16 and 1:1 have standard sizes; a custom aspect names its own).
 

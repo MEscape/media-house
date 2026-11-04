@@ -125,6 +125,9 @@ class ReframingProfile:
     #: Propose "the original frame with a fill" when no crop can keep what is required. The
     #: treatment needs a capability no stage here provides, so it stays a proposal.
     allow_fill: bool = False
+    #: With no tracked subject, a static window on the picture's attention (saliency) point may be
+    #: applied instead of being a placeholder. For subjects nothing tracks (a firework in a sky).
+    attention_crop_executable: bool = False
 
     def problems(self) -> list[str]:
         c, m, e, q = self.composition, self.motion, self.emphasis, self.quality
@@ -192,6 +195,16 @@ PROFILES: Final[dict[str, ReframingProfile]] = {
             motion=Motion(dead_zone=0.08, max_speed=0.5, max_zoom_rate=0.15, min_dwell=1.0),
             emphasis=Emphasis(push_in=True, zoom=0.78, min_seconds=1.5),
             quality=Quality(upscale_ok=1.5, upscale_max=2.4),
+        ),
+        _p(
+            "fireworks_sky",
+            "Vertical night sky: as shorts_reels, and the attention point frames a shot no "
+            "person is tracked in (bursts, not people).",
+            composition=Composition(headroom=0.1, margin=0.02),
+            motion=Motion(dead_zone=0.08, max_speed=0.5, max_zoom_rate=0.15, min_dwell=1.0),
+            emphasis=Emphasis(push_in=True, zoom=0.78, min_seconds=1.5),
+            quality=Quality(upscale_ok=1.5, upscale_max=2.4),
+            attention_crop_executable=True,
         ),
         _p(
             "cinematic",

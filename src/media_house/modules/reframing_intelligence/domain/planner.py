@@ -766,6 +766,10 @@ def _without_subject(
             "keep the original framing: the source has the target's shape and no subject "
             "was tracked that a change could serve"
         ]
+    elif shot.attention is not None and profile.attention_crop_executable and not failed:
+        crop = crop_around(geometry, target, 1.0, *shot.attention).rounded()
+        strategy, feasibility, executable = Strategy.STATIC_CROP, Feasibility.TRADEOFFS, True
+        reasons = ["attention-point crop, no subject tracked"]
     else:
         cx, cy = shot.attention if shot.attention is not None else (0.5, 0.5)
         crop = crop_around(geometry, target, 1.0, cx, cy).rounded()
@@ -789,7 +793,7 @@ def _without_subject(
         resolution=resolution_of(m, geometry),
         confidence=confidence_of(Selection((), None, None, ()), m, shot),
         reasons=tuple(reasons),
-        tradeoffs=(),
+        tradeoffs=("static window on the attention point",) if executable and not equal else (),
         preferred_over=(),
         issues=tuple(issues),
         evidence=evidence,

@@ -223,13 +223,12 @@ def continuity_facts(analysis: ContinuityAnalysis) -> ContinuityFacts:
     return ContinuityFacts(
         analysis_id=analysis.continuity_analysis_id,
         cuts=tuple(cuts),
+        # Content only (no analysis id): a re-run continuity analysis with the same verdicts
+        # must not re-frame, or reframing -> edit -> continuity never converges.
         identity=digest(
             [
-                analysis.continuity_analysis_id,
-                [
-                    [c.out_asset, str(c.leaves), c.in_asset, str(c.resumes), c.risk, c.jump_cut]
-                    for c in cuts
-                ],
+                [c.out_asset, str(c.leaves), c.in_asset, str(c.resumes), c.risk, c.jump_cut]
+                for c in cuts
             ]
         ),
     )

@@ -160,3 +160,12 @@ def test_judged_cuts_become_source_moments_with_their_risk_and_whether_a_jump_cu
     cut = facts.cuts[0]
     assert cut.jump_cut and cut.risk is not None and cut.risk >= 0.5
     assert facts.analysis_id == found.continuity_analysis_id and facts.identity
+
+
+def test_a_rerun_continuity_analysis_with_the_same_verdicts_keeps_the_identity() -> None:
+    # E2E regression: the identity held the analysis id, so every pipeline run re-framed, re-planned
+    # the edit, re-judged its cuts and so on forever (a rerun was never fully reused).
+    found = jump_analysis()
+    again = replace(found, continuity_analysis_id="ca-rerun")
+
+    assert continuity_facts(again).identity == continuity_facts(found).identity
