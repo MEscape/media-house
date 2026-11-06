@@ -25,7 +25,11 @@ A configuration file (``--config``, TOML or JSON) may set: ``stages``, ``content
 ``reframing_target``, ``reframing_resolution``, ``reframing_profile``, ``reframing_safe_areas``,
 and for Layer 4: ``output_format``, ``output_resolution``, ``format_profile``, ``sponsored``,
 ``graphics_profile``, ``caption_profile``, ``transition_profile``, ``vfx_profile``,
-``sound_profile``, ``layer4_render``. Command-line options win over the file.
+``sound_profile``, ``layer4_render``, and for Layer 5: ``timeline_derivatives``,
+``timeline_conflict_policy``, ``timeline_fit``, ``timeline_full_rebuild``, and for DaVinci Resolve:
+``resolve_policy``, ``resolve_project``, ``resolve_adopt_project``, ``resolve_allow_switch``,
+``resolve_captions``, ``resolve_render_profile``, and for the audio mix: ``mix_profile``, ``mix_delivery``.
+Command-line options win over the file.
 
 Layer 4 (``--stages layer4`` = visual_style, graphics, captions, transitions, vfx, sound_design):
 add ``edit_plan`` to work on the edit; without it (or for a recording without speech) every
@@ -34,6 +38,34 @@ Layer 4 plan is made for the whole recording. The format comes from ONE place: `
 to its own unless its ``--<module>-profile`` is given. ``--report-json`` lists per asset the
 "layer4" package: every plan document id and rendered asset id. Import the sound library first
 with ``scratch/import_sound_library.py`` (same ``--home``).
+
+Layer 5 (``--stages timeline`` or ``--stages layer4,timeline``): compile the edit and every Layer 4
+plan of the run (the stored ones for plans the run does not make) into ONE validated
+``timeline_specification``, stored as a document of the clip. ``--report-json`` lists per asset the
+"timeline" package. A Layer 4 task of the run that failed blocks it; ``--timeline-derivatives
+prefer_improved`` points clips at the stored improved audio / video where one exists.
+
+``--stages timeline_build`` (implies ``timeline``) CONSTRUCTS the timeline from that specification:
+tracks that hold their clips in order, one source table (original, derivative, proxy), each
+picture clip's processing chain, transitions that join two named clips, mix instructions, markers,
+a dependency manifest and findings, stored as a document of the clip. ``--report-json`` lists the
+"built_timeline" package. A person's earlier changes to the stored build survive a rebuild
+(``--timeline-conflict-policy preserve|replace|review``); ``--timeline-full-rebuild`` rebuilds
+every element; ``--timeline-fit`` says how a source of another shape meets the frame.
+
+``--stages resolve_execute`` (implies ``timeline_build``) CARRIES THE TIMELINE OUT IN DAVINCI RESOLVE:
+a project, the media pool, tracks, clips, markers, then reads it back to verify it. Resolve must be
+running with External scripting set to Local (``--resolve-lib`` / ``--resolve-api`` if it is not in
+the default place); otherwise the task is ``skipped_unavailable``. What Resolve's scripting cannot
+do (transitions, retime, native effects, moving crops) is reported and marked in the timeline for a
+person to finish in Resolve; fixes made there are read back with ``scratch/resolve_sync.py``.
+``--stages audio_mix`` (implies ``timeline_build``; needs no Resolve) MIXES the timeline's sound: a
+versioned mix specification, one stem per bus (dialogue, production audio, music, effects, ambience), the
+final mix, loudness measured against the delivery (``--mix-delivery youtube|shorts|social|broadcast_r128``)
+and the mix profile (``--mix-profile generic|talking_head|tutorial|product_demo|cinematic``; default from the
+creator identity's format profile). A stem or mix whose inputs did not change is reused.
+``--resolve-policy`` says what may be done to a project that already has work (default
+``require_conflict_review``); ``--resolve-render youtube|master`` renders and checks the file.
 """
 
 import argparse
@@ -50,6 +82,8 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, PositiveInt, ValidationError
 
 from media_house.bootstrap.application import Application, StartupOptions
+from media_house.bootstrap.modules import installed_modules
+from media_house.core.modules import ApplicationModule
 from media_house.modules.media_pipeline.application.contracts import (
     DEFAULT_STAGES,
     LAYER4_STAGES,
@@ -65,6 +99,8 @@ from media_house.modules.media_pipeline.application.contracts import (
     TaskStatus,
 )
 from media_house.modules.reframing_intelligence.application.contracts import SafeArea
+from media_house.modules.resolve_adapter.infrastructure.install import ResolveInstall
+from media_house.modules.resolve_adapter.module import ResolveAdapterModule
 from media_house.shared.concurrency import CancellationToken, JobContext, JobProgress
 from media_house.shared.configuration import Environment
 from media_house.shared.errors import Err
@@ -132,6 +168,18 @@ class RunConfig(BaseModel):
     vfx_profile: str | None = None
     sound_profile: str | None = None
     layer4_render: bool | None = None
+    timeline_derivatives: str | None = None
+    timeline_conflict_policy: str | None = None
+    timeline_fit: str | None = None
+    timeline_full_rebuild: bool | None = None
+    resolve_policy: str | None = None
+    resolve_project: str | None = None
+    resolve_adopt_project: bool | None = None
+    resolve_allow_switch: bool | None = None
+    resolve_captions: str | None = None
+    resolve_render_profile: str | None = None
+    mix_profile: str | None = None
+    mix_delivery: str | None = None
 
 
 class ConsoleObserver:
@@ -383,6 +431,85 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Layer 4 plans only: render no graphics, captions, overlays, VFX clips or stem",
     )
+    add(
+        "--timeline-derivatives",
+        dest="timeline_derivatives",
+        choices=("original", "prefer_improved"),
+        help="which version of a recording the timeline points at (default: original)",
+    )
+    add(
+        "--timeline-conflict-policy",
+        dest="timeline_conflict_policy",
+        choices=("preserve", "replace", "review"),
+        help="when a new specification changes what a person changed (default: review)",
+    )
+    add(
+        "--timeline-fit",
+        dest="timeline_fit",
+        choices=("contain", "cover", "stretch", "none"),
+        help="how a source of another shape meets the frame (default: contain)",
+    )
+    add(
+        "--resolve-policy",
+        dest="resolve_policy",
+        choices=(
+            "create_new",
+            "update_managed_elements",
+            "preserve_manual_edits",
+            "require_conflict_review",
+            "full_rebuild_with_backup",
+        ),
+        help="what may be done to a Resolve project that already has work (default: "
+        "require_conflict_review)",
+    )
+    add(
+        "--mix-profile",
+        dest="mix_profile",
+        choices=("generic", "talking_head", "tutorial", "product_demo", "cinematic"),
+        help="how the audio buses are balanced and processed (default: from the creator identity)",
+    )
+    add(
+        "--mix-delivery",
+        dest="mix_delivery",
+        choices=("youtube", "shorts", "social", "broadcast_r128"),
+        help="loudness, true peak and format the mix must meet (default: youtube)",
+    )
+    add("--resolve-project", dest="resolve_project", help="name of the Resolve project")
+    add("--resolve-lib", dest="resolve_lib", type=Path, help="Resolve's fusionscript library")
+    add("--resolve-api", dest="resolve_api", type=Path, help="Resolve's Developer/Scripting folder")
+    add(
+        "--resolve-adopt-project",
+        dest="resolve_adopt_project",
+        action="store_true",
+        default=None,
+        help="use a Resolve project of that name that Media House did not make",
+    )
+    add(
+        "--resolve-allow-switch",
+        dest="resolve_allow_switch",
+        action="store_true",
+        default=None,
+        help="save and leave the project that is open in Resolve if it is another one",
+    )
+    add(
+        "--resolve-captions",
+        dest="resolve_captions",
+        choices=("rendered", "rendered_with_editable_cues"),
+        help="also import the caption cues as a subtitle file, to correct words in Resolve",
+    )
+    add(
+        "--resolve-render",
+        dest="resolve_render_profile",
+        choices=("youtube", "master"),
+        help="render the verified timeline with Resolve and check the file",
+    )
+    add(
+        "--timeline-full-rebuild",
+        dest="timeline_full_rebuild",
+        action="store_true",
+        default=None,
+        help="rebuild every element of the timeline instead of carrying over unchanged ones",
+    )
     add("--gpu-slots", type=positive, help="tasks that may use the GPU lane at once (default 1)")
     add("--cpu-slots", type=positive, help="tasks that may use the CPU lane at once (default 2)")
     add(
@@ -455,6 +582,18 @@ def settings_from(config: RunConfig) -> StageSettings:
         vfx_profile=config.vfx_profile,
         sound_profile=config.sound_profile,
         layer4_render=config.layer4_render is not False,
+        timeline_derivatives=config.timeline_derivatives,
+        timeline_conflict_policy=config.timeline_conflict_policy,
+        timeline_fit=config.timeline_fit,
+        timeline_full_rebuild=config.timeline_full_rebuild is True,
+        resolve_policy=config.resolve_policy,
+        resolve_project=config.resolve_project or "",
+        resolve_adopt_project=config.resolve_adopt_project is True,
+        resolve_allow_switch=config.resolve_allow_switch is True,
+        resolve_captions=config.resolve_captions,
+        resolve_render_profile=config.resolve_render_profile,
+        mix_profile=config.mix_profile,
+        mix_delivery=config.mix_delivery,
     )
 
 
@@ -494,6 +633,90 @@ def print_asset(asset: AssetReport, verbose: bool) -> None:
         for kind, plan in plans.items():
             if isinstance(plan, dict):
                 print(f"        {kind:<13} {plan.get('plan_asset_id')}")
+    print_timeline(asset)
+    print_built_timeline(asset)
+    print_resolve(asset)
+    print_mix(asset)
+
+
+def print_built_timeline(asset: AssetReport) -> None:
+    package = asset.build_package()
+    if package is None:
+        return
+    print(
+        f"  built timeline: {package['status']}  {package.get('plan_asset_id')}  "
+        f"{package.get('video_tracks')}V+{package.get('audio_tracks')}A tracks, "
+        f"{package.get('video_clips')} picture + {package.get('audio_clips')} sound clips, "
+        f"{package.get('transitions')} transitions, {package.get('markers')} markers; "
+        f"{package.get('unresolved')} unresolved, {package.get('unsupported')} unsupported, "
+        f"{package.get('reviews')} to review ({package.get('mode')}, "
+        f"{package.get('elements_reused')}/{package.get('elements_total')} carried over)"
+    )
+
+
+def with_resolve_install(lib: Path | None, api: Path | None) -> list[ApplicationModule]:
+    """The product's modules, with Resolve's scripting library where ``--resolve-lib`` /
+    ``--resolve-api`` say (Blackmagic's documented install location otherwise)."""
+    overrides = {
+        **({"RESOLVE_SCRIPT_LIB": str(lib)} if lib else {}),
+        **({"RESOLVE_SCRIPT_API": str(api)} if api else {}),
+    }
+    install = ResolveInstall.defaults(sys.platform, overrides)
+    return [
+        *(m for m in installed_modules() if m.name != "resolve_adapter"),
+        ResolveAdapterModule(install=install),
+    ]
+
+
+def print_mix(asset: AssetReport) -> None:
+    package = asset.mix_package()
+    if package is None:
+        return
+    if "state" not in package:
+        print(f"  audio mix: {package['status']}  {package.get('detail', '')}")
+        return
+    print(
+        f"  audio mix: {package['status']}  {package.get('state')}  profile {package.get('profile')}, "
+        f"delivery {package.get('delivery')}: {package.get('integrated_lufs')} LUFS, true peak "
+        f"{package.get('true_peak_dbtp')} dBTP, {package.get('stems')} stems "
+        f"({package.get('stems_reused')} reused); {package.get('errors')} errors, "
+        f"{package.get('warnings')} warnings  -> {package.get('mix_asset_id')}"
+    )
+
+
+def print_resolve(asset: AssetReport) -> None:
+    package = asset.resolve_package()
+    if package is None:
+        return
+    if "outcome" not in package:  # Resolve was not reached: nothing was done
+        print(f"  resolve: {package['status']}  {package.get('detail', '')}")
+        return
+    print(
+        f"  resolve: {package['status']}  {package.get('outcome', '')}  project "
+        f"{package.get('project', '')!r} ({package.get('resolve_edition', '')} "
+        f"{package.get('resolve_version', '')}): {package.get('executed')} executed, "
+        f"{package.get('partial')} left for a person, {package.get('unsupported')} unsupported, "
+        f"{package.get('failed')} failed, {package.get('verified')} verified; "
+        f"{package.get('open_conflicts')} open conflicts, {package.get('human_modified')} "
+        "changed by a person"
+    )
+    if package.get("render_status"):
+        print(
+            f"  resolve render: {package['render_status']} {package.get('render_outcome')} "
+            f"-> {package.get('render_asset_id')}"
+        )
+
+
+def print_timeline(asset: AssetReport) -> None:
+    package = asset.timeline_package()
+    if package is None:
+        return
+    print(
+        f"  timeline: {package['status']}  {package.get('plan_asset_id')}  "
+        f"{package.get('video_items')} picture, {package.get('audio_items')} sound, "
+        f"{package.get('overlays')} overlays, {package.get('warning_items')} warnings, "
+        f"{package.get('conflicts')} conflicts"
+    )
 
 
 def print_task(task: TaskReport, verbose: bool) -> None:
@@ -591,6 +814,18 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "vfx_profile",
                 "sound_profile",
                 "layer4_render",
+                "timeline_derivatives",
+                "timeline_conflict_policy",
+                "timeline_fit",
+                "timeline_full_rebuild",
+                "resolve_policy",
+                "resolve_project",
+                "resolve_adopt_project",
+                "resolve_allow_switch",
+                "resolve_captions",
+                "resolve_render_profile",
+                "mix_profile",
+                "mix_delivery",
             )
             if getattr(args, key) is not None
         }
@@ -613,6 +848,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             home=args.home,
             environment=Environment.DEVELOPMENT,
             shared_installs=True,  # models and HyperFrames are installed once per machine
+            modules=with_resolve_install(args.resolve_lib, args.resolve_api),
         )
     )
     try:

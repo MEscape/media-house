@@ -72,6 +72,13 @@ LAYER4_STAGES: frozenset[TaskKind] = frozenset(
 )
 
 
+#: The Layer 5 stages (``--stages timeline``): compile the edit and every Layer 4 plan into one
+#: validated ``timeline_specification``, and (``timeline_build``) construct the timeline from it.
+#: Requesting one pulls in what it needs; the Layer 4 plans are only waited for when the run
+#: asks for them (``--stages layer4,timeline``).
+LAYER5_STAGES: frozenset[TaskKind] = frozenset({TaskKind.TIMELINE, TaskKind.TIMELINE_BUILD})
+
+
 @dataclass(frozen=True, slots=True)
 class RunPipelineCommand:
     #: Files to import (identical content is stored once) ...
@@ -300,4 +307,10 @@ class RunPipeline:
         )
 
 
-__all__ = ["DEFAULT_STAGES", "LAYER4_STAGES", "RunPipeline", "RunPipelineCommand"]
+__all__ = [
+    "DEFAULT_STAGES",
+    "LAYER4_STAGES",
+    "LAYER5_STAGES",
+    "RunPipeline",
+    "RunPipelineCommand",
+]

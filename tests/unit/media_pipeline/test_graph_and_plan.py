@@ -123,6 +123,10 @@ def test_audio_only_asset_drops_picture_stages_and_their_dependents() -> None:
         K.RELATIONSHIPS,
         K.VISUAL_STYLE,  # a voice recording still gets a style and a soundtrack
         K.SOUND_DESIGN,
+        K.TIMELINE,  # a voice recording with music is a timeline too
+        K.TIMELINE_BUILD,
+        K.RESOLVE_EXECUTE,
+        K.AUDIO_MIX,
     }
     assert {K.THUMBNAIL, K.PROXY, K.VIDEO_ANALYSIS, K.ALIGNMENT} <= plan.not_applicable
     assert {K.GRAPHICS, K.CAPTIONS, K.TRANSITIONS, K.VFX} <= plan.not_applicable

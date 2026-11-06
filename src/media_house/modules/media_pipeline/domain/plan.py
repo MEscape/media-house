@@ -59,6 +59,27 @@ owning module, not guessed:
 * ``sound_design`` (CPU: the stem render) WANTS ``graphics``, ``transitions`` and ``captions``
   (their events become sync points), the story plan, pacing and audio analyses. It needs no
   picture: music under a voice recording is still sound design.
+* ``timeline`` (Layer 5; LIGHT: it only reads stored results and verifies files) compiles the
+  edit and every Layer 4 plan into the ``timeline_specification``. Like every Layer 4 task it
+  NEEDS the style and the inspection and WANTS the edit plan; it also WANTS the story plan, the
+  reframing analysis (crops) and ALL Layer 4 plans so it sees them. It waits for them but never
+  hides a failure: a Layer 4 plan that was part of the run and did not deliver is handed to the
+  compiler as undelivered, which blocks the timeline (a failed upstream is never a success).
+  Nothing waits for it, so there is no cycle. It does not need a picture: a voice recording
+  with music is a timeline too.
+* ``timeline_build`` (Layer 5; LIGHT: it builds in memory and stores one document) NEEDS the
+  ``timeline`` task and takes its specification in memory; nothing else. It is not in any
+  default set (``--stages timeline_build`` implies ``timeline`` and what it needs). A
+  specification that was not compiled makes it ``skipped_dependency``, never a build of an old one.
+* ``resolve_execute`` (Layer 5; LIGHT: the work happens inside Resolve) NEEDS ``timeline_build`` and
+  takes the built timeline in memory. It is opt-in and in no group of stages: it drives another
+  application, so a run only does it when asked (``--stages resolve_execute``). Resolve not being
+  installed or running makes it ``skipped_unavailable`` (nothing failed, nothing was done).
+* ``audio_mix`` (Layer 5; CPU: FFmpeg renders the stems and the mix) NEEDS ``timeline_build`` and
+  takes the built timeline in memory. Opt-in and in no group: it renders audio files, so a run only
+  does it when asked (``--stages audio_mix``). A timeline with no sound to mix is
+  ``skipped_unavailable``. Nothing waits for it and it needs neither Resolve nor
+  ``resolve_execute``: the mix is independent of any editing application.
 * Inspection joins every non-empty run (see ``plan_asset``): it is cheap, cached, and the only
   authority on which streams exist. A stage only WANTS it, so a failed inspection never blocks.
 * Improvement stages create new assets nothing downstream reads: analyses run on the original,
@@ -229,6 +250,23 @@ STAGES: Mapping[TaskKind, Stage] = {
             TaskKind.CAPTIONS,
         ),
     ),
+    TaskKind.TIMELINE: Stage(
+        Lane.LIGHT,
+        needs=_LAYER4_NEEDS,
+        wants=_k(
+            TaskKind.EDIT_PLAN,
+            TaskKind.STORY,
+            TaskKind.REFRAMING,
+            TaskKind.GRAPHICS,
+            TaskKind.CAPTIONS,
+            TaskKind.TRANSITIONS,
+            TaskKind.VFX,
+            TaskKind.SOUND_DESIGN,
+        ),
+    ),
+    TaskKind.TIMELINE_BUILD: Stage(Lane.LIGHT, needs=_k(TaskKind.TIMELINE)),
+    TaskKind.RESOLVE_EXECUTE: Stage(Lane.LIGHT, needs=_k(TaskKind.TIMELINE_BUILD)),
+    TaskKind.AUDIO_MIX: Stage(Lane.CPU, needs=_k(TaskKind.TIMELINE_BUILD)),
 }
 
 

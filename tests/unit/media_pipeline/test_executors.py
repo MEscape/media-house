@@ -59,6 +59,11 @@ def executors(settings: StageSettings | None = None, **owners: Any) -> ModuleExe
         vfx_planner=owners.get("vfx_planner", fail),
         sound_planner=owners.get("sound_planner", fail),
         stem_renderer=owners.get("stem_renderer", fail),
+        timeline_compiler=owners.get("timeline_compiler", fail),
+        timeline_builder=owners.get("timeline_builder", fail),
+        resolve_executor=owners.get("resolve_executor", fail),
+        resolve_renderer=owners.get("resolve_renderer", fail),
+        audio_mixer=owners.get("audio_mixer", fail),
         settings=settings,
     )
 

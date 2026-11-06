@@ -26,6 +26,16 @@ from media_house.modules.audio_intelligence.application.contracts import (
     AudioIntelligenceTimeline,
     TranscriptionConfig,
 )
+from media_house.modules.audio_mix_engine.application.contracts import (
+    AudioMixer,
+    JobState,
+    MixConfig,
+    NothingToMix,
+    RenderMixCommand,
+)
+from media_house.modules.audio_mix_engine.application.contracts import (
+    Severity as MixSeverity,
+)
 from media_house.modules.audio_visual_alignment.application.contracts import (
     Acquire,
     AlignCommand,
@@ -66,6 +76,16 @@ from media_house.modules.continuity_intelligence.application.contracts import (
 from media_house.modules.continuity_intelligence.application.contracts import (
     ResultState as ContinuityState,
 )
+from media_house.modules.edit_plan_compiler.application.contracts import (
+    DOCUMENT_TYPE as TIMELINE_DOCUMENT,
+)
+from media_house.modules.edit_plan_compiler.application.contracts import (
+    CompilerConfig,
+    CompileTimelineCommand,
+    DerivativePolicy,
+    TimelineCompiler,
+    TimelineSpecification,
+)
 from media_house.modules.editing_intelligence.application.contracts import (
     Acquire as EditAcquire,
 )
@@ -88,6 +108,7 @@ from media_house.modules.media_library.application.contracts import (
     MediaAssetDto,
     MediaLibrary,
 )
+from media_house.modules.media_pipeline.application.compile_source import timeline_source
 from media_house.modules.media_pipeline.application.edit_view import (
     EditView,
     no_speech_view,
@@ -130,6 +151,7 @@ from media_house.modules.music_and_sound_design.application.contracts import (
     PlanSoundDesignCommand,
     RenderSoundStemCommand,
     SoundDesignConfig,
+    SoundDesignPlan,
     SoundDesignPlanner,
     SoundStemRenderer,
 )
@@ -162,6 +184,20 @@ from media_house.modules.reframing_intelligence.application.contracts import (
 from media_house.modules.reframing_intelligence.application.contracts import (
     ResultState as ReframingState,
 )
+from media_house.modules.resolve_adapter.application.contracts import (
+    CaptionStrategy,
+    ExecuteTimelineCommand,
+    ExecutionPolicy,
+    InvalidAdapterConfig,
+    OperationStatus,
+    Outcome,
+    RenderCommand,
+    RenderConfig,
+    ResolveAdapterConfig,
+    ResolveExecutor,
+    ResolveRenderer,
+    ResolveUnavailable,
+)
 from media_house.modules.story_architecture.application.contracts import (
     Acquire as StoryAcquire,
 )
@@ -171,6 +207,19 @@ from media_house.modules.story_architecture.application.contracts import (
     StoryConfig,
     StoryPlan,
     StoryPlanner,
+)
+from media_house.modules.timeline_builder.application.contracts import (
+    DOCUMENT_TYPE as BUILT_DOCUMENT,
+)
+from media_house.modules.timeline_builder.application.contracts import (
+    BuilderConfig,
+    BuildStatus,
+    BuildTimelineCommand,
+    BuiltTimeline,
+    ConflictPolicy,
+    FitMode,
+    Severity,
+    TimelineBuilder,
 )
 from media_house.modules.transition_engine.application.contracts import (
     DOCUMENT_TYPE as TRANSITION_DOCUMENT,
@@ -193,6 +242,7 @@ from media_house.modules.vfx_engine.application.contracts import (
 from media_house.modules.vfx_engine.application.contracts import (
     PlanVfxCommand,
     VfxConfig,
+    VfxPlan,
     VfxPlanner,
 )
 from media_house.modules.video_improvement.application.contracts import (
@@ -222,11 +272,13 @@ _UNAVAILABLE_CODES = (
     "nothing_to_cover",
     "nothing_to_judge",
     "nothing_to_frame",
+    "nothing_to_mix",
     "nothing_to_plan",  # no speech: a meme, a compilation or an uncut take has no story to plan
     "nothing_to_edit",
     "nothing_to_score",  # Layer 4: a timeline with nothing to place (no clip)
     "nothing_to_treat",
     "nothing_to_transition",
+    "nothing_to_compile",  # Layer 5: an edit with no clip
 )
 _DEGRADED = {"not_available", "failed"}
 _NO_AUDIO = TaskResult(TaskStatus.SKIPPED_UNAVAILABLE, "the inspection found no audio stream")
@@ -297,6 +349,34 @@ class StageSettings:
     #: Render Layer 4 assets (graphics, captions, transition overlays, VFX clips, the sound
     #: stem). Off = plans only (every plan is still complete and stored).
     layer4_render: bool = True
+    #: Which version of a recording the timeline points at: ``original`` (default) or
+    #: ``prefer_improved`` (the stored improved audio / video where one exists).
+    timeline_derivatives: str | None = None
+    #: What happens when a new specification changes what a person changed in the built timeline
+    #: (``preserve`` / ``replace`` / ``review``, default ``review``), and how a source whose shape
+    #: differs meets the frame (``contain`` / ``cover`` / ``stretch`` / ``none``).
+    timeline_conflict_policy: str | None = None
+    timeline_fit: str | None = None
+    #: Rebuild every element of the timeline instead of carrying over the unchanged ones.
+    timeline_full_rebuild: bool = False
+    #: What may be done to a Resolve project that already holds work (create_new /
+    #: update_managed_elements / preserve_manual_edits / require_conflict_review /
+    #: full_rebuild_with_backup; default require_conflict_review) and which project it is.
+    resolve_policy: str | None = None
+    resolve_project: str = ""
+    #: Use a project that exists and was not made here; switch away from the project that is open.
+    resolve_adopt_project: bool = False
+    resolve_allow_switch: bool = False
+    #: ``rendered`` (default: the plan's caption clips) or ``rendered_with_editable_cues``.
+    resolve_captions: str | None = None
+    #: Render after the timeline is verified, with this profile (``youtube`` or ``master``).
+    resolve_render_profile: str | None = None
+    #: The audio mix: a mix profile (``generic`` / ``talking_head`` / ``tutorial`` /
+    #: ``product_demo`` /
+    #: ``cinematic``; default from the creator identity's format profile) and a delivery
+    #: (``youtube`` / ``shorts`` / ``social`` / ``broadcast_r128``).
+    mix_profile: str | None = None
+    mix_delivery: str | None = None
     #: Never use the GPU. Only the device settings change; results keep their identity because
     #: the owners leave the device out of their cache keys.
     cpu_only: bool = False
@@ -401,6 +481,11 @@ class ModuleExecutors:
         vfx_planner: VfxPlanner,
         sound_planner: SoundDesignPlanner,
         stem_renderer: SoundStemRenderer,
+        timeline_compiler: TimelineCompiler,
+        timeline_builder: TimelineBuilder,
+        resolve_executor: ResolveExecutor,
+        resolve_renderer: ResolveRenderer,
+        audio_mixer: AudioMixer,
         settings: StageSettings | None = None,
     ) -> None:
         self._library = library
@@ -427,6 +512,11 @@ class ModuleExecutors:
         self._vfx_planner = vfx_planner
         self._sound_planner = sound_planner
         self._stem_renderer = stem_renderer
+        self._timeline_compiler = timeline_compiler
+        self._timeline_builder = timeline_builder
+        self._resolve_executor = resolve_executor
+        self._resolve_renderer = resolve_renderer
+        self._audio_mixer = audio_mixer
         self._settings = settings or StageSettings()
 
     def table(self) -> Mapping[TaskKind, TaskExecutor]:
@@ -453,6 +543,10 @@ class ModuleExecutors:
             TaskKind.TRANSITIONS: self.transitions,
             TaskKind.VFX: self.vfx,
             TaskKind.SOUND_DESIGN: self.sound_design,
+            TaskKind.TIMELINE: self.timeline,
+            TaskKind.TIMELINE_BUILD: self.timeline_build,
+            TaskKind.RESOLVE_EXECUTE: self.resolve_execute,
+            TaskKind.AUDIO_MIX: self.audio_mix,
         }
 
     def peeks(self) -> Mapping[TaskKind, TaskPeek]:
@@ -1381,6 +1475,320 @@ class ModuleExecutors:
             sync_events=len(events),
             credits=plan.credit_lines,
         )
+
+    # --- Layer 5: the timeline specification ------------------------------------------------
+    def timeline(self, job: TaskJob) -> TaskResult:
+        """Compile the edit and every Layer 4 plan of this run (the stored ones for the plans
+        the run did not make) into the validated timeline specification. A Layer 4 plan that
+        was part of the run and did not deliver blocks it: it is never compiled as a success."""
+        basis = self._basis(job)
+        if isinstance(basis, TaskResult):
+            return basis
+        s = self._settings
+        try:
+            config = CompilerConfig(
+                derivative_policy=DerivativePolicy(s.timeline_derivatives or "original")
+            )
+        except ValueError:
+            return TaskResult(
+                TaskStatus.FAILED,
+                f"unknown timeline_derivatives {s.timeline_derivatives!r} (original or "
+                "prefer_improved)",
+            )
+        command = CompileTimelineCommand(
+            source=timeline_source(basis.view, self._upstream(job, TaskKind.EDIT_PLAN, EditPlan)),
+            style=basis.style.style,
+            style_ref=basis.style.ref,
+            config=config,
+            graphics=self._upstream(job, TaskKind.GRAPHICS, GraphicsPlan),
+            captions=self._upstream(job, TaskKind.CAPTIONS, CaptionPlan),
+            transitions=self._upstream(job, TaskKind.TRANSITIONS, TransitionPlan),
+            vfx=self._upstream(job, TaskKind.VFX, VfxPlan),
+            sound=self._upstream(job, TaskKind.SOUND_DESIGN, SoundDesignPlan),
+            undelivered=self._undelivered(job),
+        )
+        match self._timeline_compiler.execute(command, job.ctx):
+            case Ok(result):
+                spec = result.spec
+                return self._planned(
+                    basis,
+                    created=result.created,
+                    state=spec.state.value,
+                    document=result.asset,
+                    document_type=TIMELINE_DOCUMENT,
+                    plan_version=spec.compilation.compilation_version,
+                    rendered=[],
+                    payload=spec,
+                    warnings=tuple(i.message for i in (*spec.conflicts(), *spec.warnings())),
+                    timeline_id=spec.timeline_id,
+                    spec_hash=spec.compilation.spec_hash,
+                    video_items=len(spec.video),
+                    audio_items=len(spec.audio),
+                    overlays=len(spec.overlays),
+                    transitions=len(spec.transitions),
+                    warning_items=len(spec.warnings()),
+                    conflicts=len(spec.conflicts()),
+                    auto_resolved=len(spec.auto_resolved()),
+                    units=spec.compilation.units_total,
+                    units_reused=spec.compilation.units_reused,
+                )
+            case Err(error):
+                return _from_error(error)
+
+    def timeline_build(self, job: TaskJob) -> TaskResult:
+        """Construct the timeline from the specification the ``timeline`` task just delivered
+        (in memory, with the library document it was stored as). A person's earlier changes to the
+        stored build are carried through the conflict policy, never overwritten."""
+        spec = self._upstream(job, TaskKind.TIMELINE, TimelineSpecification)
+        compiled = job.upstream.get(TaskId(job.id.asset_id, TaskKind.TIMELINE))
+        if spec is None or compiled is None:
+            return TaskResult(
+                TaskStatus.FAILED, "the timeline task delivered no specification to build from"
+            )
+        s = self._settings
+        try:
+            config = BuilderConfig(
+                conflict_policy=ConflictPolicy(s.timeline_conflict_policy or "review"),
+                fit_mode=FitMode(s.timeline_fit or "contain"),
+            )
+        except ValueError:
+            return TaskResult(
+                TaskStatus.FAILED,
+                f"unknown timeline conflict policy {s.timeline_conflict_policy!r} "
+                f"(preserve, replace or review) or fit {s.timeline_fit!r} "
+                "(contain, cover, stretch or none)",
+            )
+        document = compiled.facts.get("plan_asset_id")
+        command = BuildTimelineCommand(
+            spec=spec,
+            spec_asset_id=document if isinstance(document, str) else None,
+            config=config,
+            full_rebuild=s.timeline_full_rebuild,
+        )
+        match self._timeline_builder.execute(command, job.ctx):
+            case Ok(result):
+                built = result.timeline
+                issues = built.issues
+                partial = built.status is BuildStatus.PARTIAL
+                status = TaskStatus.SUCCEEDED if result.created else TaskStatus.REUSED
+                return TaskResult(
+                    TaskStatus.PARTIAL if partial else status,
+                    "unresolved, unsupported or open items remain" if partial else "",
+                    warnings=tuple(i.message for i in issues if i.severity is not Severity.INFO)[
+                        :5
+                    ],
+                    facts={
+                        "plan_asset_id": result.asset.id,
+                        "document_type": BUILT_DOCUMENT,
+                        "plan_version": built.build.build_version,
+                        "state": built.status.value,
+                        "timeline_id": built.timeline_id,
+                        "build_hash": built.build.build_hash,
+                        "mode": built.build.mode.value,
+                        "spec_asset_id": built.build.spec_asset_id,
+                        "video_tracks": built.counts.video_tracks,
+                        "audio_tracks": built.counts.audio_tracks,
+                        "video_clips": built.counts.video_clips,
+                        "audio_clips": built.counts.audio_clips,
+                        "transitions": built.counts.transitions,
+                        "markers": built.counts.markers,
+                        "unresolved": len(built.unresolved()),
+                        "unsupported": len(built.by_severity(Severity.UNSUPPORTED)),
+                        "reviews": len(built.by_severity(Severity.REVIEW)),
+                        "warning_items": len(built.by_severity(Severity.WARNING)),
+                        "elements_total": built.build.elements_total,
+                        "elements_reused": built.build.elements_reused,
+                    },
+                    payload=built,
+                )
+            case Err(error):
+                return _from_error(error)
+
+    def audio_mix(self, job: TaskJob) -> TaskResult:
+        """Mix the built timeline's sound: a specification, one stem per bus, the final mix,
+        measured against the delivery profile. Independent of any editing application."""
+        built = self._upstream(job, TaskKind.TIMELINE_BUILD, BuiltTimeline)
+        if built is None:
+            return TaskResult(TaskStatus.FAILED, "the build task delivered no built timeline")
+        s = self._settings
+        config = MixConfig(profile=s.mix_profile, delivery=s.mix_delivery)
+        match self._audio_mixer.execute(RenderMixCommand(timeline=built, config=config), job.ctx):
+            case Err(NothingToMix() as nothing):
+                return TaskResult(TaskStatus.SKIPPED_UNAVAILABLE, nothing.user_message)
+            case Err(error):
+                return _from_error(error)
+            case Ok(done):
+                r = done.result
+                mix = r.mix
+                errors = [
+                    i for i in r.issues if i.severity in (MixSeverity.ERROR, MixSeverity.CRITICAL)
+                ]
+                warnings = [i for i in r.issues if i.severity is MixSeverity.WARNING]
+                facts: dict[str, JsonValue] = {
+                    "specification_asset_id": done.spec_asset.id,
+                    "result_asset_id": done.result_asset.id,
+                    "mix_asset_id": mix.asset_id if mix else None,
+                    "state": r.state.value,
+                    "profile": r.profile,
+                    "delivery": r.delivery,
+                    "integrated_lufs": mix.measurement.integrated_lufs if mix else None,
+                    "true_peak_dbtp": mix.measurement.true_peak_dbtp if mix else None,
+                    "master_trim_db": r.master_trim_db,
+                    "stems": len(r.stems),
+                    "stems_reused": r.reused_stems,
+                    "errors": len(errors),
+                    "warnings": len(warnings),
+                }
+                notes = (*r.errors, *(i.message for i in errors), *(i.message for i in warnings))[
+                    :5
+                ]
+                if r.state in (JobState.FAILED, JobState.CANCELLED):
+                    return TaskResult(
+                        TaskStatus.FAILED,
+                        "; ".join(r.errors) or r.state.value,
+                        warnings=notes,
+                        facts=facts,
+                    )
+                if r.state is JobState.PARTIAL:
+                    return TaskResult(
+                        TaskStatus.PARTIAL,
+                        "the mix has errors against its delivery",
+                        warnings=notes,
+                        facts=facts,
+                    )
+                reused = mix is not None and mix.reused and r.reused_stems == len(r.stems)
+                return TaskResult(
+                    TaskStatus.REUSED if reused else TaskStatus.SUCCEEDED,
+                    warnings=notes,
+                    facts=facts,
+                )
+
+    def resolve_execute(self, job: TaskJob) -> TaskResult:
+        """Carry the built timeline out in DaVinci Resolve and verify it; optionally render it.
+
+        Resolve not being installed, running or reachable is ``skipped_unavailable`` (nothing
+        failed and nothing was done). Once Resolve was driven, the report's outcome is the task's
+        status: a timeline with instructions scripting cannot carry out is ``partial``."""
+        built = self._upstream(job, TaskKind.TIMELINE_BUILD, BuiltTimeline)
+        if built is None:
+            return TaskResult(TaskStatus.FAILED, "the build task delivered no built timeline")
+        s = self._settings
+        try:
+            config = ResolveAdapterConfig(
+                policy=ExecutionPolicy(s.resolve_policy or "require_conflict_review"),
+                project_name=s.resolve_project,
+                adopt_existing_project=s.resolve_adopt_project,
+                allow_project_switch=s.resolve_allow_switch,
+                caption_strategy=CaptionStrategy(s.resolve_captions or "rendered"),
+            )
+            render = (
+                RenderConfig(profile=s.resolve_render_profile) if s.resolve_render_profile else None
+            )
+        except (ValueError, InvalidAdapterConfig) as exc:
+            return TaskResult(
+                TaskStatus.FAILED,
+                f"unknown Resolve setting ({exc}): policy {s.resolve_policy!r}, captions "
+                f"{s.resolve_captions!r}, render profile {s.resolve_render_profile!r}",
+            )
+        match self._resolve_executor.execute(
+            ExecuteTimelineCommand(timeline=built, config=config), job.ctx
+        ):
+            case Err(ResolveUnavailable() as unavailable):
+                return TaskResult(TaskStatus.SKIPPED_UNAVAILABLE, unavailable.user_message)
+            case Err(error):
+                return _from_error(error)
+            case Ok(result):
+                report = result.report
+                facts: dict[str, JsonValue] = {
+                    "report_asset_id": result.report_asset.id,
+                    "outcome": report.outcome.value,
+                    "state": report.state.value,
+                    "project": report.project_name,
+                    "timeline": report.timeline_name,
+                    "resolve_version": report.connection.version,
+                    "resolve_edition": report.connection.edition,
+                    "executed": report.count(OperationStatus.EXECUTED),
+                    "partial": report.count(OperationStatus.PARTIAL),
+                    "unsupported": report.count(OperationStatus.UNSUPPORTED),
+                    "failed": report.count(OperationStatus.FAILED),
+                    "verified": report.verified(),
+                    "open_conflicts": sum(
+                        1 for c in report.sync.conflicts if c.resolution.value == "open"
+                    ),
+                    "human_modified": len(report.sync.human_modified),
+                }
+                warnings = (*report.errors, *report.warnings)[:5]
+                if report.outcome in (Outcome.FAILED, Outcome.INTERRUPTED, Outcome.CANCELLED):
+                    return TaskResult(
+                        TaskStatus.FAILED, "; ".join(report.errors) or report.outcome.value,
+                        warnings=warnings, facts=facts,
+                    )  # fmt: skip
+                if render is not None and report.outcome is not Outcome.PARTIAL:
+                    return self._resolve_render(built, config, render, facts, warnings, job)
+                status = (
+                    TaskStatus.PARTIAL
+                    if report.outcome is Outcome.PARTIAL
+                    else TaskStatus.SUCCEEDED
+                )
+                return TaskResult(
+                    status,
+                    "instructions Resolve's scripting cannot carry out remain"
+                    if status is TaskStatus.PARTIAL
+                    else "",
+                    warnings=warnings,
+                    facts=facts,
+                )
+
+    def _resolve_render(
+        self,
+        built: BuiltTimeline,
+        config: ResolveAdapterConfig,
+        render: RenderConfig,
+        facts: dict[str, JsonValue],
+        warnings: tuple[str, ...],
+        job: TaskJob,
+    ) -> TaskResult:
+        match self._resolve_renderer.execute(
+            RenderCommand(anchor_asset_id=built.anchor_asset_id, config=config, render=render),
+            job.ctx,
+        ):
+            case Err(error):
+                return _from_error(error)
+            case Ok(result):
+                record = result.report.render
+                facts["render_outcome"] = result.report.outcome.value
+                facts["render_asset_id"] = result.output.id if result.output else None
+                facts["render_status"] = record.status if record else ""
+                facts["render_reused"] = result.reused
+                ok = result.output is not None and result.report.outcome in (
+                    Outcome.COMPLETED,
+                    Outcome.COMPLETED_WITH_WARNINGS,
+                )
+                return TaskResult(
+                    TaskStatus.SUCCEEDED if ok else TaskStatus.FAILED,
+                    "" if ok else "; ".join(result.report.errors) or "the render did not deliver",
+                    warnings=warnings,
+                    facts=facts,
+                )
+
+    @staticmethod
+    def _undelivered(job: TaskJob) -> tuple[tuple[str, str], ...]:
+        """Layer 4 tasks that were part of this run and did not deliver (not: did not apply)."""
+        found = []
+        for kind in (
+            TaskKind.GRAPHICS,
+            TaskKind.CAPTIONS,
+            TaskKind.TRANSITIONS,
+            TaskKind.VFX,
+            TaskKind.SOUND_DESIGN,
+        ):
+            result = job.upstream.get(TaskId(job.id.asset_id, kind))
+            if result is None or result.status.delivered:
+                continue
+            if result.status in (TaskStatus.SKIPPED_UNAVAILABLE, TaskStatus.SKIPPED_DISABLED):
+                continue
+            found.append((kind.value, f"{result.status.value}: {result.detail}".strip(": ")))
+        return tuple(found)
 
     @classmethod
     def _lacks_audio(cls, job: TaskJob) -> bool:

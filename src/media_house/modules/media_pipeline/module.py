@@ -8,11 +8,13 @@ from media_house.core.modules import Container
 from media_house.modules.asset_relationships.application.contracts import RelationshipDetection
 from media_house.modules.audio_improvement.application.contracts import AudioImprover
 from media_house.modules.audio_intelligence.application.contracts import AudioAnalyzer
+from media_house.modules.audio_mix_engine.application.contracts import AudioMixer
 from media_house.modules.audio_visual_alignment.application.contracts import AudioVisualAligner
 from media_house.modules.broll_intelligence.application.contracts import BrollAnalyzer
 from media_house.modules.caption_engine.application.contracts import CaptionPlanner
 from media_house.modules.content_intelligence.application.contracts import ContentAnalyzer
 from media_house.modules.continuity_intelligence.application.contracts import ContinuityAnalyzer
+from media_house.modules.edit_plan_compiler.application.contracts import TimelineCompiler
 from media_house.modules.editing_intelligence.application.contracts import EditPlanner
 from media_house.modules.media_inspection.application.contracts import MediaInspector
 from media_house.modules.media_library.application.contracts import MediaLibrary
@@ -27,7 +29,12 @@ from media_house.modules.music_and_sound_design.application.contracts import (
 from media_house.modules.pacing_intelligence.application.contracts import PacingAnalyzer
 from media_house.modules.proxy_manager.application.contracts import ProxyManager
 from media_house.modules.reframing_intelligence.application.contracts import ReframingAnalyzer
+from media_house.modules.resolve_adapter.application.contracts import (
+    ResolveExecutor,
+    ResolveRenderer,
+)
 from media_house.modules.story_architecture.application.contracts import StoryPlanner
+from media_house.modules.timeline_builder.application.contracts import TimelineBuilder
 from media_house.modules.transition_engine.application.contracts import TransitionPlanner
 from media_house.modules.vfx_engine.application.contracts import VfxPlanner
 from media_house.modules.video_improvement.application.contracts import VideoImprover
@@ -68,6 +75,11 @@ class MediaPipelineModule:
                     vfx_planner=c.resolve(VfxPlanner),
                     sound_planner=c.resolve(SoundDesignPlanner),
                     stem_renderer=c.resolve(SoundStemRenderer),
+                    timeline_compiler=c.resolve(TimelineCompiler),
+                    timeline_builder=c.resolve(TimelineBuilder),
+                    resolve_executor=c.resolve(ResolveExecutor),
+                    resolve_renderer=c.resolve(ResolveRenderer),
+                    audio_mixer=c.resolve(AudioMixer),
                     settings=settings,
                 ),
             ),

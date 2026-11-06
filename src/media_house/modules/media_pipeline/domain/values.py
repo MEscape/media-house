@@ -32,6 +32,12 @@ class TaskKind(StrEnum):
     TRANSITIONS = "transitions"
     VFX = "vfx"
     SOUND_DESIGN = "sound_design"
+    # Layer 5: the timeline specification compiled from the edit and every Layer 4 plan.
+    TIMELINE = "timeline"
+    # Layer 5: the constructed timeline (tracks, clips, transitions, markers) built from it.
+    TIMELINE_BUILD = "timeline_build"
+    RESOLVE_EXECUTE = "resolve_execute"
+    AUDIO_MIX = "audio_mix"
 
 
 class Lane(StrEnum):

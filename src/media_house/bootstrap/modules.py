@@ -6,11 +6,13 @@ from media_house.core.modules import ApplicationModule
 from media_house.modules.asset_relationships.module import AssetRelationshipsModule
 from media_house.modules.audio_improvement.module import AudioImprovementModule
 from media_house.modules.audio_intelligence.module import AudioIntelligenceModule
+from media_house.modules.audio_mix_engine.module import AudioMixEngineModule
 from media_house.modules.audio_visual_alignment.module import AudioVisualAlignmentModule
 from media_house.modules.broll_intelligence.module import BrollIntelligenceModule
 from media_house.modules.caption_engine.module import CaptionEngineModule
 from media_house.modules.content_intelligence.module import ContentIntelligenceModule
 from media_house.modules.continuity_intelligence.module import ContinuityIntelligenceModule
+from media_house.modules.edit_plan_compiler.module import EditPlanCompilerModule
 from media_house.modules.editing_intelligence.module import EditingIntelligenceModule
 from media_house.modules.media_inspection.module import MediaInspectionModule
 from media_house.modules.media_library.module import MediaLibraryModule
@@ -20,7 +22,9 @@ from media_house.modules.music_and_sound_design.module import MusicAndSoundDesig
 from media_house.modules.pacing_intelligence.module import PacingIntelligenceModule
 from media_house.modules.proxy_manager.module import ProxyManagerModule
 from media_house.modules.reframing_intelligence.module import ReframingIntelligenceModule
+from media_house.modules.resolve_adapter.module import ResolveAdapterModule
 from media_house.modules.story_architecture.module import StoryArchitectureModule
+from media_house.modules.timeline_builder.module import TimelineBuilderModule
 from media_house.modules.transition_engine.module import TransitionEngineModule
 from media_house.modules.vfx_engine.module import VfxEngineModule
 from media_house.modules.video_improvement.module import VideoImprovementModule
@@ -57,4 +61,8 @@ def installed_modules() -> Sequence[ApplicationModule]:
         MotionGraphicsEngineModule(),
         TransitionEngineModule(),
         CaptionEngineModule(),
+        EditPlanCompilerModule(),
+        TimelineBuilderModule(),
+        ResolveAdapterModule(),
+        AudioMixEngineModule(),
     )

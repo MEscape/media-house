@@ -162,6 +162,43 @@ whole recording: the no-speech path) and every one but the style NEEDS visual_st
     collect them for a future timeline builder. There is no separate visual-asset task: product stickers and
     silhouettes are requested by motion graphics through `VisualAssetPreparer`, and B-roll gap images are a
     library selection (`ImageSelector.for_gaps`) a person chooses from; a task would store nothing new.
+* **Layer 5** (`timeline`; opt-in, `--stages timeline`, see `docs/layer5/README.md`). LIGHT lane; needs
+  `visual_style` + `inspect`, wants `edit_plan`, `story`, `reframing` and every Layer 4 plan of the run;
+  nothing waits for it. `application/compile_source.py` maps the `EditPlan` (or the whole recording) into
+  the compiler's own `TimelineSource`. The plans of the run are handed over in memory (the stored ones fill
+  in the plans the run did not make, when they belong to this edit and style). A Layer 4 task of the run that
+  failed or was skipped for a dependency is handed over as `undelivered` and blocks the timeline
+  (`failed`); an unavailable one (no audio) is not a failure. `--timeline-derivatives prefer_improved`
+  points clips at the stored improved audio / video. Facts: `plan_asset_id`, `timeline_id`, `spec_hash`,
+  item counts, `warning_items`, `conflicts`, `auto_resolved`, `units`, `units_reused`; the report JSON's
+  per-asset `timeline` section (`AssetReport.timeline_package()`).
+* **Layer 5 build** (`timeline_build`; opt-in, `--stages timeline_build`, implies `timeline`). LIGHT lane; NEEDS the `timeline`
+  task and takes its specification in memory with the library document id (`plan_asset_id`), so it never builds an old
+  specification: a `timeline` that failed or was skipped makes it skipped. `timeline_build` constructs the application-
+  independent timeline (`timeline_builder`); a person's earlier changes to the stored build survive a rebuild through the
+  conflict policy (`--timeline-conflict-policy preserve|replace|review`, default review), `--timeline-fit` says how a source
+  of another shape meets the frame, `--timeline-full-rebuild` rebuilds every element. A partial specification or a timeline
+  with unresolved, unsupported or review items is `partial`. Facts: `plan_asset_id`, `timeline_id`, `build_hash`, `mode`,
+  track/clip/transition/marker counts, `unresolved`, `unsupported`, `reviews`, `elements_reused`; the report has a per-asset
+  `built_timeline` section (`AssetReport.build_package()`). Nothing waits for it.
+* **Layer 5 audio mix** (`audio_mix`; opt-in, in no group, `--stages audio_mix`, implies `timeline_build`). CPU lane (FFmpeg
+  renders the stems and the mix); NEEDS `timeline_build` only (no Resolve). `audio_mix_engine` makes the specification, one
+  stem per bus and the final mix, measures them against the delivery (`--mix-delivery youtube|shorts|social|broadcast_r128`,
+  default from the creator identity's format profile) and judges it (`--mix-profile`). A timeline with no sound is
+  `skipped_unavailable`; errors against the delivery make it `partial`; a render failure is `failed`; an unchanged mix (every
+  stem and the mix found by hash) is `reused`. Facts: `specification_asset_id`, `result_asset_id`, `mix_asset_id`, `state`,
+  `profile`, `delivery`, `integrated_lufs`, `true_peak_dbtp`, `master_trim_db`, `stems`, `stems_reused`, `errors`, `warnings`;
+  the report has a per-asset `audio_mix` section (`AssetReport.mix_package()`). Nothing waits for it.
+* **Layer 5 Resolve** (`resolve_execute`; opt-in, in no group, `--stages resolve_execute`, implies `timeline_build`). LIGHT
+  lane; NEEDS `timeline_build` and takes the built timeline in memory. `resolve_adapter` carries it out in DaVinci Resolve and
+  reads it back. Resolve not installed / not running / not reachable is `skipped_unavailable` (nothing failed, nothing was
+  done); a failed, interrupted or cancelled execution is `failed`; instructions Resolve's scripting cannot carry out (transitions,
+  retime, native effects, moving crops) or an open conflict make it `partial`. `--resolve-policy`, `--resolve-project`,
+  `--resolve-adopt-project`, `--resolve-allow-switch`, `--resolve-captions`, `--resolve-lib`, `--resolve-api`;
+  `--resolve-render youtube|master` renders and checks the file (only after a timeline without open work). Facts:
+  `report_asset_id`, `outcome`, `state`, `project`, `resolve_version`, `executed`, `partial`, `unsupported`, `failed`,
+  `verified`, `open_conflicts`, `human_modified`, `render_*`; the report has a per-asset `resolve` section
+  (`AssetReport.resolve_package()`). A person's fixes made in Resolve are read back with `scratch/resolve_sync.py`.
 * Requesting a stage pulls in what it needs (`implied` in the report). A stage the media cannot
   support (picture stages on audio-only media) is `skipped_unavailable`, not a failure.
 

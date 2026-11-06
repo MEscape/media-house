@@ -60,6 +60,105 @@ class AssetReport:
     def task(self, kind: TaskKind) -> TaskReport | None:
         return next((t for t in self.tasks if t.kind is kind), None)
 
+    def timeline_package(self) -> dict[str, JsonValue] | None:
+        """The compiled timeline specification of this asset (Layer 5), or ``None`` when the run
+        did not ask for it. A timeline builder starts from ``plan_asset_id``."""
+        found = self.task(TaskKind.TIMELINE)
+        if found is None or found.status in (None, TaskStatus.SKIPPED_DISABLED):
+            return None
+        keys = (
+            "plan_asset_id",
+            "document_type",
+            "plan_version",
+            "state",
+            "timeline_id",
+            "spec_hash",
+            "edit_plan_id",
+            "edit_plan_version",
+            "style_fingerprint",
+            "video_items",
+            "audio_items",
+            "overlays",
+            "transitions",
+            "warning_items",
+            "conflicts",
+            "auto_resolved",
+            "units",
+            "units_reused",
+        )
+        return {
+            "status": found.status.value,
+            "detail": found.detail,
+            **{k: found.facts[k] for k in keys if k in found.facts},
+        }
+
+    def build_package(self) -> dict[str, JsonValue] | None:
+        """The built timeline of this asset (Layer 5), or ``None`` when the run did not ask for
+        it. A timeline application adapter starts from ``plan_asset_id``."""
+        found = self.task(TaskKind.TIMELINE_BUILD)
+        if found is None or found.status in (None, TaskStatus.SKIPPED_DISABLED):
+            return None
+        keys = (
+            "plan_asset_id",
+            "document_type",
+            "plan_version",
+            "state",
+            "timeline_id",
+            "build_hash",
+            "mode",
+            "spec_asset_id",
+            "video_tracks",
+            "audio_tracks",
+            "video_clips",
+            "audio_clips",
+            "transitions",
+            "markers",
+            "unresolved",
+            "unsupported",
+            "reviews",
+            "warning_items",
+            "elements_total",
+            "elements_reused",
+        )
+        return {
+            "status": found.status.value,
+            "detail": found.detail,
+            **{k: found.facts[k] for k in keys if k in found.facts},
+        }
+
+    def mix_package(self) -> dict[str, JsonValue] | None:
+        """The audio mix of this asset, or ``None`` when the run did not ask for it."""
+        found = self.task(TaskKind.AUDIO_MIX)
+        if found is None or found.status in (None, TaskStatus.SKIPPED_DISABLED):
+            return None
+        keys = (
+            "specification_asset_id", "result_asset_id", "mix_asset_id", "state", "profile",
+            "delivery", "integrated_lufs", "true_peak_dbtp", "master_trim_db", "stems",
+            "stems_reused", "errors", "warnings",
+        )  # fmt: skip
+        return {
+            "status": found.status.value,
+            "detail": found.detail,
+            **{k: found.facts[k] for k in keys if k in found.facts},
+        }
+
+    def resolve_package(self) -> dict[str, JsonValue] | None:
+        """What the run did in DaVinci Resolve, or ``None`` when it was not asked to."""
+        found = self.task(TaskKind.RESOLVE_EXECUTE)
+        if found is None or found.status in (None, TaskStatus.SKIPPED_DISABLED):
+            return None
+        keys = (
+            "report_asset_id", "outcome", "state", "project", "timeline", "resolve_version",
+            "resolve_edition", "executed", "partial", "unsupported", "failed", "verified",
+            "open_conflicts", "human_modified", "render_outcome", "render_asset_id",
+            "render_status", "render_reused",
+        )  # fmt: skip
+        return {
+            "status": found.status.value,
+            "detail": found.detail,
+            **{k: found.facts[k] for k in keys if k in found.facts},
+        }
+
     def layer4_package(self) -> dict[str, JsonValue] | None:
         """Every stored Layer 4 plan document and rendered asset of this asset, in one place a
         timeline builder can consume (ids only; the documents hold the exact times and frames).
@@ -180,6 +279,10 @@ class PipelineReport:
                 "notes": list(a.notes),
                 "tasks": [task(t) for t in a.tasks],
                 "layer4": a.layer4_package(),
+                "timeline": a.timeline_package(),
+                "built_timeline": a.build_package(),
+                "resolve": a.resolve_package(),
+                "audio_mix": a.mix_package(),
             }
 
         return {
