@@ -38,6 +38,9 @@ FUTURE_MODULES = (
     "quality_control",
     "revision_engine",
 )
+#: Layer 5 modules that now exist. The editor still never depends on them (they are in
+#: ``FUTURE_MODULES`` for that check); they stop reserving an empty package name.
+BUILT_MODULES = ("edit_plan_compiler", "timeline_builder", "resolve_adapter")
 #: Upstream producers: the editor may read their stored results (catalogs) but never run them.
 PRODUCERS = (
     "AudioAnalyzer",
@@ -172,7 +175,9 @@ def test_editing_names_no_timeline_backend_and_depends_on_no_future_module() -> 
 def test_no_empty_package_reserves_the_name_of_a_module_that_does_not_exist_yet() -> None:
     present = {p.name for p in MODULES_DIR.iterdir() if p.is_dir()}
 
-    assert present.isdisjoint(FUTURE_MODULES)
+    unbuilt = tuple(m for m in FUTURE_MODULES if m not in BUILT_MODULES)
+
+    assert present.isdisjoint(unbuilt)
 
 
 def test_only_the_pipeline_and_the_composition_root_depend_on_editing() -> None:

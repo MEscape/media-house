@@ -165,6 +165,7 @@ def test_transition_engine_does_not_depend_on_editing_or_the_pipeline() -> None:
 def test_only_music_the_pipeline_and_the_composition_root_depend_on_transitions() -> None:
     allowed = (
         "media_house.modules.music_and_sound_design",  # syncs sound to transition events
+        "media_house.modules.edit_plan_compiler",  # Layer 5: reads the stored plan
         "media_house.modules.media_pipeline",
         "media_house.bootstrap",
     )

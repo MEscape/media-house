@@ -141,7 +141,11 @@ def test_vfx_does_not_depend_on_editing_the_pipeline_or_the_composition_root() -
 
 
 def test_only_the_pipeline_and_the_composition_root_depend_on_vfx() -> None:
-    allowed = ("media_house.modules.media_pipeline", "media_house.bootstrap")
+    allowed = (
+        "media_house.modules.media_pipeline",
+        "media_house.modules.edit_plan_compiler",  # Layer 5: reads the stored plan
+        "media_house.bootstrap",
+    )
     offenders = [
         name
         for name, info in scan(SRC).items()

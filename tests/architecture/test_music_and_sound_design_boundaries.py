@@ -134,7 +134,11 @@ def test_never_mixes_masters_or_reads_the_visual_identity() -> None:
 
 
 def test_only_the_pipeline_and_the_composition_root_depend_on_it() -> None:
-    allowed = ("media_house.modules.media_pipeline", "media_house.bootstrap")
+    allowed = (
+        "media_house.modules.media_pipeline",
+        "media_house.modules.edit_plan_compiler",  # Layer 5: reads the stored plan
+        "media_house.bootstrap",
+    )
     offenders = [
         name
         for name, info in scan(SRC).items()

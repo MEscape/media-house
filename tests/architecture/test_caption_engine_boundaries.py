@@ -138,6 +138,7 @@ def test_caption_draws_only_through_the_motion_graphics_renderer() -> None:
 def test_only_music_the_pipeline_and_the_composition_root_depend_on_captions() -> None:
     allowed = (
         "media_house.modules.music_and_sound_design",  # syncs to caption events
+        "media_house.modules.edit_plan_compiler",  # Layer 5: reads the stored plan
         "media_house.modules.media_pipeline",
         "media_house.bootstrap",
     )

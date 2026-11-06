@@ -37,6 +37,7 @@ CONSUMERS = (
     "media_house.modules.transition_engine",
     "media_house.modules.vfx_engine",
     "media_house.modules.visual_asset_generation",
+    "media_house.modules.edit_plan_compiler",  # Layer 5: binds the identity, runs its validator
     "media_house.modules.media_pipeline",
     "media_house.bootstrap",
 )

@@ -136,6 +136,7 @@ def test_only_the_pipeline_the_editing_stage_and_the_composition_root_depend_on_
         "media_house.modules.caption_engine",  # Layer 4 reads the stored result
         "media_house.modules.motion_graphics_engine",  # Layer 4 reads the stored result
         "media_house.modules.vfx_engine",  # Layer 4 reads the stored result
+        "media_house.modules.edit_plan_compiler",  # Layer 5 reads the crops by id
         "media_house.bootstrap",
     )
     offenders = [

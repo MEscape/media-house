@@ -142,6 +142,7 @@ def test_only_executing_layer4_modules_the_pipeline_and_the_root_depend_on_motio
         "media_house.modules.caption_engine",
         "media_house.modules.transition_engine",
         "media_house.modules.music_and_sound_design",  # events only
+        "media_house.modules.edit_plan_compiler",  # Layer 5: reads the stored plan
         "media_house.modules.media_pipeline",
         "media_house.bootstrap",
     )
