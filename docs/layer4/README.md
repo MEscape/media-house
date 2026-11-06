@@ -183,9 +183,11 @@ every Layer 4 task, then a fully reused second run; plus one real HyperFrames re
 
 ## 9. What is NOT built
 
-* `timeline_builder` (placing the plans on tracks, ripple decisions, the final render),
-  `resolve_adapter` (DaVinci Resolve export) and `quality_control` (whole-video QC). The plans hold
-  every time, frame, asset id and track intent they need.
+* `edit_plan_compiler`, `timeline_builder` and `resolve_adapter` (Layer 5) now exist: the compiler
+  turns these plans into one `timeline_specification`, the builder constructs the timeline from it, the
+  adapter carries it out in DaVinci Resolve (`docs/layer5/README.md`; the adapter has not yet been run
+  against a real Resolve). Still not built:
+* `audio_mix_engine`, the final delivery and `quality_control` (whole-video QC). The plans hold every time, frame, asset id and track intent they need.
 * Image generation (no model on this machine: `GenerationNotAvailable`), video matting, inpainting,
   screen replacement, lens flares (`not_available`, never faked), emoji drawing (planned, not drawn
   until an emoji asset set exists), brand asset files (logo, mascot, fire plate: reported missing).

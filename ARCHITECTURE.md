@@ -107,12 +107,20 @@ Layer 3  editorial       story_architecture, pacing_intelligence, broll_intellig
 Layer 4  finishing       visual_style_engine (channel identity), visual_asset_generation (stills; was
                          image_adjustment), motion_graphics_engine, caption_engine, transition_engine,
                          vfx_engine, music_and_sound_design          -> docs/layer4/README.md
+Layer 5  timeline        edit_plan_compiler (edit + Layer 4 plans -> one validated `timeline_specification`),
+                         timeline_builder (that specification -> the constructed, application-independent
+                         timeline: tracks of ordered clips, source table, transitions, markers, provenance)
+                         resolve_adapter (the built timeline -> a DaVinci Resolve project, read back and
+                         verified; a person's fixes in Resolve -> the builder; render + check)
+                         audio_mix_engine (the built timeline's sound -> stems per bus + the final mix,
+                         measured against a delivery profile, judged; independent of Resolve)
+                         -> docs/layer5/README.md
 orchestration            media_pipeline (one dependency graph over all of the above; maps the EditPlan
                          into each Layer 4 module's own input DTO)
 example                  workspace
 ```
 
-Not built: `timeline_builder`, `resolve_adapter`, `quality_control` (Layer 4 plans carry everything they need).
+Not built: `quality_control`. `resolve_adapter` is built but has not been run against a real DaVinci Resolve (none was available): see its README. `audio_mix_engine` is validated on generated audio and one synthetic clip, not on a listened-to mix of real footage.
 
 ## 3. Ports and adapters
 

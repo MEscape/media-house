@@ -702,8 +702,92 @@ derived assets. Every module owns a narrow input DTO and never imports the `Edit
 NO-SPEECH PATH: one clip of the whole recording, timeline = source, the inspected frame rate). Times are exact `Rational`s in
 three never-mixed domains (`source_*`, `timeline_*`, `local_*`); frames are computed once at the edge (`round(t * fps)`,
 half-to-even). Knobs live in `domain/profile.py` with settings-UI field metadata; precedence profile defaults -> channel
-identity -> format profile -> project overrides -> section overrides -> person decisions. `timeline_builder`,
-`resolve_adapter` and `quality_control` are NOT built.
+identity -> format profile -> project overrides -> section overrides -> person decisions. `edit_plan_compiler` (Layer 5, below) compiles
+them; `edit_plan_compiler`, `timeline_builder`, `resolve_adapter` and `audio_mix_engine` (Layer 5, below) build, execute and mix the timeline; `quality_control` is NOT built.
+
+`edit_plan_compiler` (Layer 5) turns the edit and the stored Layer 4 plans into ONE `timeline_specification` (a document of the
+anchor asset, `RESULT_OPERATION = "timeline_specification"`): exact `Rational` times and frames, a fixed track layout (V1
+primary, V2 cover, V3 graphics, V4 captions, V5 effects / transition overlays; A1 dialogue .. A5 effects; extra LANES only
+where items overlap), every file traced to its recording (`original_asset_id` + relation), transitions with handles (a
+transition that cannot run becomes a hard cut, reported `auto_resolved`), baked VFX clips, crops resolved from the reframing
+analysis by id, audio items with exact samples, ducking / crossfade instructions, a dependency manifest (`requested` entries
+name the owner and the pipeline task), and findings in four classes (`critical` blocks and stores nothing, `warning`,
+`creative_conflict` keeps both instructions, `auto_resolved`). The creator identity is a REFERENCE (identity id / version, style
+fingerprint, sound identity), validated with the style's own `StyleValidator`; a plan made with another style or for another
+edit blocks the timeline. Units (per placement + graphics / captions / soundtrack) are reused when their digest is unchanged;
+`spec_hash` is deterministic. It never imports the `EditPlan` (`media_pipeline/application/compile_source.py` maps it), runs no
+producer and probes nothing. Pipeline task `timeline` (`--stages timeline`). `docs/layer5/README.md`; module README. Colour management (`CompilerConfig.color_profile` -> `Timebase.color`, `AssetUse.color`), the recording range of a baked clip (`VideoItem.original_start/end`) and the missing handle of a baked clip were added for the builder.
+
+`timeline_builder` (Layer 5) CONSTRUCTS the timeline from the compiler's `timeline_specification` (it is not a copy of it): a
+`BuiltTimeline`, stored as a `built_timeline` document of the anchor asset (`RESULT_OPERATION = "built_timeline"`), organised
+for a person: tracks (`V1..V5`, `A1..A5`, lanes) that hold their clips in time order, ONE `SourceMedia` table that every clip
+instance points at (original, derivative, proxy from `ProxyCatalog`; a clip's `SourceUse` is only in/out inside that file, plus
+`original_in/out` on the recording's clock), each picture clip's CHAIN in fixed order (time map -> fit -> crop -> effects ->
+composite, steps numbered and marked applied or baked), transitions joining two named clips with the handle frames they read
+(modes `cut dissolve fade dip overlay`, anything else `unsupported`: kept and reported, never replaced), sound clips in exact
+samples with mix instructions attached (instructions for `audio_mix_engine`, not a mix), markers, sections, groups, subtitle
+cues, a dependency manifest and findings (`error` stops the build and stores nothing; `unsupported`, `review`, `warning`,
+`info`). The creator identity is a REFERENCE (Layer 4 owns it). It decides nothing creative, never imports the compiler's
+domain (`application/views.py` maps the specification into its own `SpecFacts`), runs no producer (not even the compiler),
+probes nothing and names no timeline application. Files are looked up in the library NOW (the specification may be older); a
+changed checksum or a missing file under a placed clip stops the build. Checks that need a render (black/missing frames,
+silence) are NOT made from metadata: `Validation.not_run` lists them until `ExternalCheck` results are supplied. Cache =
+library fingerprint of `{inputs, people}`; an unchanged element is carried over (`build.change`, `elements_reused`),
+`build_hash` covers content only. PEOPLE: `TimelineEditor` records `HumanEdit` modify/delete/create of clips as the next
+version (provenance `human_modified`/`human_created`, `Tombstone`, `EditRecord`); the next build applies
+`BuilderConfig.conflict_policy` (`preserve` / `replace` / `review`, default review) and never overwrites silently.
+`TimelineBuilder` / `TimelineEditor` / `BuiltTimelineCatalog` in `application/contracts.py`; pipeline task `timeline_build`
+(`--stages timeline_build`, implies `timeline`; `--timeline-conflict-policy`, `--timeline-fit`, `--timeline-full-rebuild`).
+`docs/layer5/README.md`; module README.
+
+`resolve_adapter` (Layer 5) is the ONLY module that knows DaVinci Resolve. It carries the built timeline out in a Resolve
+project, reads it back to verify it, reads a person's fixes back, and renders and checks the result. ONE port
+(`ResolveBackend`, `application/ports.py`); the only adapter is `infrastructure/scripting.py` (the only file that calls
+Resolve's API; `install.py` loads `fusionscript`; both enforced by an architecture test). Flow (`application/execution.py`,
+states of the report): connect (a real call, never just a process) -> project (a project not made here is never taken over;
+another open project blocks unless allowed) -> settings written and READ BACK (frame rate / size cannot change later) ->
+media (library files, matched by path so nothing imports twice, proxies from `ProxyCatalog`, folders by role) -> timeline
+(tracks in the builder's order, every clip placed and TAGGED with the builder's element id, picture/sound linked) -> what
+scripting cannot do -> verify (read back per clip) -> bind. Resolve's scripting has no transitions, retime, native effects,
+keyframed properties or clip gain (`domain/capabilities.py` registry: `supported` only after a read-back on that Resolve,
+else `not_verified`; a known gap stays `unsupported`): each is reported with its alternatives and, where one step in Resolve
+finishes it, a MARKER on the timeline (never a substitute look). A person's work: per field three-way merge (`domain/
+reconcile.py`: last synchronised / Media House now / Resolve now); `ExecutionPolicy` (`create_new`, `update_managed_elements`
+= Media House wins a true conflict, `preserve_manual_edits` = the person wins, `require_conflict_review` = default, the person
+is kept AND the conflict stays open which blocks rendering, `full_rebuild_with_backup`). `SyncFromResolve` reads the
+person's moves, trims, disables, opacity and deletions back and records them through `TimelineEditor` as `HumanEdit`s, so the
+next build and execution keep them; what the builder cannot hold stays in Resolve, and anything the adapter did not place
+is never touched. Retry is state-based (what Resolve holds decides what is left; checkpoints after the timeline exists and
+after the clips are placed). `RenderTimeline`: profile (`youtube`, `master`) + the timeline's size/rate, guarded (no open
+conflict, every pool item the intended source), the file registered as a derived asset, inspected by `media_inspection`
+and compared; an unchanged timeline is not rendered again. `AudioLayouts.layout()` tells `audio_mix_engine` where each sound
+is in Resolve. Documents (library, no storage of its own): `resolve_binding`, `resolve_execution_report`. Outcome is never a
+flat success (`completed` / `completed_with_warnings` / `partial` / `failed` / `interrupted` / `cancelled`). Pipeline task
+`resolve_execute` (opt-in, `--stages resolve_execute`; `skipped_unavailable` without Resolve; `--resolve-*` flags;
+`scratch/resolve_sync.py` reads fixes back). NOT run against a real Resolve (none was available): validated only against
+a stand-in of its documented API, so every capability is `not_verified` until a live run; see its README for the assumed
+behaviours (`Quirks`) a first live run may need to correct.
+
+`audio_mix_engine` (Layer 5) MIXES the sound of a built timeline and needs no editing application. The specification
+(`audio_mix_specification`, versioned, typed, the timeline's stable ids as `origin_ref`) is derived from the BUILT timeline +
+a `MixProfile` (generic / talking_head / tutorial / product_demo / cinematic: bus levels, EQ, voice compressor, ducking
+defaults) + a `DeliveryProfile` (youtube / shorts / social / broadcast_r128: LUFS, tolerance, loudness range, true peak,
+format), chosen explicitly else from the creator identity's format profile (the compiler is NOT extended: it already
+carries the intent per sound and a second output would split the source of truth). Buses (dialogue, production, music,
+sfx, ambience) -> master; a STEM is a bus after its own gain/EQ/automation/dynamics, before the master. Dialogue clips are
+levelled gently toward the profile target (measured, limited, recorded); the sound design's ducking is used as given (a
+depth is a reduction), a profile fallback derives one from the voice's place; crossfades/tails become fades. The master
+is EQ + optional compressor + a limiter under the delivery's true-peak ceiling; the mix is measured and re-rendered with a
+bounded master trim to reach the loudness target. Every stem and the mix are derived library assets found by a HASH of all
+that can change them (clips, source checksums, ducks, trims, bus chain, backend), so a dialogue change re-renders the
+dialogue and the mix, not the music, and a new loudness target re-renders only the mix; a revision is `MixOverrides`
+(recorded, `human` provenance, earlier outputs untouched). `validate_output` states severity AND certainty (confirmed /
+likely / recommendation / intentional): clipping, true peak, loudness, loudness range, format, duration, stem alignment,
+music over dialogue under speech, silence, stems-recombine-to-the-mix null test. ONE backend port; the default drives
+FFmpeg through `ProcessRunner`; its identity is part of every hash. Documents: `audio_mix_specification`,
+`audio_mix_result`; assets `audio_mix_stem`, `audio_mix_render`. Pipeline task `audio_mix` (opt-in, CPU lane, needs only
+`timeline_build`; `--mix-profile`, `--mix-delivery`). Validated on generated audio and one synthetic clip; no listening
+evaluation; `resolve_adapter` does not import its outputs yet.
 
 `visual_style_engine` is the channel identity as versioned data (palette, fonts with sha256, type scale in ref px at a 1080
 short side, graphic language, non-overlapping layout zones per 16:9/9:16/1:1 with platform keep-outs, caption and title
