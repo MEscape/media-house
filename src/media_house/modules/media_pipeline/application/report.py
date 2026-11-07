@@ -142,6 +142,21 @@ class AssetReport:
             **{k: found.facts[k] for k in keys if k in found.facts},
         }
 
+    def quality_package(self) -> dict[str, JsonValue] | None:
+        """The quality report of this asset's timeline, or ``None`` when the run did not ask."""
+        found = self.task(TaskKind.QUALITY_CONTROL)
+        if found is None or found.status in (None, TaskStatus.SKIPPED_DISABLED):
+            return None
+        keys = (
+            "quality_report_id", "report_asset_id", "technical_status", "review_status",
+            "critical", "high", "medium", "low", "optional", "export_blocking",
+        )  # fmt: skip
+        return {
+            "status": found.status.value,
+            "detail": found.detail,
+            **{k: found.facts[k] for k in keys if k in found.facts},
+        }
+
     def resolve_package(self) -> dict[str, JsonValue] | None:
         """What the run did in DaVinci Resolve, or ``None`` when it was not asked to."""
         found = self.task(TaskKind.RESOLVE_EXECUTE)
@@ -283,6 +298,7 @@ class PipelineReport:
                 "built_timeline": a.build_package(),
                 "resolve": a.resolve_package(),
                 "audio_mix": a.mix_package(),
+                "quality_control": a.quality_package(),
             }
 
         return {

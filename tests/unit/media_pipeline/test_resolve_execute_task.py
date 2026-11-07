@@ -18,6 +18,7 @@ from media_house.modules.resolve_adapter.application.contracts import (
     ExecuteTimelineCommand,
     ExecutionPolicy,
     ExecutionState,
+    OperationStatus,
     Outcome,
     RenderCommand,
     ResolveUnavailable,
@@ -77,10 +78,11 @@ def test_the_task_is_opt_in_in_no_group_and_pulls_in_the_build() -> None:
     assert {K.TIMELINE_BUILD, K.TIMELINE, K.VISUAL_STYLE} <= plan.implied
 
 
-def test_nothing_waits_for_resolve() -> None:
+def test_nothing_waits_for_resolve_but_the_delivery_of_its_render() -> None:
     plan = plan_asset("a", has_video=True, has_audio=True, requested=set(K))
 
-    assert tid(K.RESOLVE_EXECUTE) not in {u for s in plan.specs for u in s.upstream}
+    waiting = {s.id.kind for s in plan.specs if tid(K.RESOLVE_EXECUTE) in s.upstream}
+    assert waiting == {K.DELIVER}
 
 
 # --- the executor ------------------------------------------------------------------------------
@@ -209,12 +211,30 @@ def test_a_render_is_asked_for_only_after_a_timeline_without_open_work(tmp_path:
     assert out.facts["render_status"] == "complete"
 
 
-def test_a_partial_timeline_is_not_rendered_unasked(tmp_path: Path) -> None:
+def test_a_partial_timeline_without_failures_is_rendered_and_stays_partial(tmp_path: Path) -> None:
     renderer = Recorder(Ok(rendered()))
 
     out = executors(
         StageSettings(resolve_render_profile="youtube"),
         resolve_executor=Recorder(Ok(executed(tmp_path))),
+        resolve_renderer=renderer,
+    ).resolve_execute(job(K.RESOLVE_EXECUTE, (K.TIMELINE_BUILD, built_result())))
+
+    assert len(renderer.commands) == 1 and out.status is TaskStatus.PARTIAL
+    assert out.facts["render_asset_id"] == "out-1"
+
+
+def test_a_partial_timeline_with_a_failed_operation_is_not_rendered(tmp_path: Path) -> None:
+    renderer = Recorder(Ok(rendered()))
+    done = executed(tmp_path)
+    first, *rest = done.report.operations
+    done.report = replace(
+        done.report, operations=(replace(first, status=OperationStatus.FAILED), *rest)
+    )
+
+    out = executors(
+        StageSettings(resolve_render_profile="youtube"),
+        resolve_executor=Recorder(Ok(done)),
         resolve_renderer=renderer,
     ).resolve_execute(job(K.RESOLVE_EXECUTE, (K.TIMELINE_BUILD, built_result())))
 

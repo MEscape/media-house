@@ -80,6 +80,12 @@ owning module, not guessed:
   does it when asked (``--stages audio_mix``). A timeline with no sound to mix is
   ``skipped_unavailable``. Nothing waits for it and it needs neither Resolve nor
   ``resolve_execute``: the mix is independent of any editing application.
+* ``quality_control`` (Layer 6; CPU: it reads the timeline and its stored results) NEEDS
+  ``timeline_build`` and nothing else: the audio mix and the Resolve binding it reports on are read
+  from the library when they exist (nothing waits for ``audio_mix`` or ``resolve_execute``). Opt-in
+  and in no group (``--stages quality_control``). It checks the timeline itself (a render to look at
+  is a person's or the render manager's to give), changes nothing and approves nothing: its report
+  is an assessment. Nothing waits for it.
 * Inspection joins every non-empty run (see ``plan_asset``): it is cheap, cached, and the only
   authority on which streams exist. A stage only WANTS it, so a failed inspection never blocks.
 * Improvement stages create new assets nothing downstream reads: analyses run on the original,
@@ -267,6 +273,8 @@ STAGES: Mapping[TaskKind, Stage] = {
     TaskKind.TIMELINE_BUILD: Stage(Lane.LIGHT, needs=_k(TaskKind.TIMELINE)),
     TaskKind.RESOLVE_EXECUTE: Stage(Lane.LIGHT, needs=_k(TaskKind.TIMELINE_BUILD)),
     TaskKind.AUDIO_MIX: Stage(Lane.CPU, needs=_k(TaskKind.TIMELINE_BUILD)),
+    TaskKind.QUALITY_CONTROL: Stage(Lane.CPU, needs=_k(TaskKind.TIMELINE_BUILD)),
+    TaskKind.DELIVER: Stage(Lane.CPU, needs=_k(TaskKind.RESOLVE_EXECUTE, TaskKind.AUDIO_MIX)),
 }
 
 

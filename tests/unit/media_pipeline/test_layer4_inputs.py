@@ -114,6 +114,24 @@ def no_speech(*, with_video: bool = True) -> EditView:
     return found
 
 
+def test_the_whole_recording_is_a_whole_number_of_frames() -> None:
+    from dataclasses import replace
+
+    media = observed(videos=(video(),), audios=(audio(),))
+    media = replace(media, container=replace(media.container, duration=59.304042))
+    found = no_speech_view("a", InspectionResult(inspect(media), make_asset("insp"), created=True))
+
+    assert found is not None
+    rate = found.frame_rate
+    frames = (
+        found.duration.numerator * rate.numerator / (found.duration.denominator * rate.denominator)
+    )
+    assert (
+        frames == int(frames)
+        and 59.2 < float(found.duration.numerator) / found.duration.denominator <= 59.304042
+    )
+
+
 # --- the shared view -------------------------------------------------------------------------
 def test_the_view_keeps_placement_ids_exact_times_and_section_spans() -> None:
     plan = a_plan()

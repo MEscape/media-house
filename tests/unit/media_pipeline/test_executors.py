@@ -64,6 +64,8 @@ def executors(settings: StageSettings | None = None, **owners: Any) -> ModuleExe
         resolve_executor=owners.get("resolve_executor", fail),
         resolve_renderer=owners.get("resolve_renderer", fail),
         audio_mixer=owners.get("audio_mixer", fail),
+        mix_attacher=owners.get("mix_attacher", fail),
+        quality_analyzer=owners.get("quality_analyzer", fail),
         settings=settings,
     )
 
@@ -392,3 +394,14 @@ def test_transcription_language_is_pinned_only_when_set() -> None:
     assert auto.config.transcription.language is None
     assert pinned.config.transcription.language == "de"
     assert pinned.config.transcription.device == "cpu"
+
+
+def test_a_recording_with_nothing_to_pace_is_skipped_not_failed() -> None:
+    from media_house.modules.media_pipeline.application.executors import _from_error
+
+    class NothingToAnalyse(ValidationError):
+        code = "pacing_intelligence.nothing_to_analyse"
+
+    result = _from_error(NothingToAnalyse("none", user_message="No speech or shots."))
+
+    assert result.status is TaskStatus.SKIPPED_UNAVAILABLE

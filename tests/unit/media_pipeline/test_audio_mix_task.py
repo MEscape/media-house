@@ -58,10 +58,11 @@ def test_the_task_is_opt_in_in_no_group_and_independent_of_resolve() -> None:
     assert K.RESOLVE_EXECUTE not in plan.implied and K.TIMELINE_BUILD in plan.implied
 
 
-def test_nothing_waits_for_the_mix() -> None:
+def test_nothing_waits_for_the_mix_but_the_delivery_that_puts_it_under_the_picture() -> None:
     plan = plan_asset("a", has_video=True, has_audio=True, requested=set(K))
 
-    assert TaskId("a", K.AUDIO_MIX) not in {u for s in plan.specs for u in s.upstream}
+    waiting = {s.id.kind for s in plan.specs if TaskId("a", K.AUDIO_MIX) in s.upstream}
+    assert waiting == {K.DELIVER}
 
 
 def test_the_engine_is_handed_the_built_timeline_and_the_runs_choices() -> None:
@@ -140,3 +141,56 @@ def test_without_a_built_timeline_the_engine_is_never_asked() -> None:
     out = executors(audio_mixer=owner).audio_mix(job(K.AUDIO_MIX))
 
     assert out.status is TaskStatus.FAILED and owner.commands == []
+
+
+# --- the delivery: the rendered picture with the final mix --------------------------------------
+def _deliver_job(picture: str | None, mix: str | None) -> Any:
+    upstream = []
+    if picture is not None:
+        upstream.append(
+            (
+                K.RESOLVE_EXECUTE,
+                TaskResult(TaskStatus.PARTIAL, "", facts={"render_asset_id": picture}),
+            )
+        )
+    if mix is not None:
+        upstream.append(
+            (K.AUDIO_MIX, TaskResult(TaskStatus.SUCCEEDED, "", facts={"mix_asset_id": mix}))
+        )
+    return job(K.DELIVER, *upstream)
+
+
+def _attached(*, created: bool = True) -> Any:
+    measurement = SimpleNamespace(integrated_lufs=-14.0, true_peak_dbtp=-1.4, loudness_range_lu=2.1)
+    return SimpleNamespace(asset=make_asset("delivery"), measurement=measurement, created=created)
+
+
+def test_the_delivery_puts_the_mix_under_the_rendered_picture() -> None:
+    owner = Recorder(Ok(_attached()))
+
+    out = executors(mix_attacher=owner).deliver(_deliver_job("pic", "mix"))
+
+    assert out.status is TaskStatus.SUCCEEDED
+    assert (owner.commands[0].picture_asset_id, owner.commands[0].mix_asset_id) == ("pic", "mix")
+    assert out.facts["delivery_asset_id"] == "delivery" and out.facts["integrated_lufs"] == -14.0
+
+
+def test_without_a_rendered_picture_or_a_mix_the_delivery_is_unavailable_not_failed() -> None:
+    owner = Recorder(Ok(_attached()))
+
+    no_picture = executors(mix_attacher=owner).deliver(_deliver_job(None, "mix"))
+    no_mix = executors(mix_attacher=owner).deliver(_deliver_job("pic", None))
+
+    assert (
+        no_picture.status is TaskStatus.SKIPPED_UNAVAILABLE
+        and "--resolve-render" in no_picture.detail
+    )
+    assert no_mix.status is TaskStatus.SKIPPED_UNAVAILABLE and owner.commands == []
+
+
+def test_a_mix_that_cannot_be_attached_fails_with_the_reason() -> None:
+    out = executors(mix_attacher=Recorder(Err(ValidationError("drift")))).deliver(
+        _deliver_job("pic", "mix")
+    )
+
+    assert out.status is TaskStatus.FAILED

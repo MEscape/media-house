@@ -8,7 +8,7 @@ from media_house.core.modules import Container
 from media_house.modules.asset_relationships.application.contracts import RelationshipDetection
 from media_house.modules.audio_improvement.application.contracts import AudioImprover
 from media_house.modules.audio_intelligence.application.contracts import AudioAnalyzer
-from media_house.modules.audio_mix_engine.application.contracts import AudioMixer
+from media_house.modules.audio_mix_engine.application.contracts import AudioMixer, MixAttacher
 from media_house.modules.audio_visual_alignment.application.contracts import AudioVisualAligner
 from media_house.modules.broll_intelligence.application.contracts import BrollAnalyzer
 from media_house.modules.caption_engine.application.contracts import CaptionPlanner
@@ -28,6 +28,7 @@ from media_house.modules.music_and_sound_design.application.contracts import (
 )
 from media_house.modules.pacing_intelligence.application.contracts import PacingAnalyzer
 from media_house.modules.proxy_manager.application.contracts import ProxyManager
+from media_house.modules.quality_control.application.contracts import QualityAnalyzer
 from media_house.modules.reframing_intelligence.application.contracts import ReframingAnalyzer
 from media_house.modules.resolve_adapter.application.contracts import (
     ResolveExecutor,
@@ -80,6 +81,8 @@ class MediaPipelineModule:
                     resolve_executor=c.resolve(ResolveExecutor),
                     resolve_renderer=c.resolve(ResolveRenderer),
                     audio_mixer=c.resolve(AudioMixer),
+                    mix_attacher=c.resolve(MixAttacher),
+                    quality_analyzer=c.resolve(QualityAnalyzer),
                     settings=settings,
                 ),
             ),

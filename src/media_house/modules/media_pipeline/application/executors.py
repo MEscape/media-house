@@ -27,8 +27,10 @@ from media_house.modules.audio_intelligence.application.contracts import (
     TranscriptionConfig,
 )
 from media_house.modules.audio_mix_engine.application.contracts import (
+    AttachMixCommand,
     AudioMixer,
     JobState,
+    MixAttacher,
     MixConfig,
     NothingToMix,
     RenderMixCommand,
@@ -173,8 +175,13 @@ from media_house.modules.proxy_manager.application.contracts import (
     ProxyDto,
     ProxyManager,
 )
+from media_house.modules.quality_control.application.contracts import (
+    AnalyzeQualityCommand,
+    QualityAnalyzer,
+)
 from media_house.modules.reframing_intelligence.application.contracts import (
     AnalyzeReframingCommand,
+    KeepOut,
     ReframingAnalysis,
     ReframingAnalyzer,
     ReframingConfig,
@@ -259,6 +266,7 @@ from media_house.modules.video_intelligence.application.contracts import (
 )
 from media_house.modules.visual_style_engine.application.contracts import (
     DEFAULT_OUTPUT,
+    BrandAssetBinding,
     ResolveStyleCommand,
     ResolveStyleResult,
     StyleConfig,
@@ -275,6 +283,7 @@ _UNAVAILABLE_CODES = (
     "nothing_to_mix",
     "nothing_to_plan",  # no speech: a meme, a compilation or an uncut take has no story to plan
     "nothing_to_edit",
+    "nothing_to_analyse",  # pacing: no speech and no shots (music, a still): nothing to pace
     "nothing_to_score",  # Layer 4: a timeline with nothing to place (no clip)
     "nothing_to_treat",
     "nothing_to_transition",
@@ -297,6 +306,8 @@ class StageSettings:
     story_format: str | None = None
     #: Let a language model reword the story plan (off: the plan is fully deterministic).
     story_llm: bool = False
+    #: Brand slot -> Media Library asset id (``wolf_mascot``, ``fire_plate`` ...), sorted pairs.
+    brand_assets: tuple[tuple[str, str], ...] = ()
     #: An editing profile name (``talking_head``, ``tutorial`` ...); ``None`` = the one named like
     #: the story's format.
     edit_profile: str | None = None
@@ -325,6 +336,10 @@ class StageSettings:
     #: Reserved rectangles of the OUTPUT picture (captions, a title, an interface margin). Nothing
     #: is assumed: with none listed there is no safe-area constraint.
     reframing_safe_areas: tuple[SafeArea, ...] = ()
+    #: Colours of the SOURCE picture that must not be on screen (the green wall of a set): the
+    #: reframing crops in until they are gone. With no ``reframing_target`` the output format is
+    #: the target (a 16:9 source is cropped in, not left alone).
+    reframing_keep_out: tuple[KeepOut, ...] = ()
     #: Pin the transcription language (ISO code such as ``de``); ``None`` = auto-detect.
     transcription_language: str | None = None
     # --- Layer 4 ---------------------------------------------------------------------------
@@ -486,6 +501,8 @@ class ModuleExecutors:
         resolve_executor: ResolveExecutor,
         resolve_renderer: ResolveRenderer,
         audio_mixer: AudioMixer,
+        mix_attacher: MixAttacher,
+        quality_analyzer: QualityAnalyzer,
         settings: StageSettings | None = None,
     ) -> None:
         self._library = library
@@ -517,6 +534,8 @@ class ModuleExecutors:
         self._resolve_executor = resolve_executor
         self._resolve_renderer = resolve_renderer
         self._audio_mixer = audio_mixer
+        self._mix_attacher = mix_attacher
+        self._quality_analyzer = quality_analyzer
         self._settings = settings or StageSettings()
 
     def table(self) -> Mapping[TaskKind, TaskExecutor]:
@@ -547,6 +566,8 @@ class ModuleExecutors:
             TaskKind.TIMELINE_BUILD: self.timeline_build,
             TaskKind.RESOLVE_EXECUTE: self.resolve_execute,
             TaskKind.AUDIO_MIX: self.audio_mix,
+            TaskKind.DELIVER: self.deliver,
+            TaskKind.QUALITY_CONTROL: self.quality_control,
         }
 
     def peeks(self) -> Mapping[TaskKind, TaskPeek]:
@@ -989,20 +1010,25 @@ class ModuleExecutors:
         results (nothing is recomputed). The editing stage consumes the result of this run."""
         asset_id = job.id.asset_id
         s = self._settings
-        if s.reframing_target is None:
+        wanted = s.reframing_target or (s.output_format if s.reframing_keep_out else None)
+        if wanted is None:
             return TaskResult(
                 TaskStatus.SKIPPED_UNAVAILABLE,
                 "no target format chosen: framing means nothing without one (reframing_target)",
             )
         try:
             width, height = s.reframing_resolution or (None, None)
-            target = TargetFormat.of(s.reframing_target, width=width, height=height)
+            target = TargetFormat.of(wanted, width=width, height=height)
         except InvariantViolation as exc:
             return TaskResult(TaskStatus.FAILED, exc.user_message)
         command = AnalyzeReframingCommand(
             (asset_id,),
             target,
-            config=ReframingConfig(profile=s.reframing_profile, safe_areas=s.reframing_safe_areas),
+            config=ReframingConfig(
+                profile=s.reframing_profile,
+                safe_areas=s.reframing_safe_areas,
+                keep_out=s.reframing_keep_out,
+            ),
             story_format=s.story_format,
             story_plan=self._upstream(job, TaskKind.STORY, StoryPlan),
             video_analyses=_given(
@@ -1176,6 +1202,7 @@ class ModuleExecutors:
             height=size[1] if size else None,
             config=StyleConfig(profile=s.format_profile, sponsored=s.sponsored),
             story_format=plan.target_format if plan else s.story_format,
+            brand_assets=tuple(BrandAssetBinding(slot, asset) for slot, asset in s.brand_assets),
         )
         match self._style_resolver.execute(command):
             case Ok(result):
@@ -1604,6 +1631,41 @@ class ModuleExecutors:
             case Err(error):
                 return _from_error(error)
 
+    def deliver(self, job: TaskJob) -> TaskResult:
+        """The rendered picture with the final mix as its sound: the file a person reviews.
+
+        The editing application's render carries the raw sound of the clips; the mix engine's final
+        mix spans the same timeline. Nothing is approved or exported here (a review copy)."""
+        asset = job.id.asset_id
+        render = job.upstream.get(TaskId(asset, TaskKind.RESOLVE_EXECUTE))
+        mix = job.upstream.get(TaskId(asset, TaskKind.AUDIO_MIX))
+        picture_id = render.facts.get("render_asset_id") if render else None
+        mix_id = mix.facts.get("mix_asset_id") if mix else None
+        if not isinstance(picture_id, str):
+            return TaskResult(
+                TaskStatus.SKIPPED_UNAVAILABLE,
+                "no rendered picture to attach the mix to (ask for a render: --resolve-render)",
+            )
+        if not isinstance(mix_id, str):
+            return TaskResult(TaskStatus.SKIPPED_UNAVAILABLE, "the mix task delivered no mix")
+        match self._mix_attacher.execute(AttachMixCommand(picture_id, mix_id), job.ctx):
+            case Err(error):
+                return _from_error(error)
+            case Ok(done):
+                m = done.measurement
+                return TaskResult(
+                    TaskStatus.SUCCEEDED if done.created else TaskStatus.REUSED,
+                    "",
+                    facts={
+                        "delivery_asset_id": done.asset.id,
+                        "picture_asset_id": picture_id,
+                        "mix_asset_id": mix_id,
+                        "integrated_lufs": m.integrated_lufs,
+                        "true_peak_dbtp": m.true_peak_dbtp,
+                        "loudness_range_lu": m.loudness_range_lu,
+                    },
+                )
+
     def audio_mix(self, job: TaskJob) -> TaskResult:
         """Mix the built timeline's sound: a specification, one stem per bus, the final mix,
         measured against the delivery profile. Independent of any editing application."""
@@ -1659,6 +1721,48 @@ class ModuleExecutors:
                 reused = mix is not None and mix.reused and r.reused_stems == len(r.stems)
                 return TaskResult(
                     TaskStatus.REUSED if reused else TaskStatus.SUCCEEDED,
+                    warnings=notes,
+                    facts=facts,
+                )
+
+    def quality_control(self, job: TaskJob) -> TaskResult:
+        """Check the built timeline and report what is wrong, with evidence. It changes nothing
+        and approves nothing; a report with export-blocking findings is ``partial`` (the run found
+        something a person must look at), never a failure of the run."""
+        built = self._upstream(job, TaskKind.TIMELINE_BUILD, BuiltTimeline)
+        if built is None:
+            return TaskResult(TaskStatus.FAILED, "the build task delivered no built timeline")
+        command = AnalyzeQualityCommand(
+            anchor_asset_id=built.anchor_asset_id, timeline_id=built.timeline_id
+        )
+        match self._quality_analyzer.execute(command, job.ctx):
+            case Err(error):
+                return _from_error(error)
+            case Ok(done):
+                report = done.report
+                summary = report.severity_summary
+                facts: dict[str, JsonValue] = {
+                    "quality_report_id": report.quality_report_id,
+                    "report_asset_id": done.asset.id,
+                    "technical_status": report.technical_status.value,
+                    "review_status": report.review_status.value,
+                    "critical": summary.critical,
+                    "high": summary.high,
+                    "medium": summary.medium,
+                    "low": summary.low,
+                    "optional": summary.optional,
+                    "export_blocking": len(report.export_blocking_issues),
+                }
+                notes = tuple(i.description for i in report.detected_issues[:5])
+                if report.export_blocking_issues:
+                    return TaskResult(
+                        TaskStatus.PARTIAL,
+                        "the timeline has findings that block an export",
+                        warnings=notes,
+                        facts=facts,
+                    )
+                return TaskResult(
+                    TaskStatus.SUCCEEDED if done.created else TaskStatus.REUSED,
                     warnings=notes,
                     facts=facts,
                 )
@@ -1723,8 +1827,17 @@ class ModuleExecutors:
                         TaskStatus.FAILED, "; ".join(report.errors) or report.outcome.value,
                         warnings=warnings, facts=facts,
                     )  # fmt: skip
-                if render is not None and report.outcome is not Outcome.PARTIAL:
-                    return self._resolve_render(built, config, render, facts, warnings, job)
+                # PARTIAL only says Resolve's scripting could not carry out some instructions (they
+                # are reported and marked in the timeline); the render step makes its own checks
+                # (open conflicts, wrong pool items) and a failed operation still blocks it.
+                renderable = report.outcome is not Outcome.PARTIAL or (
+                    facts["failed"] == 0 and facts["open_conflicts"] == 0
+                )
+                if render is not None and renderable:
+                    return self._resolve_render(
+                        built, config, render, facts, warnings, job,
+                        partial=report.outcome is Outcome.PARTIAL,
+                    )  # fmt: skip
                 status = (
                     TaskStatus.PARTIAL
                     if report.outcome is Outcome.PARTIAL
@@ -1747,6 +1860,8 @@ class ModuleExecutors:
         facts: dict[str, JsonValue],
         warnings: tuple[str, ...],
         job: TaskJob,
+        *,
+        partial: bool = False,
     ) -> TaskResult:
         match self._resolve_renderer.execute(
             RenderCommand(anchor_asset_id=built.anchor_asset_id, config=config, render=render),
@@ -1764,6 +1879,13 @@ class ModuleExecutors:
                     Outcome.COMPLETED,
                     Outcome.COMPLETED_WITH_WARNINGS,
                 )
+                if ok and partial:
+                    return TaskResult(
+                        TaskStatus.PARTIAL,
+                        "rendered; instructions Resolve's scripting cannot carry out remain",
+                        warnings=warnings,
+                        facts=facts,
+                    )
                 return TaskResult(
                     TaskStatus.SUCCEEDED if ok else TaskStatus.FAILED,
                     "" if ok else "; ".join(result.report.errors) or "the render did not deliver",

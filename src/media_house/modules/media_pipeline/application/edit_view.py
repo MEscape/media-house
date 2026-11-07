@@ -254,7 +254,15 @@ def no_speech_view(
     variable = (
         video is not None and video.timing is not None and video.timing.mode.value == "variable"
     )
-    length = rat(seconds(duration))
+    length = seconds(duration)
+    if rate is not None and not variable:
+        # A timeline is whole frames: a recording of 59.304 s at 30 fps is 1779 frames (59.3 s).
+        # Its sound is cut to the same length, or it would end a few samples after the timeline.
+        per_second = Fraction(rate.numerator, rate.denominator)
+        whole = int(length * per_second)
+        if whole > 0:
+            length = whole / per_second
+    length_rat = rat(length)
     return EditView(
         anchor_asset_id=asset_id,
         edit_plan_id=None,
@@ -262,14 +270,14 @@ def no_speech_view(
         project_id=None,
         frame_rate=rate or _ASSUMED_RATE,
         frame_rate_assumed=rate is None or variable,
-        duration=length,
+        duration=length_rat,
         story_format=story_format,
         clips=(
             ViewClip(
                 clip_id=f"clip:{asset_id}",
                 asset_id=asset_id,
                 source_start=Rational(0, 1),
-                source_end=length,
+                source_end=length_rat,
                 timeline_start=Rational(0, 1),
                 picture=video is not None,
             ),

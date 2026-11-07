@@ -38,6 +38,10 @@ class TaskKind(StrEnum):
     TIMELINE_BUILD = "timeline_build"
     RESOLVE_EXECUTE = "resolve_execute"
     AUDIO_MIX = "audio_mix"
+    # Layer 5/6: the rendered picture with the final mix as its sound (the file a person reviews).
+    DELIVER = "deliver"
+    # Layer 6: the quality of the built timeline, reported with evidence (it changes nothing).
+    QUALITY_CONTROL = "quality_control"
 
 
 class Lane(StrEnum):
