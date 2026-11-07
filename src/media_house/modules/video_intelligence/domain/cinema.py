@@ -168,7 +168,16 @@ def describe_composition(
         empty_space=1.0 - sum(covered) / len(covered) if covered else None,
         background_clutter=clutter,
         subject_separation=separation,
+        color_grid=_median_grid(geometry, geometry_rows),
     )
+
+
+def _median_grid(geometry: GeometrySignals | None, rows: Sequence[int]) -> tuple[int, ...] | None:
+    """The shot's colour grid: the median of every cell over its analysed frames."""
+    if geometry is None or not geometry.color_grid or not rows:
+        return None
+    grids = [geometry.color_grid[i] for i in rows]
+    return tuple(int(median(g[k] for g in grids)) for k in range(len(grids[0])))
 
 
 def describe_lighting(

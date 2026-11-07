@@ -416,8 +416,13 @@ class GeometrySignals:
     #: inside it (0 when there is none): how busy the background is and how crisp the subject.
     edge_outside: tuple[float, ...]
     edge_inside: tuple[float, ...]
+    #: Per analysed frame the mean colour (R, G, B bytes) of each cell of a 32 x 18 grid, row by row
+    #: (1728 bytes): what the picture shows where, for rules about backgrounds. Empty: not measured.
+    color_grid: tuple[tuple[int, ...], ...] = ()
 
     def __post_init__(self) -> None:
+        if self.color_grid and len(self.color_grid) != len(self.frames):
+            raise InvariantViolation("geometry signals: a colour grid is needed for every frame")
         columns = {
             "horizon_tilt": self.horizon_tilt,
             "horizon_support": self.horizon_support,

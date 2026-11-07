@@ -174,6 +174,25 @@ def main_subject_box(rows: list[DetectionRow]) -> BBox | None:
     return max(pool, key=lambda r: r.box.area).box if pool else None
 
 
+GRID_COLUMNS, GRID_ROWS = 32, 18
+
+
+def color_grid_of(picture: Rgb) -> tuple[int, ...]:
+    """The mean colour (R, G, B bytes) of each cell of a 32 x 18 grid, row by row."""
+    height, width = picture.shape[:2]
+    rows = np.linspace(0, height, GRID_ROWS + 1).astype(int)
+    columns = np.linspace(0, width, GRID_COLUMNS + 1).astype(int)
+    cells: list[int] = []
+    for r in range(GRID_ROWS):
+        for c in range(GRID_COLUMNS):
+            block = picture[
+                rows[r] : max(rows[r + 1], rows[r] + 1),
+                columns[c] : max(columns[c + 1], columns[c] + 1),
+            ]
+            cells.extend(round(float(v)) for v in block.reshape(-1, 3).mean(axis=0))
+    return tuple(cells)
+
+
 def geometry_of(picture: Rgb, subject: BBox | None) -> tuple[float, ...]:
     """The ten geometry columns of one colour picture (see ``GeometrySignals``)."""
     colour = picture.astype(np.float32) / 255.0
@@ -223,7 +242,7 @@ class NumpyGeometryAnalyzer:
     analyzer = AnalyzerId.GEOMETRY
 
     def identity(self) -> dict[str, str]:
-        return {**engine_identity(), "geometry": "gradient-orientation-1"}
+        return {**engine_identity(), "geometry": "gradient-orientation-3"}
 
     def unavailable(self, allow_downloads: bool) -> str | None:
         return None
@@ -247,10 +266,13 @@ class NumpyGeometryAnalyzer:
 
         def work() -> GeometrySignals:
             rows: list[tuple[float, ...]] = []
+            grids: list[tuple[int, ...]] = []
             for frame in usable:
                 cancellation.raise_if_cancelled()
                 subject = main_subject_box(by_frame.get(frame, []))
-                rows.append(geometry_of(rgb_frame(frames, frame), subject))
+                picture = rgb_frame(frames, frame)
+                rows.append(geometry_of(picture, subject))
+                grids.append(color_grid_of(picture))
             data = np.array(rows).reshape(-1, 14)
             c = [rounded(data[:, i]) for i in range(14)]
             return GeometrySignals(
@@ -269,6 +291,7 @@ class NumpyGeometryAnalyzer:
                 seam_horizontal=c[11],
                 edge_outside=c[12],
                 edge_inside=c[13],
+                color_grid=tuple(grids),
             )
 
         return guarded("Measuring picture geometry", work)

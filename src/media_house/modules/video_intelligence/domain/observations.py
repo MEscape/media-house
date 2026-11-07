@@ -368,6 +368,9 @@ class CompositionObservation(Assessed):
     background_clutter: float | None = None
     #: Sharpness of the subject against its surroundings (how well it separates).
     subject_separation: float | None = None
+    #: Median over the shot's analysed frames of the mean colour (R, G, B bytes) of each cell of a
+    #: 32 x 18 grid, row by row (1728 values): what the picture shows where. ``None``: not measured.
+    color_grid: tuple[int, ...] | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
