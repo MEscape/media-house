@@ -48,6 +48,7 @@ from media_house.modules.resolve_adapter.domain.errors import (
 )
 from media_house.modules.resolve_adapter.domain.live import RenderStatus, TimelineSnapshot
 from media_house.modules.resolve_adapter.domain.render import (
+    REQUIRED_RENDER_SETTINGS,
     OutputExpectation,
     OutputFacts,
     check_output,
@@ -300,8 +301,18 @@ class RenderTimeline:
             )
             applied = self._backend.configure_render(format_id, codec_id, settings)
             now = self._backend.render_options(format_id)
-            ok = (now.current_format, now.current_codec) == (format_id, codec_id) and all(
-                applied.values()
+            refused = sorted(
+                k for k, done in applied.items() if not done and k != "format_and_codec"
+            )
+            for setting in refused:
+                if setting not in REQUIRED_RENDER_SETTINGS:
+                    ledger.warn(
+                        f"Resolve refused the render setting {setting}; its default applies"
+                    )
+            ok = (
+                (now.current_format, now.current_codec) == (format_id, codec_id)
+                and applied.get("format_and_codec", False)
+                and not any(k in REQUIRED_RENDER_SETTINGS for k in refused)
             )
             ledger.op(
                 "render",

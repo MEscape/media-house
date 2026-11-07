@@ -25,8 +25,11 @@ class Quirks:
     The defaults are the documented behaviour. A wrong default does not corrupt a project: the
     placed clip is read back, so a mismatch is a failed verification, not a silent error."""
 
-    #: ``endFrame`` of a placed clip is the last frame played (not the one after it).
-    end_frame_inclusive: bool = True
+    #: ``endFrame`` of a placed clip is the last frame played (not the one after it). Measured on
+    #: DaVinci Resolve Studio 21.1: ``AppendToTimeline`` takes it as EXCLUSIVE (the first live run
+    #: placed every clip one frame short with the documented inclusive reading), so the default is
+    #: False. A different build can say otherwise in the configuration; the read-back confirms.
+    end_frame_inclusive: bool = False
     #: Audio-only clips are placed in frames of the timeline rate.
     audio_frames_follow_timeline: bool = True
     #: Timeline start timecode applied to the new timeline, so frame 0 is the first frame.

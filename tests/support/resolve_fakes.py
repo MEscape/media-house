@@ -439,7 +439,7 @@ class FakeProject:
         return True
 
     def SetRenderSettings(self, settings: dict[str, Any]) -> bool:  # noqa: N802
-        self.render_settings = dict(settings)
+        self.render_settings.update(settings)
         return True
 
     def AddRenderJob(self) -> str:  # noqa: N802
@@ -516,7 +516,7 @@ class FakeResolve:
         *,
         studio: bool = True,
         version: tuple[int, int, int, int, str] = (19, 0, 3, 2, ""),
-        end_inclusive: bool = True,
+        end_inclusive: bool = False,
         render_script: tuple[str, ...] = ("Rendering", "Complete"),
         render_writer: Callable[[Path, str], None] | None = None,
     ) -> None:

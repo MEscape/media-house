@@ -670,7 +670,7 @@ class TestMediaAndVerification:
     def test_a_wrong_end_frame_convention_is_caught_by_the_read_back_not_hidden(
         self, tmp_path: Path
     ) -> None:
-        ex, _ = f.execution(tmp_path, fake=FakeResolve(end_inclusive=False))
+        ex, _ = f.execution(tmp_path, fake=FakeResolve(end_inclusive=True))
 
         f.run(ex)
 
@@ -687,8 +687,8 @@ class TestMediaAndVerification:
 
         ex, _ = f.execution(
             tmp_path,
-            fake=FakeResolve(end_inclusive=False),
-            config=ResolveAdapterConfig(quirks=Quirks(end_frame_inclusive=False)),
+            fake=FakeResolve(end_inclusive=True),
+            config=ResolveAdapterConfig(quirks=Quirks(end_frame_inclusive=True)),
         )
 
         f.run(ex)

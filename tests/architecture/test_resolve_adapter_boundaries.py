@@ -110,7 +110,14 @@ def test_adapter_never_runs_a_producer() -> None:
 
 
 def test_only_the_pipeline_and_the_composition_root_depend_on_the_adapter() -> None:
-    allowed = ("media_house.modules.media_pipeline", "media_house.bootstrap")
+    allowed = (
+        "media_house.modules.media_pipeline",
+        "media_house.modules.quality_control",  # Layer 6 reads the stored result
+        "media_house.modules.revision_engine",  # Layer 6 reads the stored result
+        "media_house.modules.render_manager",  # Layer 6 reads the stored result
+        "media_house.modules.resolve_export",  # Layer 6 reads the stored result
+        "media_house.bootstrap",
+    )
     offenders = [
         name
         for name, info in scan(SRC).items()

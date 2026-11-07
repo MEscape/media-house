@@ -271,7 +271,7 @@ class TestTimeline:
             "track_index": 1,
             "record_frame": 0,
             "start_frame": 10,
-            "end_frame": 109,
+            "end_frame": 110,
             "media_type": 1,
         }
         values.update(kw)
@@ -317,26 +317,26 @@ class TestTimeline:
         assert clip.left_offset == 10 and clip.media_item_id == pool and clip.enabled
         assert snapshot.duration == 140
 
-    def test_the_documented_inclusive_end_frame_gives_the_requested_length(
+    def test_the_measured_exclusive_end_frame_gives_the_requested_length(
         self, tmp_path: Path
     ) -> None:
         be, _, pool = self.setup(tmp_path)
 
         self.place(be, pool, "v:a", start_frame=0, end_frame=24)
 
-        assert be.read_timeline().items[0].duration == 25
+        assert be.read_timeline().items[0].duration == 24
 
-    def test_a_resolve_with_an_exclusive_end_frame_shows_up_as_a_different_length(
+    def test_a_resolve_with_an_inclusive_end_frame_shows_up_as_a_different_length(
         self, tmp_path: Path
     ) -> None:
-        be, _ = connected(tmp_path, FakeResolve(end_inclusive=False))
+        be, _ = connected(tmp_path, FakeResolve(end_inclusive=True))
         be.create_project("A")
         [item] = be.import_media([media(tmp_path)], ("M",))
         be.create_timeline("T", "00:00:00:00")
 
         self.place(be, item.item_id, "v:a", start_frame=0, end_frame=24)
 
-        assert be.read_timeline().items[0].duration == 24  # read back, so the mismatch is visible
+        assert be.read_timeline().items[0].duration == 25  # read back, so the mismatch is visible
 
     def test_an_occupied_slot_places_nothing(self, tmp_path: Path) -> None:
         be, _, pool = self.setup(tmp_path)
@@ -397,6 +397,18 @@ class TestTimeline:
         )
         assert be.remove_marker("timeline", "mh:gap:x:y")
         assert be.read_timeline().markers == ()
+
+    def test_a_second_marker_on_the_same_frame_takes_the_next_free_frame(
+        self, tmp_path: Path
+    ) -> None:
+        be, _, _ = self.setup(tmp_path)
+
+        assert be.add_marker("timeline", 12, "Red", "A", "", 1, "mh:a")
+        assert be.add_marker("timeline", 12, "Blue", "B", "", 1, "mh:b")
+
+        assert sorted(m.frame for m in be.read_timeline().markers) == [12, 13]
+        assert be.remove_marker("timeline", "mh:b")
+        assert [m.custom_data for m in be.read_timeline().markers] == ["mh:a"]
 
     def test_deleting_and_linking(self, tmp_path: Path) -> None:
         be, _, pool = self.setup(tmp_path)

@@ -493,16 +493,17 @@ class ScriptingResolveBackend:
     ) -> bool:
         timeline = self._timeline()
         if scope == "timeline":
-            at = frame + int(timeline.GetStartFrame() or 0)
-            return bool(
-                self._call(
-                    "add a marker", timeline.AddMarker, at, color, name, note, duration, custom
-                )
-            )
-        item = self._find_item(scope)
-        return bool(
-            self._call("tag the clip", item.AddMarker, frame, color, name, note, duration, custom)
-        )
+            target, at = timeline, frame + int(timeline.GetStartFrame() or 0)
+            what = "add a marker"
+        else:
+            target, at = self._find_item(scope), frame
+            what = "tag the clip"
+        # Resolve refuses a second marker on a frame that already has one: take the next free frame
+        # (the marker is found by its custom data, never by its frame).
+        taken = {int(k) for k in (target.GetMarkers() or {})}
+        while at in taken:
+            at += 1
+        return bool(self._call(what, target.AddMarker, at, color, name, note, duration, custom))
 
     @_guarded
     def remove_marker(self, scope: str, custom: str) -> bool:
@@ -579,8 +580,10 @@ class ScriptingResolveBackend:
                 )
             )
         }
-        ok = bool(self._call("set the render settings", project.SetRenderSettings, dict(settings)))
-        done.update(dict.fromkeys(settings, ok))
+        # One key at a time: Resolve answers False for the whole call when ANY key is refused, and
+        # which one is only visible this way.
+        for key, value in settings.items():
+            done[key] = bool(self._call(f"set {key}", project.SetRenderSettings, {key: value}))
         return done
 
     @_guarded

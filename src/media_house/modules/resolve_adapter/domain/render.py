@@ -18,6 +18,24 @@ from media_house.modules.resolve_adapter.domain.values import Area, Verification
 type SettingValue = str | int | float | bool
 
 
+#: Settings without which the file would be wrong; a refusal blocks the render. Every other key is a
+#: quality preference: this Resolve (Studio 21.1) refuses ``VideoQuality`` and ``AudioBitRate`` for
+#: every value, so a refusal there is reported as a limit and the render goes on.
+REQUIRED_RENDER_SETTINGS = frozenset(
+    {
+        "SelectAllFrames",
+        "TargetDir",
+        "CustomName",
+        "FormatWidth",
+        "FormatHeight",
+        "FrameRate",
+        "ExportVideo",
+        "ExportAudio",
+        "AudioCodec",
+    }
+)
+
+
 def render_settings(
     profile: RenderProfile,
     *,
@@ -42,6 +60,14 @@ def render_settings(
     if profile.audio_bitrate_kbps is not None:
         settings["AudioBitRate"] = profile.audio_bitrate_kbps
     settings["VideoQuality"] = 0 if profile.video_quality == "auto" else "Best"
+    if profile.extension == "mp4":
+        # Web-optimised (moov atom first) so YouTube and browsers start without reading the file
+        # to its end; 48 kHz is the video standard; High profile and multi-pass where the codec
+        # takes them.
+        settings["NetworkOptimization"] = True
+        settings["AudioSampleRate"] = 48000
+        settings["EncodingProfile"] = "High"
+        settings["MultiPassEncode"] = True
     return settings
 
 
