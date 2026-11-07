@@ -115,12 +115,18 @@ Layer 5  timeline        edit_plan_compiler (edit + Layer 4 plans -> one validat
                          audio_mix_engine (the built timeline's sound -> stems per bus + the final mix,
                          measured against a delivery profile, judged; independent of Resolve)
                          -> docs/layer5/README.md
+Layer 6  review          review_orchestrator (one review state per timeline: versions, approvals, locks, checkpoints, audit;
+                         own review.db), quality_control (report with evidence), revision_engine (findings + words ->
+                         approved changes, checkpoint, rollback), final_polish (final presentation check), render_manager
+                         (versioned profiles, review/section/FINAL renders), export_validation (the exported file, checked
+                         independently), resolve_export (final review, approval, authorization, export, delivery)
+                         -> docs/layer6/README.md
 orchestration            media_pipeline (one dependency graph over all of the above; maps the EditPlan
                          into each Layer 4 module's own input DTO)
 example                  workspace
 ```
 
-Not built: `quality_control`. `resolve_adapter` is built but has not been run against a real DaVinci Resolve (none was available): see its README. `audio_mix_engine` is validated on generated audio and one synthetic clip, not on a listened-to mix of real footage.
+`resolve_adapter` is built but has not been run against a real DaVinci Resolve (none was available): see its README. `audio_mix_engine` is validated on generated audio and one synthetic clip, not on a listened-to mix of real footage.
 
 ## 3. Ports and adapters
 
@@ -131,6 +137,7 @@ A port is a `typing.Protocol` owned by the layer that *needs* the capability.
 | `WorkspaceRepository` | workspace domain | `SqliteWorkspaceRepository`; in-memory fake in tests | contract tests run against both |
 | `ProcessRunner` | `core.application.ports` | `SubprocessRunner` | no shell; list argv; timeout; cancel; streaming; typed errors |
 | `Clock` | `core.application.ports` | `SystemClock`; `FixedClock` in tests | the domain never reads the clock |
+| `MediaAnalyzer` | `core.application.ports` | `FfmpegMediaAnalyzer` (black / frozen / silent spans, loudness, decode, sampled frames) | the one implementation of file measurements for Layer 6 |
 | `JobScheduler` | `shared.concurrency` | `ThreadPoolJobScheduler`; `ImmediateJobScheduler` in tests | |
 | `EventPublisher` | `shared.events` | `EventBus` | |
 | `UiContributor` | `presentation.extension` | one per module | |

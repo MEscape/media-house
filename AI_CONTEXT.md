@@ -627,8 +627,7 @@ on its next planning, the stored `continuity_intelligence` analysis (`Continuity
 own checks. It also reads the stored `reframing_intelligence` analysis for a target format (`ReframingCatalog`, or the pipeline
 payload; `PlanEditCommand.reframing_target`): every picture clip carries a `FramingRef` per overlapping recommendation and a
 clip no crop serves (or a soft or uncertain one) becomes an issue (`IssueKind.FRAMING`) and a note; the crop itself stays in
-the framing analysis and nothing is cropped in the plan. Not built: music analysis, anything after the plan (compiler, timeline builder, Resolve adapter, quality
-control, revision).
+the framing analysis and nothing is cropped in the plan. Not built here: music analysis; what comes after the plan is Layers 5 and 6.
 
 `broll_intelligence` FINDS supplementary footage for the passages that need it, searching the WHOLE library (see its
 README). It reads the stored story plan, content analysis (+ `designations`, `resolve_references`, `stance_of`), audio,
@@ -703,7 +702,7 @@ NO-SPEECH PATH: one clip of the whole recording, timeline = source, the inspecte
 three never-mixed domains (`source_*`, `timeline_*`, `local_*`); frames are computed once at the edge (`round(t * fps)`,
 half-to-even). Knobs live in `domain/profile.py` with settings-UI field metadata; precedence profile defaults -> channel
 identity -> format profile -> project overrides -> section overrides -> person decisions. `edit_plan_compiler` (Layer 5, below) compiles
-them; `edit_plan_compiler`, `timeline_builder`, `resolve_adapter` and `audio_mix_engine` (Layer 5, below) build, execute and mix the timeline; `quality_control` is NOT built.
+them; `edit_plan_compiler`, `timeline_builder`, `resolve_adapter` and `audio_mix_engine` (Layer 5, below) build, execute and mix the timeline; Layer 6 (below) checks and reviews it.
 
 `edit_plan_compiler` (Layer 5) turns the edit and the stored Layer 4 plans into ONE `timeline_specification` (a document of the
 anchor asset, `RESULT_OPERATION = "timeline_specification"`): exact `Rational` times and frames, a fixed track layout (V1
@@ -788,6 +787,58 @@ FFmpeg through `ProcessRunner`; its identity is part of every hash. Documents: `
 `audio_mix_result`; assets `audio_mix_stem`, `audio_mix_render`. Pipeline task `audio_mix` (opt-in, CPU lane, needs only
 `timeline_build`; `--mix-profile`, `--mix-delivery`). Validated on generated audio and one synthetic clip; no listening
 evaluation; `resolve_adapter` does not import its outputs yet.
+
+**Layer 6** (overview, the loop, what was reused and what was added: `docs/layer6/README.md`; one README per module). A person
+stays the creative authority: nothing is exported, delivered or approved because an automated check passed. Every artifact names
+the exact timeline version it is about (`TimelineRef(timeline_id, version, content_hash, build_asset_id)`, the builder's own
+`build_version` / `build_hash`). The shared file-measurement capability is the core port `MediaAnalyzer` (FFmpeg adapter: black /
+frozen / silent spans, loudness, decode, sampled frames with statistics, frame comparison): quality control, polish, the render check
+and export validation use it; nobody carries another ffmpeg parser.
+
+`review_orchestrator` (shared) keeps ONE review per timeline (`ReviewSessions` / `ReviewCatalog` in `application/contracts.py`; own
+`review.db` behind `ReviewStore`, sessions as strict JSON + an append-only audit): 25 states with a table of allowed moves (the
+states that stand for a decision are reachable only through their own operation), approvals bound to the version the person looked at
+(`decide` takes the `TimelineRef`; another version is `StaleTimeline`), section locks (a lock holds; a change by a person marks
+`drift`), feedback kept as said, checkpoints (the stored build is read back and its hash compared), the permission policy
+(`AUTOMATIC` only where the project granted it; the final export, delivery approval, unlocking and overriding a blocker are always
+`MANUAL_ONLY`) and the export authorization (`authorize_export`: a person, the current final approval, the reports of this version, an
+override on record per blocking issue; bound to the profile and the output-settings hash; `verify_export` syncs the stored timeline
+first). A timeline change withdraws what depended on it (`bind_timeline`); an unchanged rebuild voids nothing.
+
+`quality_control` (29) checks a built timeline (and a preview render when given: black / frozen frames, silence, size / rate /
+duration, loudness / peaks, exposure, colour jumps ...) and reports what is wrong with evidence: `AnalyzeQualityCommand(anchor,
+preview_asset_id, preview_timeline_hash, review_session_id)` -> `QualityReport` (immutable, versioned, bound to one version and one
+preview, id derived from its inputs so identical inputs are reused; `approval: "not_approved"`). Findings (`QualityIssue`) carry
+severity (critical..optional), confidence, `basis` (a subjective one is never worse than MEDIUM and never blocks the export; a CRITICAL
+under 0.6 confidence is HIGH), frames, affected clips, evidence frames kept in the library for that exact version, a correction and the
+owner, `blocks_export`. A black frame / silence / freeze the timeline explains is NOT a finding. It changes nothing and runs no
+producer. Pipeline task `quality_control` (opt-in).
+
+`revision_engine` (30) plans (`PlanRevisionCommand`: the latest report of the review's version + pending feedback), a person decides
+(`DecideRevisionCommand`), `ExecuteRevisions` carries out what was approved through the owners' contracts (`TimelineEditor` for clip
+edits, `TimelineBuilder` for a rebuild, `AudioMixer` with `MixOverrides`, the Resolve adapter), after reading a person's Resolve edits
+back and making a verified checkpoint, stops at the first failure, binds the new version and checks it with quality control
+(`validate_revision`: a change is `resolved` only when its finding is gone). Levels A/B/C come from the permission policy, never from
+confidence; locked sections, a person's own edits and clips they asked to keep are conflicts, never overwritten. Feedback is read
+deterministically (directive / preference / question / rejection / approval / lock / keep; `this section`, `the music here`, ...
+resolved from the playhead; ambiguity asks). Changes for pacing, captions, B-roll, transitions, graphics, reframing, continuity, sound
+design are HAND-OFFS (an event; not executed here). A rollback is a level-C revision.
+
+`final_polish` (31) is the last look at the finished presentation of the review's version (opening / ending, transitions, placeholders,
+final frames, whether approved revisions are in, rejected ones not, locks and a person's edits kept), restating quality control's and
+the mix's findings with their source; `PolishCommand` -> `FinalPolishReport` + `FinalReviewPackage`, `readiness_status`
+(`ready_for_final_review` / `ready_with_warnings` / `not_ready`, never approved). Changes nothing.
+
+`render_manager` (32): versioned render profiles (data), review / section / comparison / intermediate / FINAL renders through one
+`RenderBackend` port (the Resolve adapter), a queue, verification of every file, `output_config_hash` (what an export authorization is
+bound to). A FINAL render needs a `RenderAuthorization` and the review confirms it again before it renders; nothing is overwritten.
+`export_validation` (33) checks the file that was really exported (inspection, full decode, measurements, comparison with the approved
+review render, the approved timeline version, a delivery profile) -> PASS / WARNING / FAIL / MANUAL_REVIEW_REQUIRED (never converted to
+PASS); each problem names who owns the fix. `resolve_export` (34): `ExportApprovals` (`present`, `approve_final`, `override`,
+`authorize`, `approve_delivery`; hard blockers can never be overridden) and `ExportRunner` (`verify_export` -> FINAL render ->
+validation -> record in the review; a failure is a report and the review is told; `deliver` copies a validated file, on a person's
+approval, under a new name; nothing is uploaded). Only `resolve_export` may request `RenderType.FINAL` (architecture test).
+Not run against a real Resolve; no real footage; see `docs/layer6/README.md`.
 
 `visual_style_engine` is the channel identity as versioned data (palette, fonts with sha256, type scale in ref px at a 1080
 short side, graphic language, non-overlapping layout zones per 16:9/9:16/1:1 with platform keep-outs, caption and title
