@@ -215,7 +215,7 @@ Tests: `tests/unit/audio_mix_engine`, `tests/integration/audio_mix_engine`,
 
 ## 6. What is NOT built
 
-* Final validation and delivery (`quality_control`).
+* Final validation and delivery: Layer 6 (`docs/layer6/README.md`).
 * Importing the mix and stems into Resolve (`resolve_adapter` extension), dynamic EQ / multiband /
   gate / de-esser, stereo width, multichannel, ambience-bed management, speech-aware ducking from
   `audio_intelligence` (a hook exists), and any listening evaluation of a real mix.
