@@ -64,6 +64,11 @@ versioned mix specification, one stem per bus (dialogue, production audio, music
 final mix, loudness measured against the delivery (``--mix-delivery youtube|shorts|social|broadcast_r128``)
 and the mix profile (``--mix-profile generic|talking_head|tutorial|product_demo|cinematic``; default from the
 creator identity's format profile). A stem or mix whose inputs did not change is reused.
+``--stages deliver`` (needs ``resolve_execute`` with ``--resolve-render`` and ``audio_mix``) puts the final mix
+under the rendered picture (video copied, sound replaced) and measures that file: the delivered
+loudness is a measurement. It is a review copy: nothing is approved, exported or uploaded.
+Brand pictures (``wolf_mascot``, ``fire_plate`` ...) are imported with ``scratch/import_brand_assets.py``
+(same ``--home``) and bound with ``--brand-asset SLOT=ASSET_ID`` (the import script prints the flags).
 ``--resolve-policy`` says what may be done to a project that already has work (default
 ``require_conflict_review``); ``--resolve-render youtube|master`` renders and checks the file.
 """
@@ -98,7 +103,11 @@ from media_house.modules.media_pipeline.application.contracts import (
     TaskReport,
     TaskStatus,
 )
-from media_house.modules.reframing_intelligence.application.contracts import SafeArea
+from media_house.modules.reframing_intelligence.application.contracts import (
+    KEEP_OUT_PRESETS,
+    KeepOut,
+    SafeArea,
+)
 from media_house.modules.resolve_adapter.infrastructure.install import ResolveInstall
 from media_house.modules.resolve_adapter.module import ResolveAdapterModule
 from media_house.shared.concurrency import CancellationToken, JobContext, JobProgress
@@ -146,6 +155,8 @@ class RunConfig(BaseModel):
     video_processing_profile: str | None = None
     story_format: str | None = None
     story_llm: bool | None = None
+    #: Brand slot -> library asset id (``scratch/import_brand_assets.py`` prints them).
+    brand_assets: dict[str, str] | None = None
     edit_profile: str | None = None
     edit_target_seconds: float | None = None
     edit_target_hard: bool | None = None
@@ -158,6 +169,7 @@ class RunConfig(BaseModel):
     reframing_resolution: str | None = None
     reframing_profile: str | None = None
     reframing_safe_areas: list[str] | None = None
+    reframing_keep_out: list[str] | None = None
     output_format: str | None = None
     output_resolution: str | None = None
     format_profile: str | None = None
@@ -383,6 +395,15 @@ def build_parser() -> argparse.ArgumentParser:
         "none is assumed)",
     )
     add(
+        "--reframe-keep-out",
+        dest="reframing_keep_out",
+        action="append",
+        help="a colour of the SOURCE picture that must not be visible (a set's wall): green, blue, "
+        "red, or NAME=hue_min-hue_max[,min_saturation,min_value] (repeatable). The reframing "
+        "crops in until it is gone and keeps the subject inside; with no --reframe-target the "
+        "output format is the target",
+    )
+    add(
         "--pacing-strategy",
         choices=["concise", "balanced", "detailed", "high_energy", "cinematic"],
         help="how tight the pacing recommendations are (default balanced)",
@@ -424,6 +445,14 @@ def build_parser() -> argparse.ArgumentParser:
             dest=f"{module}_profile",
             help=f"{module} profile (default: mapped from the format profile)",
         )
+    add(
+        "--brand-asset",
+        dest="brand_asset",
+        action="append",
+        default=[],
+        metavar="SLOT=ASSET_ID",
+        help="bind a brand slot (wolf_mascot, fire_plate ...) to a library asset (repeatable)",
+    )
     add(
         "--no-render",
         dest="layer4_render",
@@ -548,6 +577,25 @@ def parse_safe_areas(texts: Sequence[str] | None) -> tuple[SafeArea, ...]:
     return tuple(areas)
 
 
+def parse_keep_out(texts: Sequence[str] | None) -> tuple[KeepOut, ...]:
+    rules = []
+    for text in texts or ():
+        if text in KEEP_OUT_PRESETS:
+            rules.append(KEEP_OUT_PRESETS[text])
+            continue
+        name, _, numbers = text.partition("=")
+        parts = numbers.replace("-", ",").split(",")
+        try:
+            hue_min, hue_max, *rest = (float(p) for p in parts)
+            rules.append(KeepOut(name, hue_min, hue_max, *rest[:2]))
+        except (ValueError, TypeError):
+            presets = ", ".join(KEEP_OUT_PRESETS)
+            raise SystemExit(
+                f"--reframe-keep-out wants {presets} or NAME=hue_min-hue_max[,sat,val], not {text!r}"
+            ) from None
+    return tuple(rules)
+
+
 def settings_from(config: RunConfig) -> StageSettings:
     return StageSettings(
         video_analysis_profile=config.video_analysis_profile,
@@ -557,6 +605,7 @@ def settings_from(config: RunConfig) -> StageSettings:
         video_processing_profile=config.video_processing_profile,
         story_format=config.story_format,
         story_llm=bool(config.story_llm),
+        brand_assets=tuple(sorted((config.brand_assets or {}).items())),
         edit_profile=config.edit_profile,
         edit_target_seconds=config.edit_target_seconds,
         edit_target_hard=bool(config.edit_target_hard),
@@ -569,6 +618,7 @@ def settings_from(config: RunConfig) -> StageSettings:
         reframing_resolution=parse_resolution(config.reframing_resolution),
         reframing_profile=config.reframing_profile,
         reframing_safe_areas=parse_safe_areas(config.reframing_safe_areas),
+        reframing_keep_out=parse_keep_out(config.reframing_keep_out),
         cpu_only=bool(config.cpu_only),
         allow_model_download=bool(config.allow_model_download),
         transcription_language=config.transcription_language,
@@ -804,6 +854,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "reframing_resolution",
                 "reframing_profile",
                 "reframing_safe_areas",
+                "reframing_keep_out",
                 "output_format",
                 "output_resolution",
                 "format_profile",
@@ -830,6 +881,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             if getattr(args, key) is not None
         }
     )
+    if args.brand_asset:
+        bound = dict(merged.brand_assets or {})
+        for text in args.brand_asset:
+            slot, sep, asset_id = text.partition("=")
+            if not sep or not slot or not asset_id:
+                parser.error(f"--brand-asset expects SLOT=ASSET_ID, got {text!r}")
+            bound[slot] = asset_id
+        merged = merged.model_copy(update={"brand_assets": bound})
     capacity = {
         lane: slots
         for lane, slots in (
