@@ -14,6 +14,8 @@ from media_house.modules.content_intelligence.module import ContentIntelligenceM
 from media_house.modules.continuity_intelligence.module import ContinuityIntelligenceModule
 from media_house.modules.edit_plan_compiler.module import EditPlanCompilerModule
 from media_house.modules.editing_intelligence.module import EditingIntelligenceModule
+from media_house.modules.export_validation.module import ExportValidationModule
+from media_house.modules.final_polish.module import FinalPolishModule
 from media_house.modules.media_inspection.module import MediaInspectionModule
 from media_house.modules.media_library.module import MediaLibraryModule
 from media_house.modules.media_pipeline.module import MediaPipelineModule
@@ -21,8 +23,13 @@ from media_house.modules.motion_graphics_engine.module import MotionGraphicsEngi
 from media_house.modules.music_and_sound_design.module import MusicAndSoundDesignModule
 from media_house.modules.pacing_intelligence.module import PacingIntelligenceModule
 from media_house.modules.proxy_manager.module import ProxyManagerModule
+from media_house.modules.quality_control.module import QualityControlModule
 from media_house.modules.reframing_intelligence.module import ReframingIntelligenceModule
+from media_house.modules.render_manager.module import RenderManagerModule
 from media_house.modules.resolve_adapter.module import ResolveAdapterModule
+from media_house.modules.resolve_export.module import ResolveExportModule
+from media_house.modules.review_orchestrator.module import ReviewOrchestratorModule
+from media_house.modules.revision_engine.module import RevisionEngineModule
 from media_house.modules.story_architecture.module import StoryArchitectureModule
 from media_house.modules.timeline_builder.module import TimelineBuilderModule
 from media_house.modules.transition_engine.module import TransitionEngineModule
@@ -65,4 +72,11 @@ def installed_modules() -> Sequence[ApplicationModule]:
         TimelineBuilderModule(),
         ResolveAdapterModule(),
         AudioMixEngineModule(),
+        ReviewOrchestratorModule(),
+        QualityControlModule(),
+        RevisionEngineModule(),
+        FinalPolishModule(),
+        RenderManagerModule(),
+        ExportValidationModule(),
+        ResolveExportModule(),
     )

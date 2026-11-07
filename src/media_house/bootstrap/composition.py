@@ -4,7 +4,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from media_house.bootstrap.lifecycle import ShutdownStack
-from media_house.core.application.ports import Clock, ProcessRunner
+from media_house.core.application.ports import Clock, MediaAnalyzer, ProcessRunner
+from media_house.core.infrastructure.ffmpeg_media_analyzer import FfmpegMediaAnalyzer
 from media_house.core.infrastructure.process import SubprocessRunner
 from media_house.core.infrastructure.system_clock import SystemClock
 from media_house.core.modules import ApplicationModule, Container, install_modules
@@ -70,5 +71,8 @@ def compose_services(
     container.register_instance(JobScheduler, infrastructure.scheduler)
     container.register_instance(ProcessRunner, infrastructure.process_runner)
     container.register_instance(Clock, infrastructure.clock)
+    container.register_factory(
+        MediaAnalyzer, lambda c: FfmpegMediaAnalyzer(c.resolve(ProcessRunner))
+    )
     install_modules(modules, container)
     return container
