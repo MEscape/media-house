@@ -136,6 +136,7 @@ def test_only_the_pipeline_the_editing_stage_and_the_composition_root_depend_on_
         "media_house.modules.editing_intelligence",
         "media_house.modules.reframing_intelligence",
         "media_house.modules.transition_engine",  # Layer 4 reads the stored result
+        "media_house.modules.quality_control",  # Layer 6 carries its stored findings
         "media_house.bootstrap",
     )
     offenders = [

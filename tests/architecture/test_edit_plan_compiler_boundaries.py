@@ -175,6 +175,7 @@ def test_only_the_pipeline_the_builder_and_the_composition_root_depend_on_the_co
     allowed = (
         "media_house.modules.media_pipeline",
         "media_house.modules.timeline_builder",
+        "media_house.modules.quality_control",  # Layer 6 compares with the specification
         "media_house.bootstrap",
     )
     offenders = [

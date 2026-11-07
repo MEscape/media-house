@@ -61,6 +61,7 @@ def test_only_the_pipeline_its_consumers_and_the_composition_root_depend_on_stor
         "media_house.modules.pacing_intelligence",
         "media_house.modules.broll_intelligence",
         "media_house.modules.reframing_intelligence",
+        "media_house.modules.quality_control",  # Layer 6 compares with the story plan
         "media_house.modules.caption_engine",  # Layer 4 reads the stored result
         "media_house.modules.motion_graphics_engine",  # Layer 4 reads the stored result
         "media_house.modules.music_and_sound_design",  # Layer 4 reads the stored result

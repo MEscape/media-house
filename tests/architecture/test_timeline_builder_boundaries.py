@@ -160,6 +160,13 @@ def test_only_the_pipeline_its_consumers_and_the_composition_root_depend_on_the_
         "media_house.modules.media_pipeline",
         "media_house.modules.resolve_adapter",
         "media_house.modules.audio_mix_engine",
+        "media_house.modules.review_orchestrator",  # Layer 6 reads the stored result
+        "media_house.modules.quality_control",  # Layer 6 reads the stored result
+        "media_house.modules.revision_engine",  # Layer 6 reads the stored result
+        "media_house.modules.final_polish",  # Layer 6 reads the stored result
+        "media_house.modules.render_manager",  # Layer 6 reads the stored result
+        "media_house.modules.export_validation",  # Layer 6 reads the stored result
+        "media_house.modules.resolve_export",  # Layer 6 reads the stored result
         "media_house.bootstrap",
     )
     offenders = [
