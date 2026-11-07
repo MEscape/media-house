@@ -222,6 +222,12 @@ def _piece(
         for u in run
         if u.extent is not None and start <= (u.extent.start + u.extent.end) / 2 < end
     )
+    if not members:
+        # A pause inside a long sentence splits it: the piece without the sentence's midpoint is
+        # still that sentence's speech. Without an owner it would be discarded with its words.
+        members = tuple(
+            u for u in run if u.extent is not None and u.extent.start < end and u.extent.end > start
+        )
     return Piece(
         asset_id=run[0].asset_id,
         start=start,

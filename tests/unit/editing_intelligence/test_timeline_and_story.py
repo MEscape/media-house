@@ -471,3 +471,29 @@ def test_two_confirmed_takes_of_one_beat_are_both_kept_and_flagged_for_a_choice(
     }  # nothing dropped
     note = next(i for i in plan.issues if i.kind is IssueKind.RELATED_RECORDINGS)
     assert note.severity is Severity.RECOMMENDATION and "alternate takes" in note.detail
+
+
+def test_a_pause_inside_a_sentence_never_deletes_either_half_of_the_speech() -> None:
+    # The pause sits early in the sentence, so the sentence's midpoint lies in the second piece:
+    # the first piece used to be dropped together with the words in it.
+    rec = talk(
+        [
+            S(
+                "have you ever wondered how a heat pump can heat your home",
+                inner=((1, 1.6),),
+            )
+        ]
+    )
+    start, end = rec.spans[0]
+    plan = edit(
+        story(rec, [Sec("all", (0,), "essential")], fmt="talking_head"),
+        rec,
+        EditConfig(profile="talking_head"),
+    )
+
+    clips = plan.track(TrackKind.AUDIO)
+    kept = sum(float(to_fraction(c.source.end) - to_fraction(c.source.start)) for c in clips)
+    assert len(clips) == 2
+    assert float(to_fraction(clips[0].source.start)) < start + 0.5
+    assert float(to_fraction(clips[-1].source.end)) > end - 0.5
+    assert kept > (end - start) - 1.6 - 0.1  # everything but the removed pause is kept

@@ -40,7 +40,13 @@ FUTURE_MODULES = (
 )
 #: Layer 5 modules that now exist. The editor still never depends on them (they are in
 #: ``FUTURE_MODULES`` for that check); they stop reserving an empty package name.
-BUILT_MODULES = ("edit_plan_compiler", "timeline_builder", "resolve_adapter")
+BUILT_MODULES = (
+    "edit_plan_compiler",
+    "timeline_builder",
+    "resolve_adapter",
+    "quality_control",
+    "revision_engine",
+)
 #: Upstream producers: the editor may read their stored results (catalogs) but never run them.
 PRODUCERS = (
     "AudioAnalyzer",
