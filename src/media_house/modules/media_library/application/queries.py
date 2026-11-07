@@ -57,15 +57,27 @@ class MediaQueries:
         return Page(self._mapper.many(list(page.items)), page.total, page.page, page.page_size)
 
     def list_derived(self, source_asset_id: str) -> list[MediaAssetDto]:
-        """Direct derivatives (including previews and archived ones), oldest first, max 200."""
-        query = MediaQuery(
-            source_asset_id=source_asset_id,
-            statuses=frozenset(),
-            roles=frozenset(),
-            sort_order=SortOrder.ASC,
-            page_size=MediaQuery.MAX_PAGE_SIZE,
-        )
-        return list(self.search(query).items)
+        """Every direct derivative (including previews and archived ones), oldest first.
+
+        All of them: a recording that was processed many times has far more than one page, and a
+        caller that looks for the newest result must not be handed only the oldest page."""
+        found: list[MediaAssetDto] = []
+        page = 1
+        while True:
+            result = self.search(
+                MediaQuery(
+                    source_asset_id=source_asset_id,
+                    statuses=frozenset(),
+                    roles=frozenset(),
+                    sort_order=SortOrder.ASC,
+                    page=page,
+                    page_size=MediaQuery.MAX_PAGE_SIZE,
+                )
+            )
+            found.extend(result.items)
+            if not result.has_next:
+                return found
+            page += 1
 
     def fingerprint(
         self,
