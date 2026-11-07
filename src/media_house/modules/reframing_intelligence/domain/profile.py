@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from typing import Final
 
 from media_house.modules.reframing_intelligence.domain.errors import InvalidReframingConfig
+from media_house.modules.reframing_intelligence.domain.keepout import KeepOut
 from media_house.modules.reframing_intelligence.domain.values import PROFILE_VERSION
 
 
@@ -128,6 +129,8 @@ class ReframingProfile:
     #: With no tracked subject, a static window on the picture's attention (saliency) point may be
     #: applied instead of being a placeholder. For subjects nothing tracks (a firework in a sky).
     attention_crop_executable: bool = False
+    #: Colours that must not be visible (set from the configuration, never part of a named profile).
+    keep_out: tuple[KeepOut, ...] = ()
 
     def problems(self) -> list[str]:
         c, m, e, q = self.composition, self.motion, self.emphasis, self.quality
@@ -251,6 +254,8 @@ class ReframingConfig:
     profile: str | None = None
     custom: ReframingProfile | None = None
     safe_areas: tuple[SafeArea, ...] = ()
+    #: Parts of the source picture that must not be on screen (a colour band, see ``keepout``).
+    keep_out: tuple[KeepOut, ...] = ()
 
     def resolve(self, story_format: str | None = None) -> ReframingProfile:
         if self.custom is not None:
@@ -265,9 +270,10 @@ class ReframingConfig:
             profile = found
         problems = profile.problems()
         problems += [p for a in self.safe_areas if (p := a.problem())]
+        problems += [p for k in self.keep_out if (p := k.problem())]
         if problems:
             raise InvalidReframingConfig("; ".join(problems))
-        return profile
+        return dataclasses.replace(profile, keep_out=self.keep_out) if self.keep_out else profile
 
     def fingerprint(self, profile: ReframingProfile) -> dict[str, object]:
         return {

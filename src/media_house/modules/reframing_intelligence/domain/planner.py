@@ -48,6 +48,13 @@ from media_house.modules.reframing_intelligence.domain.geometry import (
     union_box,
     widest_crop,
 )
+from media_house.modules.reframing_intelligence.domain.keepout import (
+    KeepOutWindow,
+    core_extent,
+    find_window,
+    flagged_cells,
+    with_margin,
+)
 from media_house.modules.reframing_intelligence.domain.model import (
     CropKeyframe,
     Element,
@@ -185,10 +192,30 @@ def _plan(
     need = [_need_zoom(u, w0, h0, margin) for u in moments.union]
 
     zoom, push = _zooms(shot, geometry, target, profile, beats, moments, need)
+    keep = _keep_out(shot, profile, moments, w0, h0, margin)
+    if keep.window is not None:
+        zoom = [min(z, keep.window.zoom) for z in zoom]
+    elif keep.cells:
+        issues.append(
+            Issue(
+                kind=IssueKind.KEEP_OUT,
+                severity=Severity.WARNING,
+                detail=f"no window hides the {', '.join(keep.names)} area and keeps the subject "
+                "inside: the shot is framed without that rule",
+            )
+        )
     w = [w0 * z for z in zoom]
     h = [h0 * z for z in zoom]
     lo_x, hi_x, lo_y, hi_y, unfit = _limits(moments, w, h, margin)
     wants_x, wants_y, lead = _wants(shot, selection, profile, moments, w, h)
+    if keep.window is not None:
+        # The configuration put the wall above a perfect fit of the subject: a lean or a raised arm
+        # that the window clips is the price of it (said in the reasons), not a failed shot.
+        unfit = [False] * len(unfit)
+    if keep.window is not None and not push:
+        n_moments = len(moments.t)
+        lo_x = hi_x = [keep.window.x] * n_moments
+        lo_y = hi_y = [keep.window.y] * n_moments
 
     pans_needed = False
     x_path: list[float]
@@ -241,6 +268,11 @@ def _plan(
         )  # fmt: skip
     first, last = crops[0], crops[-1]
     reasons = reasons_of(strategy, selection, required, beats, push, lead, equal_aspect, crops)
+    if keep.window is not None:
+        reasons.append(
+            f"cropped to {keep.window.zoom:.2f} of the widest window so that the "
+            f"{', '.join(keep.names)} area ({keep.window.flagged} cells) is not on screen"
+        )
     return ShotPlan(
         strategy=strategy,
         camera_motion=motion_kind,
@@ -266,6 +298,33 @@ def _plan(
         subject_cluster=primary.series.track.cluster,
         required=names,
     )
+
+
+@dataclass(frozen=True, slots=True)
+class _Keep:
+    window: KeepOutWindow | None = None
+    cells: int = 0
+    names: tuple[str, ...] = ()
+
+
+def _keep_out(
+    shot: ShotFacts,
+    profile: ReframingProfile,
+    moments: "_Moments",
+    w0: float,
+    h0: float,
+    margin: float,
+) -> _Keep:
+    """The window that hides what the configuration forbids, when the shot shows any of it."""
+    cells, names = flagged_cells(shot.color_grid, profile.keep_out)
+    if not cells:
+        return _Keep()
+    union = core_extent([b for b in moments.union if b is not None])
+    # With a cell of margin around the wall when the subject leaves room for it, else without.
+    window = find_window(with_margin(cells), names, union, w0, h0, margin) or find_window(
+        cells, names, union, w0, h0, margin
+    )
+    return _Keep(window, len(cells), names)
 
 
 def _moments(

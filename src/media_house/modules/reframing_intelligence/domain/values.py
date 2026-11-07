@@ -50,9 +50,9 @@ is how well the evidence covers the shot, an ordinal heuristic, never a probabil
 from enum import StrEnum
 from typing import Final
 
-ANALYZER_VERSION: Final = 1
+ANALYZER_VERSION: Final = 7
 SCHEMA_VERSION: Final = 1
-VOCABULARY_VERSION: Final = 1
+VOCABULARY_VERSION: Final = 2
 PROFILE_VERSION: Final = 1
 DOCUMENT_TYPE: Final = "reframing_analysis"
 RESULT_OPERATION: Final = "reframing_analysis"
@@ -176,6 +176,7 @@ class IssueKind(StrEnum):
     INVALID_GEOMETRY = "invalid_geometry"
     SOURCE_GEOMETRY = "source_geometry"
     UNREFRAMEABLE = "unreframeable"
+    KEEP_OUT = "keep_out"
 
 
 class ResultState(StrEnum):

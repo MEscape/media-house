@@ -203,3 +203,24 @@ Builders: `tests/support/refr_fakes.py` (geometry, tracks, one-call plans), `tes
 * **A threshold**: it is a named field of a profile or a constant in `planner.py`/`verdict.py`; bump `ANALYZER_VERSION`.
 * **Hand tracking, speaker timing**: extend `video_intelligence` / `audio_visual_alignment`, map it in `application/views.py`
   into `domain/facts.py`; the planner needs no change to protect a new kind of element.
+
+
+## Keeping a colour out of the picture (`ReframingConfig.keep_out`)
+
+A source that already has the target's shape is normally left whole. A set may show something that
+must not be on screen (the green wall behind a presenter). `ReframingConfig(keep_out=(KEEP_OUT_PRESETS["green"],))`
+(CLI: `scratch/run_pipeline.py --reframe-keep-out green`, custom: `NAME=hue_min-hue_max[,sat,val]`) turns
+that into a crop:
+
+* The picture analysis stores the mean colour of each cell of a 32 x 18 grid per shot
+  (`composition.color_grid`). A cell is FLAGGED when its mean colour is inside the band; a lone flagged
+  cell is ignored (a wall is connected).
+* The planner looks for the widest window that shows no flagged cell (first with one cell of margin
+  around the wall, then without) and keeps the subject inside. The subject is judged by its
+  sideways extent trimmed to 10-90% of the moments and shrunk 8% per side (a lean or raised arm may
+  be clipped, and the crop says so), and by its HIGHEST point over the whole shot (the head is never cut).
+* If no window can hide the colour, nothing is cropped into the subject: the shot is framed as before
+  and an issue `keep_out` says so. With no `--reframe-target` the output format is the target.
+* Limits: the wall is found by colour only (a warm-lit wall near cardboard tones can leave a sliver),
+  one fixed window per shot (a subject who walks in front of the wall for long is not followed), and
+  the crop enlarges the picture (4K footage stays well above 1080p).

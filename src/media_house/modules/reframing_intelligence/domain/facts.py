@@ -55,6 +55,8 @@ class ShotFacts:
     attention: tuple[float, float] | None = None
     #: The group of repeated takes the shot belongs to.
     retake_group: str | None = None
+    #: Mean colour (R, G, B bytes) of each cell of the shot's 32 x 18 picture grid, row by row.
+    color_grid: tuple[int, ...] | None = None
 
     @property
     def seconds(self) -> float:

@@ -140,6 +140,7 @@ def source_facts(
                     else None
                 ),
                 retake_group=retakes.get(s.shot_id),
+                color_grid=s.composition.color_grid if s.composition.ok else None,
             )
         )
     p = analysis.provenance

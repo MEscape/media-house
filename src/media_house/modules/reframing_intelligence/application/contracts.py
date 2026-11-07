@@ -51,6 +51,7 @@ from media_house.modules.reframing_intelligence.domain.geometry import (
     interpolate,
     widest_crop,
 )
+from media_house.modules.reframing_intelligence.domain.keepout import KEEP_OUT_PRESETS, KeepOut
 from media_house.modules.reframing_intelligence.domain.model import (
     Alternative,
     Confidence,
@@ -143,6 +144,7 @@ __all__ = [
     "ASPECT_TOLERANCE",
     "DEFAULT_PROFILE",
     "DOCUMENT_TYPE",
+    "KEEP_OUT_PRESETS",
     "PROFILES",
     "SCHEMA_VERSION",
     "VOCABULARY_VERSION",
@@ -168,6 +170,7 @@ __all__ = [
     "InvalidReframingDocument",
     "Issue",
     "IssueKind",
+    "KeepOut",
     "Metrics",
     "MissingPrerequisite",
     "NothingToFrame",
