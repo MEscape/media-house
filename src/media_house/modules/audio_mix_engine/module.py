@@ -7,9 +7,11 @@ port; the default drives FFmpeg through the ``ProcessRunner``.
 
 from media_house.core.application.ports import Clock, ProcessRunner
 from media_house.core.modules import Container
+from media_house.modules.audio_mix_engine.application.attach_mix import AttachMix
 from media_house.modules.audio_mix_engine.application.contracts import (
     AudioMixCreator,
     AudioMixer,
+    MixAttacher,
     MixCatalog,
 )
 from media_house.modules.audio_mix_engine.application.create_spec import CreateMixSpecification
@@ -63,4 +65,11 @@ class AudioMixEngineModule:
         )
         container.register_factory(AudioMixCreator, lambda c: c.resolve(CreateMixSpecification))
         container.register_factory(AudioMixer, lambda c: c.resolve(RenderAudioMix))
+        container.register_factory(
+            AttachMix,
+            lambda c: AttachMix(
+                c.resolve(MediaLibrary), c.resolve(AudioBackend), c.resolve(AppPaths)
+            ),
+        )
+        container.register_factory(MixAttacher, lambda c: c.resolve(AttachMix))
         container.register_factory(MixCatalog, lambda c: c.resolve(MixStore))

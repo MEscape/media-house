@@ -67,6 +67,12 @@ class AudioBackend(Protocol):
 
     def render_mix(self, request: MixRequest, cancellation: CancellationToken) -> None: ...
 
+    def attach_audio(
+        self, picture: Path, audio: Path, destination: Path, cancellation: CancellationToken
+    ) -> None:
+        """Write ``picture``'s video untouched (copied) with ``audio`` as its sound."""
+        ...
+
     def measure(self, path: Path, cancellation: CancellationToken) -> Measurement: ...
 
     def measure_range(

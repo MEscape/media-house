@@ -154,3 +154,13 @@ stem and its measurements, corrections, dialogue levels, findings and the proces
   a contract, so each carries its own.
 * Frame-to-sample: sound positions come from the timeline in exact samples; the engine does not
   detect visual events or move a sound to fit one.
+
+## Attaching the mix to a rendered picture (`MixAttacher`)
+
+An editing application's render carries the raw sound of the clips (it cannot apply the mix).
+`MixAttacher.execute(AttachMixCommand(picture_asset_id, mix_asset_id), ctx)` writes the picture's
+video untouched (copied) with the final mix as AAC 320k / 48 kHz, registers it as a derivative of
+the picture (`delivery_with_mix`) and measures the delivered file. A mix whose length differs from
+the picture by more than 0.1 s is refused (the sound would drift). The pipeline's `deliver` task
+calls it. It approves nothing and exports nothing.
+

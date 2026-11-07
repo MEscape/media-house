@@ -129,6 +129,17 @@ class FfmpegAudioBackend:
         self._run(args, cancellation, "render the mix")
 
     # --- measuring --------------------------------------------------------------------------
+    def attach_audio(
+        self, picture: Path, audio: Path, destination: Path, cancellation: CancellationToken
+    ) -> None:
+        self._run(
+            ["-nostdin", "-hide_banner", "-loglevel", "error", "-y",
+             "-i", str(picture), "-i", str(audio), "-map", "0:v:0", "-map", "1:a:0",
+             "-c:v", "copy", "-c:a", "aac", "-b:a", "320k", "-ar", "48000",
+             "-shortest", "-movflags", "+faststart", str(destination)],
+            cancellation, "attach the mix",
+        )  # fmt: skip
+
     def measure(self, path: Path, cancellation: CancellationToken) -> Measurement:
         log = self._run(
             ["-nostats", "-hide_banner", "-i", str(path), "-af",

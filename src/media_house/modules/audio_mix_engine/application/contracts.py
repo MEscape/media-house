@@ -16,6 +16,11 @@ Blocking: run as a job.
 
 from typing import Protocol
 
+from media_house.modules.audio_mix_engine.application.attach_mix import (
+    ATTACH_OPERATION,
+    AttachMixCommand,
+    AttachMixResult,
+)
 from media_house.modules.audio_mix_engine.application.create_spec import (
     CreateSpecCommand,
     MixConfig,
@@ -85,6 +90,14 @@ class AudioMixer(Protocol):
         ...
 
 
+class MixAttacher(Protocol):
+    def execute(
+        self, command: AttachMixCommand, ctx: JobContext
+    ) -> Result[AttachMixResult, Exception]:
+        """Put the final mix under a rendered picture (video copied) and measure the file."""
+        ...
+
+
 class MixCatalog(Protocol):
     """Stored specifications and results; nothing is rendered."""
 
@@ -96,8 +109,16 @@ class MixCatalog(Protocol):
         self, anchor_asset_id: str, timeline_id: str | None
     ) -> Result[tuple[MixResult, MediaAssetDto] | None, MediaError]: ...
 
+    def find_spec(
+        self, anchor_asset_id: str, content_hash: str
+    ) -> Result[tuple[AudioMixSpecification, MediaAssetDto] | None, MediaError]:
+        """The specification with this content hash: the one a result was made from (the newest
+        stored specification is not necessarily the one in use, an identical one is reused)."""
+        ...
+
 
 __all__ = [
+    "ATTACH_OPERATION",
     "DELIVERIES",
     "ENGINE_VERSION",
     "MIX_OPERATION",
@@ -105,6 +126,8 @@ __all__ = [
     "RESULT_OPERATION",
     "SPEC_OPERATION",
     "STEM_OPERATION",
+    "AttachMixCommand",
+    "AttachMixResult",
     "AudioMixCreator",
     "AudioMixError",
     "AudioMixSpecification",
@@ -118,6 +141,7 @@ __all__ = [
     "InvalidMixDocument",
     "JobState",
     "Measurement",
+    "MixAttacher",
     "MixBus",
     "MixCatalog",
     "MixClip",
