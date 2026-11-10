@@ -10,6 +10,7 @@ from media_house.modules.audio_mix_engine.domain.profile import Compressor, EqBa
 from media_house.modules.audio_mix_engine.domain.spec import Automation, Duck, GainPoint
 from media_house.modules.audio_mix_engine.domain.validate import ALL_OPERATIONS
 from media_house.modules.audio_mix_engine.domain.values import BusRole, Interpolation, Provenance
+from media_house.modules.audio_mix_engine.infrastructure.ffmpeg_backend import BACKEND_REVISION
 from tests.support.media_factories import ffmpeg
 from tests.unit.audio_mix_engine import audio_support as a
 
@@ -37,7 +38,7 @@ def music(tmp_path: Path) -> Path:
 def test_the_backend_can_do_everything_the_engine_may_ask_of_it() -> None:
     caps = be.capabilities()
 
-    assert caps.identity.startswith("ffmpeg ") and caps.identity.endswith(" r1")
+    assert caps.identity.startswith("ffmpeg ") and caps.identity.endswith(f" r{BACKEND_REVISION}")
     assert caps.operations >= ALL_OPERATIONS
 
 

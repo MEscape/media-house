@@ -174,7 +174,8 @@ def test_the_mix_sums_the_stems_then_the_masters_chain() -> None:
     assert (
         graph.index("volume=2.500dB")
         < graph.index("highpass=f=30")
-        < graph.index("alimiter=limit=0.84")
+        < graph.index("aresample=192000,alimiter=limit=0.84")
+        < graph.index("aresample=48000")
     )
     assert "pan=mono" not in graph and graph.endswith("[out]")
 

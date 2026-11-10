@@ -60,6 +60,9 @@ def compressor_filter(c: Compressor) -> str:
     )
 
 
+_TRUE_PEAK_OVERSAMPLING = 4
+
+
 def limiter_filter(limiter: Limiter) -> str:
     return (
         f"alimiter=limit={_lin(limiter.ceiling_db, 0.0625, 1.0):.5f}"
@@ -248,7 +251,14 @@ def mix_graph(request: MixRequest) -> str:
     if master.compressor is not None:
         parts.append(compressor_filter(master.compressor))
     if master.limiter is not None:
-        parts.append(limiter_filter(master.limiter))
+        # A sample-peak limiter lets inter-sample (true) peaks through by up to about 1 dB:
+        # limiting at 4x the rate catches them (the delivery ceiling is in dBTP).
+        rate = request.render.sample_rate
+        parts += [
+            f"aresample={rate * _TRUE_PEAK_OVERSAMPLING}",
+            limiter_filter(master.limiter),
+            f"aresample={rate}",
+        ]
     if request.render.channels == 1:
         parts.append("pan=mono|c0=0.5*c0+0.5*c1")
     total = request.duration_samples

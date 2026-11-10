@@ -137,6 +137,7 @@ def test_only_the_pipeline_and_the_composition_root_depend_on_it() -> None:
     allowed = (
         "media_house.modules.media_pipeline",
         "media_house.modules.edit_plan_compiler",  # Layer 5: reads the stored plan
+        "media_house.modules.control_center",  # desktop control center: contracts only
         "media_house.bootstrap",
     )
     offenders = [

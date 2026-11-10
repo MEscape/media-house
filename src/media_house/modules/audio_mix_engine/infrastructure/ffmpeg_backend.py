@@ -28,7 +28,8 @@ from media_house.shared.concurrency import CancellationToken
 from media_house.shared.errors import ExternalSystemError, OperationCancelledError
 
 #: Bumped when a graph or parser changes in a way that changes results.
-BACKEND_REVISION = 1
+#: 2: the master limiter runs oversampled (true peak).
+BACKEND_REVISION = 2
 
 #: Backend-neutral operation -> the FFmpeg filters it needs.
 _NEEDS: dict[str, tuple[str, ...]] = {
@@ -142,7 +143,7 @@ class FfmpegAudioBackend:
 
     def measure(self, path: Path, cancellation: CancellationToken) -> Measurement:
         log = self._run(
-            ["-nostats", "-hide_banner", "-i", str(path), "-af",
+            ["-nostats", "-hide_banner", "-i", str(path), "-vn", "-af",
              "ebur128=peak=true:framelog=quiet,astats=measure_perchannel=none",
              "-f", "null", "-"],
             cancellation, "measure the loudness",
@@ -167,11 +168,9 @@ class FfmpegAudioBackend:
     def measure_range(
         self, path: Path, start_seconds: float, end_seconds: float, cancellation: CancellationToken
     ) -> float | None:
-        graph = (
-            f"atrim=start={start_seconds:.6f}:end={end_seconds:.6f},asetpts=PTS-STARTPTS,"
-            "ebur128=framelog=quiet"
-        )
-        return self._integrated(path, graph, cancellation)
+        # Seek on the input: a range of a long camera file decodes only that range.
+        span = ["-ss", f"{start_seconds:.6f}", "-t", f"{max(0.0, end_seconds - start_seconds):.6f}"]
+        return self._integrated(path, "ebur128=framelog=quiet", cancellation, span)
 
     def loudness_over(
         self, path: Path, ranges: Sequence[tuple[float, float]], cancellation: CancellationToken
@@ -186,7 +185,7 @@ class FfmpegAudioBackend:
         self, path: Path, threshold_db: float, min_seconds: float, cancellation: CancellationToken
     ) -> tuple[tuple[float, float], ...]:
         log = self._run(
-            ["-nostats", "-hide_banner", "-i", str(path), "-af",
+            ["-nostats", "-hide_banner", "-i", str(path), "-vn", "-af",
              f"silencedetect=n={threshold_db:g}dB:d={min_seconds:g}", "-f", "null", "-"],
             cancellation, "look for silence",
         ).stderr  # fmt: skip
@@ -211,9 +210,13 @@ class FfmpegAudioBackend:
         return -200.0 if matches[-1] in {"-inf", "inf"} else float(matches[-1])
 
     # --- plumbing ---------------------------------------------------------------------------
-    def _integrated(self, path: Path, graph: str, cancellation: CancellationToken) -> float | None:
+    def _integrated(
+        self, path: Path, graph: str, cancellation: CancellationToken, span: Sequence[str] = ()
+    ) -> float | None:
+        # -vn: a camera file's picture is never decoded to measure its sound.
         log = self._run(
-            ["-nostats", "-hide_banner", "-i", str(path), "-af", graph, "-f", "null", "-"],
+            ["-nostats", "-hide_banner", *span, "-i", str(path), "-vn", "-af", graph,
+             "-f", "null", "-"],
             cancellation, "measure a part",
         ).stderr  # fmt: skip
         value = _number(_INTEGRATED, log)

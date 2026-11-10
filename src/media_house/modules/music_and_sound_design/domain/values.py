@@ -11,7 +11,9 @@ from typing import Final
 
 ANALYZER_VERSION: Final = 1
 #: 2: incidental speech keeps a take's sound in front; 3: the appended end screen is an outro
-PLANNER_VERSION: Final = 3
+#: 4: a track that ends before its cue fades out instead of a negative tail
+#: 5: a loud moment inside the speech of a talking clip is the voice, not protected sound
+PLANNER_VERSION: Final = 5
 RENDERER_VERSION: Final = 1
 SCHEMA_VERSION: Final = 1
 VOCABULARY_VERSION: Final = 2  # 2: transition rules use transition_engine kind names

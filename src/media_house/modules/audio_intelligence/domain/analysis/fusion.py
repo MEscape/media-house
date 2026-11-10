@@ -36,6 +36,7 @@ from media_house.modules.audio_intelligence.domain.analysis.features import (
 )
 from media_house.modules.audio_intelligence.domain.analysis.pauses import detect_pauses
 from media_house.modules.audio_intelligence.domain.analysis.scoring import Scorer, ScoringInput
+from media_house.modules.audio_intelligence.domain.analysis.snap import snap_to_speech
 from media_house.modules.audio_intelligence.domain.analysis.timeline import (
     AnalysisMetadata,
     AudioIntelligenceTimeline,
@@ -71,6 +72,7 @@ def build_timeline(
     """
     analysis = config.analysis
     track = replace(measurements.track, origin=measurements.track.origin + audio_offset)
+    transcript = snap_to_speech(transcript, track)
     measured_events = tuple(
         replace(e, start=e.start + audio_offset, end=e.end + audio_offset)
         for e in measurements.events

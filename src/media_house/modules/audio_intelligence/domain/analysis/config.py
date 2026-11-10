@@ -31,7 +31,8 @@ MEASUREMENTS_OPERATION = "acoustic_measurements"
 MEASUREMENTS_VERSION = 1
 ANALYSIS_OPERATION = "audio_intelligence"
 #: Bump when the derivation pipeline (baselines, events, features, fusion) changes.
-ANALYSIS_VERSION = 1
+#: 2: word edges snapped to measured speech (aligners stretch a word across the next pause).
+ANALYSIS_VERSION = 2
 
 
 @dataclass(frozen=True, slots=True)

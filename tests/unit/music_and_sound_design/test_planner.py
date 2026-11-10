@@ -1,6 +1,7 @@
 """The planner: music per section, restraint, preservation, licences, missing assets, mix intent."""
 
 import itertools
+from dataclasses import replace
 from fractions import Fraction
 
 from media_house.core.domain import Rational
@@ -13,6 +14,7 @@ from media_house.modules.music_and_sound_design.domain.model import ItemDecision
 from media_house.modules.music_and_sound_design.domain.planner import (
     PlanInputs,
     PlanMeta,
+    _crossfades,
     cache_key,
     plan_sound_design,
     role_of,
@@ -439,3 +441,38 @@ def test_the_appended_end_screen_gets_the_outro_and_no_speech_ducking() -> None:
     [outro] = [c for c in p.music if c.section_ids == ("tail",)]
     assert outro.role is SectionRole.OUTRO
     assert all(seconds(d.timeline_end) <= 60 for d in p.ducking if d.reason == "speech")
+
+
+def test_a_track_ending_before_its_touching_cue_ends_fades_out_and_never_crosses() -> None:
+    soundtrack = timeline(
+        duration=60.0,
+        sections=(section("a", 0, 30, "hook"), section("b", 30, 60, "explanation")),
+    )
+    first, second = (c for c in plan(soundtrack).music if c.segments)
+    last = first.segments[-1]
+    early = replace(last, timeline_end=r(seconds(first.timeline_end) - 5), fade_out=r(1))
+    short = replace(
+        first, timeline_end=second.timeline_start, segments=(*first.segments[:-1], early)
+    )
+
+    (xf,) = (x for x in _crossfades([short, second], []) if x.outgoing_cue_id == first.cue_id)
+
+    assert xf.kind is CrossfadeKind.FADE_OUT and xf.incoming_cue_id is None
+    assert seconds(xf.length) == 1.0
+
+
+def test_a_loud_moment_inside_the_speech_of_a_talking_clip_is_the_voice_not_a_bang() -> None:
+    spike = OriginalSoundEvent(
+        clip_id="c1", kind="energy_spike", timeline_start=r(20), timeline_end=r(20.5), strength=0.9
+    )
+    soundtrack = timeline(
+        duration=40.0,
+        sections=(section("a", 0, 40, "context"),),
+        clips=(clip("c1", 0, 40),),
+        speech_spans=(speech(2, 30),),
+        original_events=(spike,),
+    )
+
+    p = plan(soundtrack)
+
+    assert DuckKey.ORIGINAL_AUDIO not in [d.key for d in p.ducking]

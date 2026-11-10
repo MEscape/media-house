@@ -29,6 +29,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import datetime
 from fractions import Fraction
+from typing import Final
 
 from media_house.modules.music_and_sound_design.domain.analysis import MusicAnalysis
 from media_house.modules.music_and_sound_design.domain.library import (
@@ -456,6 +457,8 @@ def _sections(
 
 
 type _Dominant = tuple[Span, str, str]  # span, reason, clip id
+#: A clip whose speech covers at least this share is a talking clip.
+_TALKING_SHARE: Final = 0.5
 
 
 def _preserved(
@@ -489,10 +492,19 @@ def _preserved(
                     clip.clip_id,
                 )
             )
+    talking = {
+        clip.clip_id
+        for clip in timeline.clips
+        if _speech_share((fraction(clip.timeline_start), fraction(clip.timeline_end)), speech)
+        >= _TALKING_SHARE
+    }
     events: list[_Dominant] = []
     for event in timeline.original_events:
         span = (fraction(event.timeline_start), fraction(event.timeline_end))
         rules = profile_at(span[0]).original_audio
+        # In a talking clip a loud moment inside the speech is the voice rising, not a bang.
+        if event.clip_id in talking and _speech_share(span, speech) > 0:
+            continue
         if event.strength >= rules.event_strength:
             events.append(
                 (span, f"loud original {event.kind} (strength {event.strength:.2f})", event.clip_id)
@@ -1199,9 +1211,10 @@ def _crossfades(music: list[MusicCue], cues: list[_Cue]) -> tuple[Crossfade, ...
     for i, cue in enumerate(playing):
         nxt = playing[i + 1] if i + 1 < len(playing) else None
         last = cue.segments[-1]
-        touching = nxt is not None and nxt.timeline_start == cue.timeline_end
         at = fraction(cue.timeline_end)
         tail = fraction(last.timeline_end) - at
+        # A track that ends before its cue leaves no tail to cross into the next cue: it fades out.
+        touching = nxt is not None and nxt.timeline_start == cue.timeline_end and tail > 0
         if not touching and fraction(last.fade_out) <= 0:
             continue
         info = bridges.get(nxt.cue_id) if touching and nxt is not None else None

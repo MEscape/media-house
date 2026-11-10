@@ -73,6 +73,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"  duplicate: {path} = {first}")
         for path in report.checksum_mismatches:
             print(f"  ! checksum differs from the manifest: {path}")
+        # DaVinci Resolve does not import Ogg Vorbis/Opus: a picked sound would block the render.
+        unplayable = [s for s in report.sounds if Path(s.path).suffix.lower() in {".ogg", ".opus"}]
+        if unplayable:
+            print(
+                f"  ! {len(unplayable)} sounds are OGG/Opus, which Resolve cannot import: convert "
+                "them to WAV and point the manifest at the WAV"
+            )
         problems = [*report.failed, *report.analysis.failed]
         for what, reason in problems:
             print(f"  x {what}: {reason}")

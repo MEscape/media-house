@@ -65,7 +65,7 @@ def test_analysis_constants_are_pinned_to_the_analysis_version() -> None:
         "pause_structure_weight": scoring.PAUSE_STRUCTURE_WEIGHT,
         "seconds_per_structuring_pause": scoring.SECONDS_PER_STRUCTURING_PAUSE,
     } == {
-        "analysis_version": 1,
+        "analysis_version": 2,
         "min_local_frames": 10,
         "min_range_frames": 5,
         "min_rate_seconds": 0.5,
