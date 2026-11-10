@@ -38,6 +38,9 @@ K = CommerceKind
         ("NEM 500 g", K.WEIGHT, Fraction(500), "g", "NEM 500 g"),
         ("Gewicht 1,2 kg", K.WEIGHT, Fraction(6, 5), "kg", None),
         ("mit 5 Effekten", K.EFFECTS, Fraction(5), "", "5 Effekten"),
+        # E2E (owner's lineup video): the price said without the currency, the NEM after its unit
+        ("die teuerste hier für 134,99.", K.PRICE, Fraction(13499, 100), "EUR", "für 134,99"),
+        ("aber fast 1,5 Kilogramm NEM.", K.WEIGHT, Fraction(3, 2), "kg", "1,5 Kilogramm NEM"),
     ],
 )
 def test_one_fact_is_read_exactly_and_verbatim(
@@ -56,7 +59,9 @@ def test_one_fact_is_read_exactly_and_verbatim(
     [
         "neunzehn Euro",  # spelled-out amounts are not read (documented limit)
         "neunzehn neunundneunzig",
-        "das kostet 15,99",  # no currency: not a price
+        "das kostet 15",  # no currency and no cents: not a price
+        "für 1,5 Kilogramm",  # a unit follows: not a price
+        "6 Gramm NEM pro Schuss",  # per shot, not the battery's NEM
         "in 40 Sekunden zünden wir",  # no spec word: not a burn time
         "Nettoexplosivmasse",
     ],

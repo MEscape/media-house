@@ -63,6 +63,13 @@ _CURRENCY = r"(?:€|eur\b|euro\b)"
 _PRICES: Final = (
     re.compile(rf"(?<![\d.,]){_AMOUNT}\s?{_CURRENCY}", re.IGNORECASE),
     re.compile(rf"(?:€|eur\b)\s?{_AMOUNT}(?![\d,.]\d)", re.IGNORECASE),
+    # Spoken without the currency ("die teuerste hier für 134,99."): only with cents, only after
+    # a price word, never before a unit.
+    re.compile(
+        r"\b(?:für|kostet|kosten)\s+(?:nur\s+)?(?P<int>\d{1,4}),(?P<dec>\d{2})(?![\d,.]\d)"
+        r"(?!\s?(?:%|prozent|kg|kilo|gramm|g\b|m\b|meter|sek|mm|schuss))",
+        re.IGNORECASE,
+    ),
 )
 _NUM = r"(?P<num>\d+(?:[,.]\d+)?)"
 _WORD_NUMBERS: Final = {
@@ -114,6 +121,15 @@ _SPECS: Final = {
             ),
             "g",
         ),
+        (  # "fast 1,5 Kilogramm NEM", never the per-shot "6 Gramm NEM pro Schuss"
+            CommerceKind.WEIGHT,
+            re.compile(
+                rf"\b{_NUM}\s?(?P<unit>kg|kilogramm|kilo|g|gramm)\s+(?:nem|netto-?explosivmasse)\b"
+                r"(?!\s+pro\s+schuss)",
+                re.I,
+            ),
+            "g",
+        ),
     ),
 }
 _YEAR: Final = re.compile(r"(?:19|20)\d\d")
@@ -149,7 +165,7 @@ def commerce_facts(text: str, language: str | None = "de") -> tuple[CommerceFact
     for kind, pattern, unit in _SPECS.get(family, ()):
         for m in pattern.finditer(text):
             value = Fraction(m["num"].replace(",", "."))
-            kilos = kind is CommerceKind.WEIGHT and m["unit"].casefold() == "kg"
+            kilos = kind is CommerceKind.WEIGHT and m["unit"].casefold().startswith("k")
             found.append(_fact(kind, m, value, "kg" if kilos else unit))
     for m in _RETAILERS.finditer(text):
         name = " ".join(w.capitalize() for w in m["name"].split())

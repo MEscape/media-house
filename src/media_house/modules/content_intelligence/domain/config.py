@@ -112,6 +112,32 @@ class LlmSettings:
     seed: int = 7
     #: Only with this set may the endpoint be another machine. Transcripts then leave this one.
     allow_remote_endpoint: bool = False
+    #: Name of the secret holding the bearer API key (``MEDIA_HOUSE_SECRET_<NAME>``, lower-case
+    #: here, e.g. ``groq_api_key``). ``None`` sends no key (local servers need none).
+    api_key_secret: str | None = None
+    #: Attempts per request; 429 and 5xx answers are retried, honouring ``Retry-After``.
+    max_attempts: int = 3
+
+
+@dataclass(frozen=True, slots=True)
+class LlmProvider:
+    """Where an OpenAI-compatible provider answers and which secret holds its key."""
+
+    endpoint: str
+    api_key_secret: str | None
+
+
+#: Known OpenAI-compatible chat providers. The model id is always chosen by the caller (they
+#: change too often to default here). Every one but ``ollama`` is remote: text leaves the machine.
+LLM_PROVIDERS: Final[dict[str, LlmProvider]] = {
+    "groq": LlmProvider("https://api.groq.com/openai/v1", "groq_api_key"),
+    "cerebras": LlmProvider("https://api.cerebras.ai/v1", "cerebras_api_key"),
+    "openrouter": LlmProvider("https://openrouter.ai/api/v1", "openrouter_api_key"),
+    "gemini": LlmProvider(
+        "https://generativelanguage.googleapis.com/v1beta/openai", "gemini_api_key"
+    ),
+    "ollama": LlmProvider("http://127.0.0.1:11434/v1", None),
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -148,6 +174,7 @@ class ContentConfig:
                 (not llm.model, "llm.model must name a model"),
                 (llm.max_output_tokens < 64, "llm.max_output_tokens is too small"),
                 (llm.timeout_seconds <= 0, "llm.timeout_seconds must be positive"),
+                (not 1 <= llm.max_attempts <= 10, "llm.max_attempts must be 1-10"),
             ]
         for failed, message in problems:
             if failed:
