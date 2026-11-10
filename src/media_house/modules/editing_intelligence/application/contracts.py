@@ -81,6 +81,7 @@ from media_house.modules.editing_intelligence.domain.model import (
 from media_house.modules.editing_intelligence.domain.profile import (
     DEFAULT_PROFILE,
     PROFILES,
+    CoverWish,
     EditConfig,
     EditingProfile,
     TargetDuration,
@@ -171,6 +172,7 @@ __all__ = [
     "ContinuityAdvisor",
     "ContinuityVerdict",
     "CoverCandidate",
+    "CoverWish",
     "CoverageAdvisor",
     "CoverageQuery",
     "CoverageRequest",

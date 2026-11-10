@@ -44,6 +44,7 @@ from media_house.modules.edit_plan_compiler.domain.model import (
     ZoneRef,
 )
 from media_house.modules.edit_plan_compiler.domain.profile import CompilerConfig
+from media_house.modules.edit_plan_compiler.domain.punch import punch_in_jump_cuts
 from media_house.modules.edit_plan_compiler.domain.timing import fr, rat
 from media_house.modules.edit_plan_compiler.domain.tracks import TrackPlanner, track_id
 from media_house.modules.edit_plan_compiler.domain.units import Context, Unit, clip_unit
@@ -159,7 +160,7 @@ def compile_timeline(
         if unit is not None:
             units.append(unit)
 
-    video = tuple(v for u in units for v in u.video)
+    video = punch_in_jump_cuts([v for u in units for v in u.video], config.jump_cut_zoom)
     overlays = tuple(o for u in units for o in u.overlays)
     audio = tuple(a for u in units for a in u.audio)
     effects = tuple(e for u in units for e in u.effects)

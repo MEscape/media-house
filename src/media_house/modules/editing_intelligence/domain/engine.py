@@ -103,6 +103,7 @@ from media_house.modules.editing_intelligence.domain.values import (
     StructuralKind,
     TrackKind,
 )
+from media_house.modules.editing_intelligence.domain.wishes import place_wishes
 
 _MEASURED = frozenset({Precision.FRAME_EXACT, Precision.WORD_ALIGNED, Precision.SEGMENT_ALIGNED})
 _DEFAULT_RATE = Rational(30, 1)
@@ -271,9 +272,18 @@ def plan_edit(
         effect_id,
         broll,
     )
-    for d in coverage.decisions:
+    wishes = place_wishes(
+        config.cover_wishes,
+        built.pieces,
+        built.timeline,
+        everything,
+        coverage.placements,
+        rate,
+        issue_id,
+    )
+    for d in [*coverage.decisions, *wishes.decisions]:
         final[d.decision_id] = d
-    placements = [*built.timeline.placements, *coverage.placements]
+    placements = [*built.timeline.placements, *coverage.placements, *wishes.placements]
     placements, continuity_issues = assess_cuts(
         placements, everything, profile, hooks, issue_id, continuity
     )
@@ -298,6 +308,7 @@ def plan_edit(
 
     issues = [
         *coverage.issues,
+        *wishes.issues,
         *continuity_issues,
         *framing_issues,
         *_evidence_issues(story, evidence, issue_id),

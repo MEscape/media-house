@@ -250,6 +250,23 @@ _PROFILES: tuple[EditingProfile, ...] = (
         effects_per_minute=8.0,
     ),
     _profile(
+        "creator_ranking",
+        "Fast creator ranking to camera (16:9): a cut or punch-in every 1.5-3 s, dead air gone, "
+        "entries in order, each reveal and the payoff kept.",
+        protected_functions=frozenset({"hook", "payoff", "caveat", "turning_point", "claim"}),
+        pause_max=0.35,
+        pause_keep=0.15,
+        cut_threshold=0.6,
+        cover_appetite=0.8,
+        static_seconds=2.5,
+        max_cover_seconds=3.0,
+        emphasis_reframe=True,
+        effects_per_minute=12.0,
+        reveal_cue=True,
+        section_transitions=True,
+        payoff_hold=0.3,
+    ),
+    _profile(
         "montage",
         "Cinematic montage: rhythm, movement and atmosphere; speech is not the spine.",
         protected_functions=frozenset({"hook", "payoff", "turning_point"}),
@@ -289,6 +306,21 @@ class TargetDuration:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class CoverWish:
+    """Footage someone asked for over a spoken range ("over 'in die Schlange vor Lidl' show the
+    rush archive"): ``footage_asset_id`` from ``footage_start`` plays muted over the edit wherever
+    ``over_asset_id`` ``[over_start, over_end)`` is heard, for at most ``max_seconds``."""
+
+    footage_asset_id: str
+    over_asset_id: str
+    over_start: float
+    over_end: float
+    footage_start: float = 0.0
+    max_seconds: float = 8.0
+    note: str = ""
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class EditConfig:
     #: A profile name, a profile built for this run, or ``None`` = the one named like the story's
     #: format (else ``generic``).
@@ -302,6 +334,8 @@ class EditConfig:
     use_recommended_opening: bool = True
     #: The timeline's frame rate; ``None`` = the most common constant rate of the recordings.
     timeline_frame_rate: Rational | None = None
+    #: Footage a person or the script asked for: placed as asked, never judged or replaced.
+    cover_wishes: tuple[CoverWish, ...] = ()
 
     def resolve(self, story_format: str) -> EditingProfile:
         if isinstance(self.profile, EditingProfile):
@@ -330,4 +364,15 @@ class EditConfig:
             "allow_structural": self.allow_structural,
             "recommended_opening": self.use_recommended_opening,
             "timeline_rate": None if rate is None else str(rate),
+            "cover_wishes": [
+                [
+                    w.footage_asset_id,
+                    w.over_asset_id,
+                    w.over_start,
+                    w.over_end,
+                    w.footage_start,
+                    w.max_seconds,
+                ]
+                for w in self.cover_wishes
+            ],
         }

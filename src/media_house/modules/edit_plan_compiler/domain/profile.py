@@ -114,10 +114,23 @@ class CompilerConfig:
             "advanced": True,
         },
     )
+    jump_cut_zoom: float = field(
+        default=1.0,
+        metadata={
+            "label": "Punch-in on jump cuts",
+            "help": "Every other back-to-back clip of the main picture is framed this much "
+            "tighter (a static window, no animation). 1.0 = off; creators use 1.08-1.15.",
+            "min": 1.0,
+            "max": 1.5,
+            "kind": "float",
+        },
+    )
     version: int = PROFILE_VERSION
 
     def problems(self) -> list[str]:
         found: list[str] = []
+        if not 1.0 <= self.jump_cut_zoom <= 1.5:
+            found.append("jump_cut_zoom must be between 1.0 and 1.5")
         if self.timeline_frame_rate is not None and fr(self.timeline_frame_rate) <= 0:
             found.append("timeline_frame_rate must be positive")
         if not 8_000 <= self.sample_rate <= 192_000:
@@ -145,5 +158,6 @@ class CompilerConfig:
             "drop_identity_violations": self.drop_identity_violations,
             "gap_tolerance_frames": self.gap_tolerance_frames,
             "handle_tolerance_frames": self.handle_tolerance_frames,
+            "jump_cut_zoom": self.jump_cut_zoom,
             "version": self.version,
         }

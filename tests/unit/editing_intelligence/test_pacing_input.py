@@ -83,15 +83,19 @@ def test_a_silence_the_pacing_analysis_calls_dead_air_is_tightened_below_the_pro
     assert len(with_pacing.track(TrackKind.AUDIO)) == 2
 
 
-def test_a_silence_marked_meaningful_is_kept_and_the_note_says_why() -> None:
-    rec, st = two_sentences(gap=2.5)  # the generic profile would trim this
-    gap_start, gap_end = rec.spans[0][1], rec.spans[1][0]
+def test_a_silence_marked_meaningful_is_kept_as_a_beat_and_the_note_says_why() -> None:
+    short_rec, short_st = two_sentences(gap=0.8)
+    a, b = short_rec.spans[0][1], short_rec.spans[1][0]
+    kept = edit(short_st, short_rec, pacing=facts((pause(a, b, "meaningful", None),)))
+    rec, st = two_sentences(gap=2.5)
+    a, b = rec.spans[0][1], rec.spans[1][0]
+    shortened = edit(st, rec, pacing=facts((pause(a, b, "meaningful", None),)))
 
-    plan = edit(st, rec, pacing=facts((pause(gap_start, gap_end, "meaningful", None),)))
-
-    assert not trimmed(plan) and len(plan.track(TrackKind.AUDIO)) == 1
-    notes = [n for n in plan.pacing_notes if n.level == "pacing" and n.subject == "pause"]
-    assert notes and "meaningful" in notes[0].detail and "pause_before_emphasis" in notes[0].detail
+    assert not trimmed(kept) and len(kept.track(TrackKind.AUDIO)) == 1
+    notes = [n.detail for n in kept.pacing_notes if n.level == "pacing" and n.subject == "pause"]
+    assert notes and "meaningful" in notes[0] and "pause_before_emphasis" in notes[0]
+    assert trimmed(shortened)
+    assert any("shortened" in n.detail for n in shortened.pacing_notes)
 
 
 def test_the_editor_still_applies_its_own_checks_to_what_pacing_suggests() -> None:

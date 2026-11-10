@@ -55,7 +55,10 @@ from media_house.modules.editing_intelligence.domain.values import (
 )
 from media_house.shared.errors import InvariantViolation
 
-_REACTION_EVENTS = frozenset({"laughter", "breath"})
+#: A laugh is part of the take; a breath in a pause is not (it never keeps a pause).
+_REACTION_EVENTS = frozenset({"laughter"})
+#: The longest beat a dramatic pause keeps (before an emphasis or a payoff).
+_DRAMATIC_HOLD = 0.6
 _PAYOFF_FUNCTIONS = frozenset({"payoff", "turning_point"})
 _MIN_REMOVED = Fraction(5, 100)
 _ISOLATED_GAP = 0.12
@@ -344,22 +347,33 @@ def _pause_cut(
     advised = (
         ctx.pacing.pause_at(ctx.source.asset_id, left.end, right.start) if ctx.pacing else None
     )
-    if advised is not None and advised.verdict == "meaningful":
-        asm.pacing_notes.append(
-            f"kept the {gap:.2f} s silence at {left.end:.2f} s: the pacing analysis marks it "
-            f"meaningful ({', '.join(advised.reasons)})"
-        )
-        return None
     threshold, keep = profile.pause_max, profile.pause_keep
-    if advised is not None and advised.verdict in ("dead_air", "long") and advised.keep:
+    # A pause before an emphasis or a payoff is kept as a beat, never in full: a presenter
+    # reading the next line leaves seconds of silence that only look like a dramatic pause.
+    hold = max(profile.pause_keep, _DRAMATIC_HOLD)
+    dramatic = (
+        (advised is not None and advised.verdict == "meaningful")
+        or (right.emphasis or 0.0) >= profile.hold_before_emphasis
+        or owner.function in _PAYOFF_FUNCTIONS
+    )
+    if dramatic:
+        if gap <= hold * 1.5:
+            if advised is not None and advised.verdict == "meaningful":
+                asm.pacing_notes.append(
+                    f"kept the {gap:.2f} s silence at {left.end:.2f} s: the pacing analysis "
+                    f"marks it meaningful ({', '.join(advised.reasons)})"
+                )
+            return None
+        threshold, keep = hold * 1.5, hold
+        asm.pacing_notes.append(
+            f"shortened the {gap:.2f} s silence at {left.end:.2f} s to a {hold:.2f} s beat "
+            "before the emphasis"
+        )
+    elif advised is not None and advised.verdict in ("dead_air", "long") and advised.keep:
         # The pacing analysis calls this silence dead air or too long; the editor still decides,
-        # and every check below (payoff, reaction, emphasis, cut points) still applies.
+        # and every check below (reaction, cut points) still applies.
         threshold, keep = min(threshold, max(advised.keep * 1.5, 0.4)), advised.keep
     if gap < threshold:
-        return None
-    if (right.emphasis or 0.0) >= profile.hold_before_emphasis:
-        return None
-    if owner.function in _PAYOFF_FUNCTIONS:
         return None
     reaction = ctx.audio.events_between(left.end, right.start, _REACTION_EVENTS)
     if reaction:

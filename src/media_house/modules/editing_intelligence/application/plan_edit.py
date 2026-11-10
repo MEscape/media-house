@@ -329,6 +329,10 @@ class PlanEdit:
         framing = self._framing_of(command, plan, gathered.value)
         if broll is not None:
             self._gather_cover(command, plan, broll, gathered.value)
+        story_assets = {a.asset_id for a in plan.source_assets}
+        for wish in command.config.cover_wishes:
+            if wish.footage_asset_id not in story_assets:
+                self._cover_asset(wish.footage_asset_id, wish.footage_asset_id, gathered.value)
         complete = len(gathered.value.known) == len(plan.source_assets)
         problems = validate_plan(plan, gathered.value.known if complete else None)
         if problems:
@@ -703,43 +707,49 @@ class PlanEdit:
         to the original asset, the id the plan uses."""
         story_assets = {a.asset_id for a in plan.source_assets}
         for original, analysed in broll.analysed:
-            if original in story_assets or original in out.cover:
-                continue
-            found = self._library.get(original)
-            video = self._video.latest(analysed)
-            if isinstance(found, Err) or isinstance(video, Err) or video.value is None:
-                out.records.append(
-                    InputRecord(
-                        kind="video_analysis",
-                        how=InputHow.NOT_AVAILABLE,
-                        asset_id=original,
-                        detail="no usable video analysis of the offered footage",
-                    )
-                )
-                continue
-            analysis, stored = video.value
-            inspection = self._inspections.find(original)
-            alignment = self._alignments.latest(analysed)
-            aligned = alignment.value[0] if isinstance(alignment, Ok) and alignment.value else None
-            correction = aligned.video_correction if aligned is not None else 0.0
-            source = source_facts(found.value, inspection, analysis.source.duration_seconds)
-            evidence = AssetEvidence(
-                source=source,
-                video=video_facts(analysis, original, correction, aligned is not None),
-            )
-            out.cover[original] = evidence
-            out.identities[f"cover:{original}"] = {
-                "source": source.identity,
-                "video": evidence.video.identity if evidence.video else None,
-            }
+            if original not in story_assets:
+                self._cover_asset(original, analysed, out)
+
+    def _cover_asset(self, original: str, analysed: str, out: _Gathered) -> None:
+        """The footage evidence of one recording shown as cover (``analysed``: the stored version
+        whose video analysis is read, attributed to ``original``)."""
+        if original in out.cover:
+            return
+        found = self._library.get(original)
+        video = self._video.latest(analysed)
+        if isinstance(found, Err) or isinstance(video, Err) or video.value is None:
             out.records.append(
                 InputRecord(
                     kind="video_analysis",
-                    how=InputHow.REUSED,
+                    how=InputHow.NOT_AVAILABLE,
                     asset_id=original,
-                    detail=stored.id,
+                    detail="no usable video analysis of the offered footage",
                 )
             )
+            return
+        analysis, stored = video.value
+        inspection = self._inspections.find(original)
+        alignment = self._alignments.latest(analysed)
+        aligned = alignment.value[0] if isinstance(alignment, Ok) and alignment.value else None
+        correction = aligned.video_correction if aligned is not None else 0.0
+        source = source_facts(found.value, inspection, analysis.source.duration_seconds)
+        evidence = AssetEvidence(
+            source=source,
+            video=video_facts(analysis, original, correction, aligned is not None),
+        )
+        out.cover[original] = evidence
+        out.identities[f"cover:{original}"] = {
+            "source": source.identity,
+            "video": evidence.video.identity if evidence.video else None,
+        }
+        out.records.append(
+            InputRecord(
+                kind="video_analysis",
+                how=InputHow.REUSED,
+                asset_id=original,
+                detail=stored.id,
+            )
+        )
 
     # --- overrides, identity, history -------------------------------------------------
     def _overrides(

@@ -232,3 +232,22 @@ class TestIdentity:
         )
 
         assert "font_unavailable" in codes(compiled(style=style), IssueClass.WARNING)
+
+
+class TestJumpCutPunchIn:
+    def test_every_other_back_to_back_talking_clip_gets_a_static_tighter_window(self) -> None:
+        spec = compile_timeline(
+            f.inputs(vfx=None), CompilerConfig(jump_cut_zoom=1.12), meta=f.meta()
+        ).spec
+
+        by_clip = {v.clip_id: v for v in spec.video}
+        assert by_clip["pA"].reframe == ()
+        (window,) = by_clip["pB"].reframe
+        (key,) = window.keys
+        assert window.strategy == "punch_in"
+        assert key.w == key.h == round(1 / 1.12, 6)
+        assert key.x == round((1 - 1 / 1.12) / 2, 6)
+        assert by_clip["pC"].reframe == ()  # cover footage keeps its framing
+
+    def test_off_by_default(self) -> None:
+        assert all(v.reframe == () for v in compiled(vfx=None).spec.video)

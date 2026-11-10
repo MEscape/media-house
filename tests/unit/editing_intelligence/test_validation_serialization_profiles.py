@@ -294,6 +294,15 @@ def test_profiles_change_preferences_not_the_hard_constraints() -> None:
     )  # a hard constraint, not a preference
 
 
+def test_the_creator_ranking_profile_cuts_dead_air_and_changes_the_picture_often() -> None:
+    fast, ranking = PROFILES["creator_ranking"], PROFILES["top_n"]
+    assert fast.problems() == []
+    assert not fast.keep_unconfirmed_gaps  # studio talking head: a long gap is dead air
+    assert fast.pause_max < ranking.pause_max and fast.static_seconds <= 3.0
+    assert fast.emphasis_reframe and fast.effects_per_minute >= 10
+    assert ranking.protected_functions <= fast.protected_functions
+
+
 def test_an_unknown_or_inconsistent_configuration_is_refused_with_a_reason() -> None:
     with pytest.raises(InvalidEditConfig, match="Unknown profile"):
         EditConfig(profile="vaporwave").resolve("generic")

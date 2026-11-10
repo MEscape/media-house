@@ -68,13 +68,18 @@ def test_a_long_silence_inside_kept_speech_is_shortened_with_its_evidence() -> N
     assert (second.value(SignalName.SHORTEN) or 0) > 0.3
 
 
-def test_a_pause_before_an_emphasised_word_is_deliberate_and_kept() -> None:
-    _, plan = plan_for(
+def test_a_pause_before_an_emphasised_word_keeps_a_short_beat_not_the_whole_silence() -> None:
+    _, short = plan_for(
+        [S("the screen is bright and sharp"), S("it also gets very hot", gap=0.8, emphasis=0.9)]
+    )
+    _, long = plan_for(
         [S("the screen is bright and sharp"), S("it also gets very hot", gap=2.5, emphasis=0.9)]
     )
 
-    assert decision(plan, "dec:0:u001").action is Action.KEEP
-    assert len(audio(plan)) == 1
+    assert decision(short, "dec:0:u001").action is Action.KEEP
+    assert len(audio(short)) == 1
+    (trim,) = decision(long, "dec:0:u001").trims
+    assert 2.5 - 0.6 - 0.1 <= trim.range.seconds <= 2.5 - 0.6 + 0.1
 
 
 def test_a_gap_with_laughter_is_kept_and_recorded_as_a_reaction() -> None:
@@ -110,15 +115,14 @@ def test_a_documentary_keeps_a_pause_a_talking_head_would_trim() -> None:
     assert len(audio(talking)) == 2 and len(audio(documentary)) == 1
 
 
-def test_a_pause_before_a_payoff_is_never_trimmed() -> None:
+def test_a_long_pause_before_a_payoff_is_shortened_to_a_beat() -> None:
     sentences = [S("so what is the verdict"), S("it is excellent value", gap=2.5)]
     _, plan = plan_for(
         sentences, [Sec("all", (0,), "essential"), Sec("end", (1,), "essential", "payoff")]
     )
 
-    first, second = audio(plan)  # split at the section change, with nothing removed between them
-    assert first.source.end == second.source.start
-    assert decision(plan, "dec:0:u001").trims == ()
+    (trim,) = decision(plan, "dec:0:u001").trims
+    assert 2.5 - 0.6 - 0.1 <= trim.range.seconds <= 2.5 - 0.6 + 0.1
 
 
 # --- filler -----------------------------------------------------------------------------------
