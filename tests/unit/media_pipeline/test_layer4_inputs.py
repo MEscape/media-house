@@ -361,3 +361,92 @@ def test_sound_design_hears_of_the_end_screen_appended_after_the_content() -> No
 
     assert timeline.appended_until == R(end.numerator, end.denominator)
     assert timeline.timeline_end == content_end + 20 and timeline.content_end == content_end
+
+
+def test_a_project_hears_each_clip_through_the_transcript_of_its_own_recording() -> None:
+    words = transcript(("nur", 4.5, 4.7), ("15,99", 4.7, 5.0), ("€", 5.0, 5.1))
+    anchor = view_of(a_plan(), None)
+    view = replace(anchor, clips=tuple(replace(c, asset_id="member") for c in anchor.clips))
+
+    only_anchor = graphics_brief(view, width=1920, height=1080, transcript=words)
+    project = graphics_brief(view, width=1920, height=1080, transcript={"member": words})
+    shots = vfx_shots(view, width=1920, height=1080, transcript={"member": words})
+
+    assert not only_anchor.products  # the anchor's words are not the member's
+    assert [p.price_cents for p in project.products] == [1599]
+    assert any(c.speech for c in shots.clips)
+
+
+def test_a_section_that_speaks_a_product_name_gets_its_picture_and_name() -> None:
+    words = transcript(
+        ("Batterie", 4.0, 4.2), ("eins:", 4.2, 4.4), ("Pure", 4.4, 4.5), ("Impact.", 4.5, 4.6),
+        ("nur", 4.6, 4.7), ("15,99", 4.7, 5.0), ("€", 5.0, 5.1),
+    )  # fmt: skip
+    images = {"Seven Kings": "img-sk", "Pure Impact": "img-pi"}
+
+    brief = graphics_brief(
+        view_of(a_plan(), None), width=1920, height=1080, transcript=words, product_images=images
+    )
+
+    [product] = brief.products
+    assert (product.name, product.image_asset_ids) == ("Pure Impact", ("img-pi",))
+
+
+def test_a_price_tag_is_a_key_moment_however_calm_its_motion() -> None:
+    from media_house.modules.motion_graphics_engine.application.contracts import (
+        EventKind,
+        GraphicKind,
+        GraphicsPlan,
+        ItemStatus,
+    )
+
+    def item(graphic_id: str, kind: GraphicKind) -> SimpleNamespace:
+        return SimpleNamespace(
+            graphic_id=graphic_id,
+            status=ItemStatus.OK,
+            request=SimpleNamespace(kind=kind, content=SimpleNamespace(chart=None)),
+            animation=SimpleNamespace(motion=SimpleNamespace(entry="pop_in")),
+        )
+
+    def peak(graphic_id: str) -> SimpleNamespace:
+        return SimpleNamespace(
+            graphic_id=graphic_id, kind=EventKind.ENTER_PEAK, timeline_at=R(1, 1), strength=0.5
+        )
+
+    plan = cast(
+        GraphicsPlan,
+        SimpleNamespace(
+            graphics=(item("price", GraphicKind.PRICE_TAG), item("card", GraphicKind.TEXT_PANEL)),
+            events=(peak("price"), peak("card")),
+        ),
+    )
+
+    events = sync_events(view_of(a_plan(), None), graphics=plan)
+
+    found = {e.event_id.split(":")[0]: (e.kind, e.strength) for e in events}
+
+    assert found["price"] == ("price_reveal", 0.8)
+    assert found["card"] == ("pop_in", 0.5)
+
+
+def test_a_name_labels_only_the_price_said_with_it_and_a_count_is_no_product(
+    monkeypatch: Any,
+) -> None:
+    from media_house.modules.media_pipeline.application import layer4_inputs
+
+    monkeypatch.setattr(layer4_inputs, "_NAME_BEFORE", Fraction(1, 2))
+    words = transcript(
+        ("ab", 4.0, 4.1), ("15,99", 4.1, 4.3), ("€", 4.3, 4.4), ("frei.", 4.4, 4.5),
+        ("Und", 4.5, 4.6), ("25", 4.6, 4.7), ("Batterien", 4.7, 4.8),
+        ("Pure", 4.9, 5.0), ("Impact.", 5.0, 5.1),
+    )  # fmt: skip
+
+    brief = graphics_brief(
+        view_of(a_plan(), None),
+        width=1920,
+        height=1080,
+        transcript=words,
+        product_images={"Pure Impact": "img-pi"},
+    )
+
+    assert [(p.name, p.price_cents) for p in brief.products] == [("", 1599)]

@@ -6,8 +6,8 @@ stored, then states honestly whether it computed (``SUCCEEDED``), served a store
 tasks that need them as ``payload``, so downstream owners are never asked to find them again.
 """
 
-from collections.abc import Mapping
-from dataclasses import dataclass
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, replace
 
 from media_house.core.application.ports import Clock
 from media_house.modules.asset_relationships.application.contracts import (
@@ -92,10 +92,13 @@ from media_house.modules.editing_intelligence.application.contracts import (
     Acquire as EditAcquire,
 )
 from media_house.modules.editing_intelligence.application.contracts import (
+    Action,
+    CoverWish,
     DurationMode,
     EditConfig,
     EditPlan,
     EditPlanner,
+    ManualOverride,
     PlanEditCommand,
     PlanState,
     TargetDuration,
@@ -113,6 +116,7 @@ from media_house.modules.media_library.application.contracts import (
 from media_house.modules.media_pipeline.application.compile_source import timeline_source
 from media_house.modules.media_pipeline.application.edit_view import (
     EditView,
+    fr,
     no_speech_view,
     view_of,
 )
@@ -293,6 +297,26 @@ _DEGRADED = {"not_available", "failed"}
 _NO_AUDIO = TaskResult(TaskStatus.SKIPPED_UNAVAILABLE, "the inspection found no audio stream")
 
 
+def excluded_cuts(
+    plan: EditPlan, excluded: Sequence[tuple[str, float, float, str]]
+) -> tuple[ManualOverride, ...]:
+    """A CUT override for every not-yet-cut decision whose source range lies mostly (over half)
+    inside an excluded span of the same recording."""
+    out: list[ManualOverride] = []
+    for d in plan.decisions:
+        if d.subject is None or d.action is Action.CUT:
+            continue
+        start, end = float(fr(d.subject.start)), float(fr(d.subject.end))
+        for asset_id, a, b, reason in excluded:
+            inside = min(end, b) - max(start, a)
+            if asset_id == d.asset_id and end > start and inside / (end - start) > 0.5:
+                out.append(
+                    ManualOverride(decision_id=d.decision_id, action=Action.CUT, note=reason)
+                )
+                break
+    return tuple(out)
+
+
 @dataclass(frozen=True, slots=True)
 class StageSettings:
     """Per-stage choices a run can make. ``None`` keeps the owning module's own default."""
@@ -308,6 +332,18 @@ class StageSettings:
     story_llm: bool = False
     #: Brand slot -> Media Library asset id (``wolf_mascot``, ``fire_plate`` ...), sorted pairs.
     brand_assets: tuple[tuple[str, str], ...] = ()
+    #: A project run: these recordings, in this order, make ONE video; the first is the anchor
+    #: the story, edit and every later stage are planned on. Empty = every asset is its own video.
+    project_assets: tuple[str, ...] = ()
+    #: Speech that must not be in the video (asset id, start s, end s, reason), e.g. a sentence
+    #: the script allows only with the sponsor's approval. The edit cuts every decision that
+    #: mostly covers such a span, as a recorded manual override (a replan keeps it).
+    excluded_speech: tuple[tuple[str, float, float, str], ...] = ()
+    #: Footage asked for over named speech: (footage asset, over asset, over start s, over end s,
+    #: footage start s, most seconds, note). The edit places it as cover, never judged.
+    cover_wishes: tuple[tuple[str, str, float, float, float, float, str], ...] = ()
+    #: Product pictures by product name ("Pure Impact" -> library asset id) for stickers/cards.
+    product_images: tuple[tuple[str, str], ...] = ()
     #: An editing profile name (``talking_head``, ``tutorial`` ...); ``None`` = the one named like
     #: the story's format.
     edit_profile: str | None = None
@@ -361,9 +397,16 @@ class StageSettings:
     transition_profile: str | None = None
     vfx_profile: str | None = None
     sound_profile: str | None = None
+    #: Project overrides by dotted path, sorted pairs: sound design
+    #: (``music.max_tracks`` -> 1, ``mix.bed_below_speech_lu`` -> 14 ...) and VFX
+    #: (``punch_in.apply`` -> ``never``). Each module validates its own paths.
+    sound_overrides: tuple[tuple[str, str | int | float | bool | tuple[str, ...]], ...] = ()
+    vfx_overrides: tuple[tuple[str, str | int | float | bool | tuple[str, ...]], ...] = ()
     #: Render Layer 4 assets (graphics, captions, transition overlays, VFX clips, the sound
     #: stem). Off = plans only (every plan is still complete and stored).
     layer4_render: bool = True
+    #: Every other back-to-back talking clip framed this much tighter (static); 1.0 = off.
+    jump_cut_zoom: float = 1.0
     #: Which version of a recording the timeline points at: ``original`` (default) or
     #: ``prefer_improved`` (the stored improved audio / video where one exists).
     timeline_derivatives: str | None = None
@@ -818,12 +861,26 @@ class ModuleExecutors:
             case Err(error):
                 return _from_error(error)
 
+    def _members(self, asset_id: str) -> tuple[str, ...]:
+        """The recordings a project stage of ``asset_id`` plans over: the whole project, in its
+        order, for the anchor; only the recording itself otherwise."""
+        project = self._settings.project_assets
+        return project if project and project[0] == asset_id else (asset_id,)
+
+    def _transcripts(self, job: TaskJob) -> dict[str, AudioIntelligenceTimeline]:
+        """The transcript of every recording the stage plans over (a project's members too)."""
+        found = (
+            (a, job.payload_as(TaskId(a, TaskKind.AUDIO_ANALYSIS), AudioIntelligenceTimeline))
+            for a in self._members(job.id.asset_id)
+        )
+        return {a: t for a, t in found if t is not None}
+
     def story(self, job: TaskJob) -> TaskResult:
         asset_id = job.id.asset_id
         content = self._upstream(job, TaskKind.CONTENT_ANALYSIS, ContentAnalysis)
         alignment = self._upstream(job, TaskKind.ALIGNMENT, AlignmentDocument)
         command = PlanStoryCommand(
-            (asset_id,),
+            self._members(asset_id),
             config=StoryConfig(self._settings.story_format or StoryConfig().format),
             acquire=StoryAcquire.STORED,
             llm=self._settings.story_llm,
@@ -864,7 +921,7 @@ class ModuleExecutors:
         asset_id = job.id.asset_id
         seconds = self._settings.edit_target_seconds
         command = AnalyzePacingCommand(
-            (asset_id,),
+            self._members(asset_id),
             config=PacingConfig(
                 profile=self._settings.pacing_profile,
                 strategy=Strategy(self._settings.pacing_strategy or Strategy.BALANCED.value),
@@ -914,7 +971,7 @@ class ModuleExecutors:
         read when this run made them; B-roll never asks for them."""
         asset_id = job.id.asset_id
         command = AnalyzeBrollCommand(
-            (asset_id,),
+            self._members(asset_id),
             config=BrollConfig(profile=self._settings.broll_profile),
             story_format=self._settings.story_format,
             story_plan=self._upstream(job, TaskKind.STORY, StoryPlan),
@@ -1022,7 +1079,7 @@ class ModuleExecutors:
         except InvariantViolation as exc:
             return TaskResult(TaskStatus.FAILED, exc.user_message)
         command = AnalyzeReframingCommand(
-            (asset_id,),
+            self._members(asset_id),
             target,
             config=ReframingConfig(
                 profile=s.reframing_profile,
@@ -1072,6 +1129,7 @@ class ModuleExecutors:
         video = self._upstream(job, TaskKind.VIDEO_ANALYSIS, VideoAnalysis)
         alignment = self._upstream(job, TaskKind.ALIGNMENT, AlignmentDocument)
         seconds = self._settings.edit_target_seconds
+        s_wishes = self._settings.cover_wishes
         target = (
             None
             if seconds is None
@@ -1081,8 +1139,23 @@ class ModuleExecutors:
             )
         )
         command = PlanEditCommand(
-            (asset_id,),
-            config=EditConfig(profile=self._settings.edit_profile, target=target),
+            self._members(asset_id),
+            config=EditConfig(
+                profile=self._settings.edit_profile,
+                target=target,
+                cover_wishes=tuple(
+                    CoverWish(
+                        footage_asset_id=footage,
+                        over_asset_id=over,
+                        over_start=start,
+                        over_end=end,
+                        footage_start=offset,
+                        max_seconds=most,
+                        note=note,
+                    )
+                    for footage, over, start, end, offset, most, note in s_wishes
+                ),
+            ),
             story_format=self._settings.story_format,
             story_plan=story,
             acquire=EditAcquire.STORED,
@@ -1095,7 +1168,14 @@ class ModuleExecutors:
             reframing=self._upstream(job, TaskKind.REFRAMING, ReframingAnalysis),
             reframing_target=self._settings.reframing_target,
         )
-        match self._edit_planner.execute(command, job.ctx):
+        result_or_error = self._edit_planner.execute(command, job.ctx)
+        if isinstance(result_or_error, Ok) and (
+            cuts := excluded_cuts(result_or_error.value.plan, self._settings.excluded_speech)
+        ):
+            result_or_error = self._edit_planner.execute(
+                replace(command, overrides=(*command.overrides, *cuts)), job.ctx
+            )
+        match result_or_error:
             case Ok(result):
                 plan = result.plan
                 unmet = plan.state is PlanState.UNMET_CONSTRAINTS
@@ -1285,8 +1365,9 @@ class ModuleExecutors:
             width=width,
             height=height,
             sponsored=s.sponsored,
-            transcript=self._upstream(job, TaskKind.AUDIO_ANALYSIS, AudioIntelligenceTimeline),
+            transcript=self._transcripts(job),
             video=self._upstream(job, TaskKind.VIDEO_ANALYSIS, VideoAnalysis),
+            product_images=dict(s.product_images),
         )
         profile = _pick(s.graphics_profile, GRAPHICS_PROFILE_OF, basis.style.style.profile)
         command = PlanGraphicsCommand(
@@ -1410,13 +1491,14 @@ class ModuleExecutors:
             basis.view,
             width=width,
             height=height,
-            transcript=self._upstream(job, TaskKind.AUDIO_ANALYSIS, AudioIntelligenceTimeline),
+            transcript=self._transcripts(job),
         )
         command = PlanVfxCommand(
             shots,
             style=basis.style.ref,
             config=VfxConfig(
-                profile=_pick(s.vfx_profile, VFX_PROFILE_OF, basis.style.style.profile)
+                profile=_pick(s.vfx_profile, VFX_PROFILE_OF, basis.style.style.profile),
+                overrides={k: list(v) if isinstance(v, tuple) else v for k, v in s.vfx_overrides},
             ),
             render=s.layer4_render,
             video_analyses=_given(
@@ -1463,7 +1545,7 @@ class ModuleExecutors:
             soundtrack_timeline(
                 basis.view, events, graphics.timeline_end_with_bookends if graphics else None
             ),
-            config=SoundDesignConfig(profile=profile),
+            config=SoundDesignConfig(profile=profile, overrides=dict(s.sound_overrides)),
             audio_timelines=_given(
                 asset_id, self._upstream(job, TaskKind.AUDIO_ANALYSIS, AudioIntelligenceTimeline)
             ),
@@ -1514,7 +1596,8 @@ class ModuleExecutors:
         s = self._settings
         try:
             config = CompilerConfig(
-                derivative_policy=DerivativePolicy(s.timeline_derivatives or "original")
+                derivative_policy=DerivativePolicy(s.timeline_derivatives or "original"),
+                jump_cut_zoom=s.jump_cut_zoom,
             )
         except ValueError:
             return TaskResult(

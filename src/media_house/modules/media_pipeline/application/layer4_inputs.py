@@ -6,7 +6,8 @@ of one edit. Each table is the owning module's README "EditPlan -> DTO" mapping;
 reads itself from the stored analyses (words, story, pacing) are not re-derived here.
 """
 
-from collections.abc import Callable, Iterable
+import re
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import replace
 from fractions import Fraction
 
@@ -102,6 +103,13 @@ _GRAPHIC_REVEALS = {
     GraphicKind.SILHOUETTE_TEASER: "reveal",
 }
 _ENTRY_EVENTS = {"pop_in": "pop_in", "slide_in": "fly_in", "wipe_in": "fly_in"}
+#: A price, a rank or a product reveal is a key moment by what it says, however calm its motion
+#: (a graphic's own strength follows its animation intensity: 2 of 4 is 0.5).
+_REVEAL_STRENGTH = 0.8
+#: A spoken product name labels a figure said after it, at most this far ("Pure Impact. Die
+#: kostet 79,99"), or just before it ("für 79,99 die Pure Impact"); never an earlier figure.
+_NAME_REACH = Fraction(12)
+_NAME_BEFORE = Fraction(2)
 #: Caption emphasis as an event strength (music's ``keyword`` rule takes only the strongest).
 _EMPHASIS_STRENGTH = {
     EmphasisLevel.CRITICAL: 1.0,
@@ -120,17 +128,25 @@ def _sound_ids(view: EditView) -> set[str]:
 
 # --- motion_graphics_engine -------------------------------------------------------------------
 type _Heard = list[tuple[str, Fraction]]  # (word, timeline time it is spoken)
+#: One recording's transcript (the anchor's), or every recording's by asset id (a project).
+type Transcripts = AudioIntelligenceTimeline | Mapping[str, AudioIntelligenceTimeline] | None
 
 
-def section_words(
-    view: EditView, transcript: AudioIntelligenceTimeline | None
-) -> dict[str, _Heard]:
-    """The words heard in each section with their timeline time (through the sound clips)."""
+def _by_asset(view: EditView, transcript: Transcripts) -> Mapping[str, AudioIntelligenceTimeline]:
     if transcript is None:
         return {}
+    if isinstance(transcript, Mapping):
+        return transcript
+    return {view.anchor_asset_id: transcript}
+
+
+def section_words(view: EditView, transcript: Transcripts) -> dict[str, _Heard]:
+    """The words heard in each section with their timeline time (through the sound clips of
+    every recording with a transcript)."""
+    by_asset = _by_asset(view, transcript)
     heard: dict[str, _Heard] = {}
     for clip in view.sound():
-        if clip.section_id is None or clip.asset_id != view.anchor_asset_id:
+        if clip.section_id is None or (transcript := by_asset.get(clip.asset_id)) is None:
             continue
         offset = fr(clip.timeline_start) - fr(clip.source_start)
         words = transcript.words_between(float(fr(clip.source_start)), float(fr(clip.source_end)))
@@ -141,7 +157,7 @@ def section_words(
     return heard
 
 
-def section_text(view: EditView, transcript: AudioIntelligenceTimeline | None) -> dict[str, str]:
+def section_text(view: EditView, transcript: Transcripts) -> dict[str, str]:
     """The words heard in each section (the transcript through the section's sound clips)."""
     return {
         sid: " ".join(w for w, _ in heard) for sid, heard in section_words(view, transcript).items()
@@ -159,6 +175,30 @@ def _timed_facts(heard: _Heard, language: str | None) -> list[tuple[CommerceFact
         index = max(i for i, at in enumerate(starts) if at <= fact.start) if starts else 0
         out.append((fact, heard[index][1]))
     return out
+
+
+def _named(heard: _Heard, images: Mapping[str, str]) -> tuple[str, str, Fraction] | None:
+    """The product name spoken first in the words (all of its words in a row, any case), with
+    the time its first word is spoken."""
+    starts: list[int] = []
+    text = ""
+    for word, _ in heard:
+        starts.append(len(text))
+        text += word.casefold() + " "
+    spoken = [
+        (m.start(), name, asset_id)
+        for name, asset_id in images.items()
+        if (
+            m := re.search(
+                r"\b" + r"\W+".join(map(re.escape, name.casefold().split())) + r"\b", text
+            )
+        )
+    ]
+    if not spoken:
+        return None
+    offset, name, asset_id = min(spoken)
+    index = max(i for i, at in enumerate(starts) if at <= offset)
+    return name, asset_id, heard[index][1]
 
 
 def _products(section_id: str, timed: list[tuple[CommerceFact, Fraction]]) -> list[ProductFacts]:
@@ -223,13 +263,16 @@ def graphics_brief(
     width: int,
     height: int,
     sponsored: bool = False,
-    transcript: AudioIntelligenceTimeline | None = None,
+    transcript: Transcripts = None,
     video: VideoAnalysis | None = None,
+    product_images: Mapping[str, str] | None = None,
 ) -> GraphicsBrief:
     """Sections with their rank and product facts (content's ``commerce_facts`` of the words
     heard in them, each with the time it is spoken), editorial GRAPHIC requests, the text the
-    picture already shows, the delivery size and the timeline length."""
-    language = transcript.language if transcript else None
+    picture already shows, the delivery size and the timeline length. ``product_images`` (product
+    name -> library picture): the first product of a section that speaks a name gets that name
+    and picture."""
+    language = next((t.language for t in _by_asset(view, transcript).values()), None)
     sections: list[BriefSection] = []
     products: list[ProductFacts] = []
     heard = section_words(view, transcript)
@@ -239,6 +282,20 @@ def graphics_brief(
             p for p in _products(s.section_id, timed)
             if p.price_cents is not None or p.specs or p.name
         ]  # fmt: skip
+        if product_images:
+            # The owner named the products: a counted phrase ("25 Batterien") is none of them.
+            found = [p if p.name in product_images else replace(p, name="") for p in found]
+        if found and (named := _named(heard.get(s.section_id, []), product_images or {})):
+            name, asset_id, said_at = named
+            # The name belongs to the price it introduces, never to a figure said well before it.
+            near = [
+                p for p in found
+                if p.timeline_at is None
+                or -_NAME_BEFORE <= fr(p.timeline_at) - said_at <= _NAME_REACH
+            ]  # fmt: skip
+            if near:
+                i = found.index(near[0])
+                found[i] = replace(found[i], name=name, image_asset_ids=(asset_id,))
         products += found
         ranked = [(f, at) for f, at in timed if f.kind is CommerceKind.RANK]
         rank = rank_of(tuple(f for f, _ in timed))
@@ -393,7 +450,7 @@ def vfx_shots(
     *,
     width: int,
     height: int,
-    transcript: AudioIntelligenceTimeline | None = None,
+    transcript: Transcripts = None,
 ) -> VfxShots:
     """The picture clips with the speech they carry (so retiming never breaks lip sync), and the
     REFRAME (emphasis) and MUSIC_CUE (reveal) requests."""
@@ -414,7 +471,7 @@ def vfx_shots(
                 section_id=c.section_id,
                 beat_id=c.beat_id,
                 audio=VfxClipAudio(c.audio),
-                speech=_speech(c, transcript, view.anchor_asset_id),
+                speech=_speech(c, _by_asset(view, transcript).get(c.asset_id)),
             )
             for c in view.picture()
         ),
@@ -436,11 +493,9 @@ def vfx_shots(
     )
 
 
-def _speech(
-    clip: ViewClip, transcript: AudioIntelligenceTimeline | None, asset_id: str
-) -> tuple[SourceSpan, ...]:
-    """Transcript segments inside the clip's source range (clamped to it)."""
-    if transcript is None or clip.asset_id != asset_id:
+def _speech(clip: ViewClip, transcript: AudioIntelligenceTimeline | None) -> tuple[SourceSpan, ...]:
+    """Transcript segments (of the clip's own recording) inside its source range (clamped)."""
+    if transcript is None:
         return ()
     low, high = fr(clip.source_start), fr(clip.source_end)
     spans = []
@@ -559,12 +614,13 @@ def _graphic_events(plan: GraphicsPlan) -> Iterable[SyncEvent]:
                 entry = item.animation.motion.entry if item.animation else ""
                 kind = _GRAPHIC_REVEALS.get(request.kind) or _ENTRY_EVENTS.get(entry, entry)
         if kind:
+            reveal = event.kind is EventKind.ENTER_PEAK and kind in _GRAPHIC_REVEALS.values()
             yield SyncEvent(
                 event_id=f"{event.graphic_id}:{event.kind.value}:{index}",
                 source=EventSource.GRAPHICS,
                 kind=kind,
                 timeline_at=event.timeline_at,
-                strength=event.strength,
+                strength=max(event.strength, _REVEAL_STRENGTH) if reveal else event.strength,
             )
 
 

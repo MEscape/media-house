@@ -7,6 +7,7 @@ from media_house.modules.editing_intelligence.application.contracts import (
     EditResult,
     PlanState,
 )
+from media_house.modules.media_pipeline.application.edit_view import fr
 from media_house.modules.media_pipeline.application.executors import StageSettings
 from media_house.modules.media_pipeline.application.run_pipeline import DEFAULT_STAGES
 from media_house.modules.media_pipeline.application.tasks import TaskResult
@@ -129,3 +130,29 @@ def test_an_edit_error_is_a_failed_task_with_the_reason() -> None:
 
 def test_every_task_kind_has_an_executor() -> None:
     assert set(executors().table()) == set(TaskKind)
+
+
+def test_excluded_speech_is_cut_by_a_recorded_override_and_the_edit_is_planned_again() -> None:
+    plan = edit_result().plan
+    spoken = next(d for d in plan.decisions if d.subject is not None and d.action.value != "cut")
+    assert spoken.subject is not None
+    start, end = float(fr(spoken.subject.start)), float(fr(spoken.subject.end))
+    owner = Recorder(Ok(edit_result()))
+    ex = executors(
+        StageSettings(excluded_speech=((spoken.asset_id, start, end, "needs approval"),)),
+        edit_planner=owner,
+    )
+
+    ex.edit_plan(job(K.EDIT_PLAN))
+
+    first, second = owner.commands
+    assert first.overrides == ()
+    assert [(o.decision_id, o.action.value, o.note) for o in second.overrides] == [
+        (spoken.decision_id, "cut", "needs approval")
+    ]
+
+
+def test_without_excluded_speech_the_edit_is_planned_once() -> None:
+    owner = Recorder(Ok(edit_result()))
+    executors(edit_planner=owner).edit_plan(job(K.EDIT_PLAN))
+    assert len(owner.commands) == 1

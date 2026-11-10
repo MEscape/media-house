@@ -3,7 +3,13 @@
 import pytest
 
 from media_house.modules.media_pipeline.domain.graph import PipelineGraph, TaskSpec
-from media_house.modules.media_pipeline.domain.plan import STAGES, plan_asset
+from media_house.modules.media_pipeline.domain.plan import (
+    STAGES,
+    AssetPlan,
+    link_project,
+    member_stages,
+    plan_asset,
+)
 from media_house.modules.media_pipeline.domain.values import Lane, TaskId, TaskKind
 from media_house.shared.errors import InvariantViolation
 
@@ -181,3 +187,18 @@ def test_relationship_detection_is_opt_in_and_only_waits_for_the_inspection() ->
     assert spec.needs == frozenset() and spec.wants == {tid(K.INSPECT)}
     assert kinds(plan.specs) == {K.INSPECT, K.RELATIONSHIPS}
     assert not any(tid(K.RELATIONSHIPS) in s.upstream for s in plan.specs)  # nothing waits for it
+
+
+def test_project_stages_of_the_anchor_wait_for_every_members_analyses() -> None:
+    def plan(asset: str, requested: frozenset[TaskKind]) -> AssetPlan:
+        return plan_asset(asset, has_video=True, has_audio=True, requested=requested)
+
+    anchor = plan("a", frozenset({K.EDIT_PLAN}))
+    graph = PipelineGraph(link_project([anchor, plan("b", member_stages(anchor))]))
+
+    assert {tid(K.CONTENT_ANALYSIS, "b"), tid(K.INSPECT, "b")} <= graph[tid(K.STORY)].wants
+    assert tid(K.EDIT_PLAN, "b") not in graph
+    assert tid(K.CONTENT_ANALYSIS, "b") in graph
+    assert graph[tid(K.CONTENT_ANALYSIS)].wants.isdisjoint(
+        {tid(k, "b") for k in TaskKind}
+    )  # per-recording stages stay independent

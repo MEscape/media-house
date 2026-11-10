@@ -9,6 +9,7 @@ from media_house.modules.media_library.application.contracts import (
     MediaAssetDto,
     MediaType,
 )
+from media_house.modules.media_pipeline.application.executors import StageSettings
 from media_house.modules.media_pipeline.application.report import PipelineReport
 from media_house.modules.media_pipeline.application.run_pipeline import (
     RunPipeline,
@@ -225,3 +226,31 @@ def test_replace_keeps_unrelated_assets_independent() -> None:
 
     assert [a.asset_id for a in report.assets] == ["v1", "v2"]
     assert all(a.task(K.VIDEO_ANALYSIS).status is TaskStatus.SUCCEEDED for a in report.assets)  # type: ignore[union-attr]
+
+
+def test_a_project_is_one_video_planned_on_the_anchor_over_every_member() -> None:
+    first, second = (
+        make_asset("v1", original_filename="a.mp4"),
+        make_asset("v2", original_filename="b.mp4"),
+    )
+    seen: list[StageSettings] = []
+
+    def factory(settings: StageSettings) -> FakeSet:
+        seen.append(settings)
+        return FakeSet(table())
+
+    report = run(
+        RunPipeline(FakeLibrary([first, second]), factory),  # type: ignore[arg-type]
+        RunPipelineCommand(
+            paths=[Path("a.mp4"), Path("b.mp4")],
+            stages=frozenset({K.EDIT_PLAN}),
+            project=True,
+        ),
+    )
+    by_asset = {a.asset_id: {t.kind: t for t in a.tasks} for a in report.assets}
+
+    assert seen[0].project_assets == ("v1", "v2")
+    assert by_asset["v1"][K.EDIT_PLAN].status is TaskStatus.SUCCEEDED
+    assert by_asset["v2"][K.CONTENT_ANALYSIS].status is TaskStatus.SUCCEEDED
+    assert by_asset["v2"][K.STORY].status is TaskStatus.SKIPPED_DISABLED
+    assert by_asset["v2"][K.EDIT_PLAN].status is TaskStatus.SKIPPED_DISABLED

@@ -28,8 +28,30 @@ and for Layer 4: ``output_format``, ``output_resolution``, ``format_profile``, `
 ``sound_profile``, ``layer4_render``, and for Layer 5: ``timeline_derivatives``,
 ``timeline_conflict_policy``, ``timeline_fit``, ``timeline_full_rebuild``, and for DaVinci Resolve:
 ``resolve_policy``, ``resolve_project``, ``resolve_adopt_project``, ``resolve_allow_switch``,
-``resolve_captions``, ``resolve_render_profile``, and for the audio mix: ``mix_profile``, ``mix_delivery``.
-Command-line options win over the file.
+``resolve_captions``, ``resolve_render_profile``, and for the audio mix: ``mix_profile``, ``mix_delivery``,
+and for hosted AI: ``llm_provider``, ``llm_model``, ``transcription_engine``, ``transcription_model``,
+``allow_remote_ai``. Command-line options win over the file.
+
+Hosted AI (for machines without a usable GPU; see docs/overhaul/ai-providers.md):
+
+    *** WARNING: remote engines UPLOAD CLIENT AUDIO / TRANSCRIPT TEXT to a third party. ***
+    *** Do not use them for NDA material unless the client agreed and the provider's    ***
+    *** terms fit (no training on API data). Never use Gemini's free tier for it.       ***
+
+``--transcription-engine local|groq`` (default ``local`` = WhisperX on this machine): ``groq``
+sends the prepared audio to Groq's whisper-large-v3-turbo (``--transcription-model`` to change)
+in 10-minute FLAC windows. ``--llm-provider local|ollama|groq|cerebras|openrouter|gemini`` with
+``--llm-model ID`` picks the model behind ``--story-llm`` (default ``local`` = the in-process
+Qwen model; hosted model ids change, so there is no default: check the provider's model list).
+Every remote choice also needs ``--allow-remote-ai`` (``allow_remote_ai = true``), else the run
+stops with exit code 2. Keys come from the environment only: ``MEDIA_HOUSE_SECRET_GROQ_API_KEY``,
+``MEDIA_HOUSE_SECRET_CEREBRAS_API_KEY``, ``MEDIA_HOUSE_SECRET_OPENROUTER_API_KEY``,
+``MEDIA_HOUSE_SECRET_GEMINI_API_KEY``. Remote transcripts get their own cache key (engine,
+host, model), so they never replace or reuse a local WhisperX transcript.
+
+    uv run python scratch/run_pipeline.py --input clip.mp4 --stages audio_analysis,story
+        --story-llm --transcription-engine groq --llm-provider groq
+        --llm-model openai/gpt-oss-120b --allow-remote-ai
 
 Layer 4 (``--stages layer4`` = visual_style, graphics, captions, transitions, vfx, sound_design):
 add ``edit_plan`` to work on the edit; without it (or for a recording without speech) every
@@ -74,8 +96,10 @@ Brand pictures (``wolf_mascot``, ``fire_plate`` ...) are imported with ``scratch
 """
 
 import argparse
+import dataclasses
 import json
 import os
+import re
 import signal
 import sys
 import threading
@@ -83,12 +107,25 @@ import tomllib
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, PositiveInt, ValidationError
 
 from media_house.bootstrap.application import Application, StartupOptions
 from media_house.bootstrap.modules import installed_modules
 from media_house.core.modules import ApplicationModule
+from media_house.modules.audio_intelligence.application.contracts import AudioCatalog
+from media_house.modules.audio_intelligence.infrastructure.groq_transcription import (
+    RemoteTranscriptionSettings,
+)
+from media_house.modules.audio_intelligence.module import AudioIntelligenceModule
+from media_house.modules.content_intelligence.domain.config import (
+    LLM_PROVIDERS,
+    LOOPBACK_HOSTS,
+    LlmSettings,
+)
+from media_house.modules.content_intelligence.module import ContentIntelligenceModule
+from media_house.modules.media_library.application.contracts import MediaLibrary
 from media_house.modules.media_pipeline.application.contracts import (
     DEFAULT_STAGES,
     LAYER4_STAGES,
@@ -102,6 +139,12 @@ from media_house.modules.media_pipeline.application.contracts import (
     TaskRecord,
     TaskReport,
     TaskStatus,
+)
+from media_house.modules.production_project.application.contracts import (
+    TranscriptLine,
+    conform,
+    parse_script,
+    sentence_lines,
 )
 from media_house.modules.reframing_intelligence.application.contracts import (
     KEEP_OUT_PRESETS,
@@ -133,6 +176,19 @@ LEGEND = (
     "+ computed   = reused from library   ~ partial   x failed   ! skipped (dependency failed)\n"
     "  o not applicable / capability missing   - not requested   # cancelled"
 )
+
+
+class CoverEntry(BaseModel):
+    """Footage to show over named speech (needs ``--script``): from the line that says ``over``
+    to the end of the line that says ``until`` (else that line), at most ``seconds``."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    over: str
+    footage: Path
+    until: str | None = None
+    start: float = 0.0
+    seconds: float = 8.0
 
 
 class RunConfig(BaseModel):
@@ -179,7 +235,12 @@ class RunConfig(BaseModel):
     transition_profile: str | None = None
     vfx_profile: str | None = None
     sound_profile: str | None = None
+    #: Dotted-path overrides, e.g. ``{"music.max_tracks": 1}`` / ``{"punch_in.apply": "never"}``.
+    sound_overrides: dict[str, str | int | float | bool | list[str]] | None = None
+    vfx_overrides: dict[str, str | int | float | bool | list[str]] | None = None
     layer4_render: bool | None = None
+    jump_cut_zoom: float | None = None
+    cover: list[CoverEntry] | None = None
     timeline_derivatives: str | None = None
     timeline_conflict_policy: str | None = None
     timeline_fit: str | None = None
@@ -192,6 +253,14 @@ class RunConfig(BaseModel):
     resolve_render_profile: str | None = None
     mix_profile: str | None = None
     mix_delivery: str | None = None
+    #: ``local`` (in-process model) or a key of ``LLM_PROVIDERS``; used with ``story_llm``.
+    llm_provider: str | None = None
+    llm_model: str | None = None
+    #: ``local`` (WhisperX) or ``groq`` (uploads the audio).
+    transcription_engine: str | None = None
+    transcription_model: str | None = None
+    #: Consent that audio/text may leave this machine. Required by every remote engine.
+    allow_remote_ai: bool | None = None
 
 
 class ConsoleObserver:
@@ -342,6 +411,24 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         default=None,
         help="let a local language model reword the story plan (grounded; off = deterministic)",
+    )
+    add(
+        "--llm-provider",
+        choices=["local", *LLM_PROVIDERS],
+        help="model behind --story-llm: local (default, in-process) or a served/hosted provider",
+    )
+    add("--llm-model", help="model id at --llm-provider (required for every provider but local)")
+    add(
+        "--transcription-engine",
+        choices=["local", "groq"],
+        help="local = WhisperX on this machine (default); groq = UPLOADS the audio to Groq",
+    )
+    add("--transcription-model", help="model for --transcription-engine groq")
+    add(
+        "--allow-remote-ai",
+        action="store_true",
+        default=None,
+        help="consent that client audio/text may be sent to the chosen remote AI provider (NDA!)",
     )
     add(
         "--edit-profile",
@@ -550,6 +637,26 @@ def build_parser() -> argparse.ArgumentParser:
         help="most tasks running at once across all lanes (1 = one at a time)",
     )
     add("--dry-run", action="store_true", help="show the execution graph; import and run nothing")
+    add(
+        "--script",
+        type=Path,
+        help="with --project: a scripted transcript (## S01 ... SPRECHTEXT:). The recordings are "
+        "ordered by the scene they speak (stored transcripts needed: run the analysis first); "
+        "recordings that speak no script line stay out of the story (B-roll still finds them); "
+        "speech the script excludes (approval-gated, unfilled {SLOT}) is cut",
+    )
+    add(
+        "--product-images",
+        type=Path,
+        help="a folder of product pictures named after the product (pure-impact.png -> 'Pure "
+        "Impact'): a section that speaks the name shows that picture on its product card/sticker",
+    )
+    add(
+        "--project",
+        action="store_true",
+        help="all inputs, in the order given (a folder: sorted by name), make ONE video; the first "
+        "recording is the anchor the story, edit and every later stage are planned on",
+    )
     add("--verbose", "-v", action="store_true", help="show per-task progress messages and facts")
     return parser
 
@@ -596,6 +703,140 @@ def parse_keep_out(texts: Sequence[str] | None) -> tuple[KeepOut, ...]:
     return tuple(rules)
 
 
+def import_product_images(app: Application, folder: Path, settings: StageSettings) -> StageSettings:
+    """Import every picture of the folder (stored once) and name it after its file."""
+    library = app.container.resolve(MediaLibrary)
+    named: list[tuple[str, str]] = []
+    for path in sorted(folder.iterdir()):
+        if path.suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp"}:
+            continue
+        imported = library.import_file(path)
+        if isinstance(imported, Err):
+            print(f"  ! {path.name}: {imported.error.user_message}")
+            continue
+        name = " ".join(w.capitalize() for w in path.stem.replace("_", "-").split("-") if w)
+        named.append((name, imported.value.asset.id))
+    print(f"product pictures: {', '.join(n for n, _ in named) or 'none'}")
+    print()
+    return dataclasses.replace(settings, product_images=tuple(named))
+
+
+def conform_to_script(
+    app: Application,
+    files: list[Path],
+    script_path: Path,
+    settings: StageSettings,
+    cover: list[CoverEntry],
+) -> tuple[list[Path], StageSettings]:
+    """Order the recordings by the script scene they speak and collect the excluded speech. Reads
+    stored transcripts only; a recording without one is left out and named."""
+    script = parse_script(script_path.read_text(encoding="utf-8"))
+    library = app.container.resolve(MediaLibrary)
+    catalog = app.container.resolve(AudioCatalog)
+    by_id: dict[str, Path] = {}
+    lines: list[TranscriptLine] = []
+    for path in files:
+        imported = library.import_file(path)
+        if isinstance(imported, Err):
+            print(f"  ! {path.name}: {imported.error.user_message}")
+            continue
+        asset_id = imported.value.asset.id
+        stored = catalog.latest(asset_id)
+        if isinstance(stored, Err) or stored.value is None:
+            print(f"  ! {path.name}: no stored transcript (run the analysis first)")
+            continue
+        by_id[asset_id] = path
+        lines += sentence_lines(
+            asset_id,
+            [(w.raw_word, w.start, w.end) for w in stored.value[0].transcript.words],
+        )
+    result = conform(script, lines, list(by_id))
+    print(f"script: {len(script.scenes)} scenes, {len(script.sentences)} sentences")
+    for asset_id in result.order:
+        scenes = sorted(
+            {m.scene_id for m in result.matches if m.line.asset_id == asset_id and m.scene_id},
+            key=lambda sid: int(sid[1:]),
+        )
+        print(f"  {by_id[asset_id].name}: {', '.join(scenes) or 'speaks no script line'}")
+    for m in result.excluded:
+        print(
+            f"  - cut {by_id[m.line.asset_id].name} {m.line.start:.1f}-{m.line.end:.1f}s "
+            f"({m.exclusion.value}, match {m.score})"
+        )
+    for take in result.rejected:
+        print(
+            f"  - cut {by_id[take.line.asset_id].name} {take.line.start:.1f}-{take.line.end:.1f}s "
+            f"({take.reason}): {take.line.text[:70]}"
+        )
+    if result.missing_scenes:
+        print(f"  ! no recording speaks: {', '.join(result.missing_scenes)}")
+    print()
+    placed = [by_id[a] for a in result.order if a not in result.unplaced]
+    excluded = tuple(
+        (m.line.asset_id, m.line.start, m.line.end, f"script: {m.exclusion.value}")
+        for m in result.excluded
+    ) + tuple((t.line.asset_id, t.line.start, t.line.end, t.reason) for t in result.rejected)
+    wishes = cover_wishes(library, lines, cover, by_id)
+    return placed, dataclasses.replace(settings, excluded_speech=excluded, cover_wishes=wishes)
+
+
+def _said(text: str) -> list[str]:
+    return re.findall(r"\w+", text.casefold())
+
+
+def _line_saying(lines: list[TranscriptLine], phrase: str) -> TranscriptLine | None:
+    wanted = _said(phrase)
+    for line in lines:
+        words = _said(line.text)
+        if any(words[i : i + len(wanted)] == wanted for i in range(len(words))):
+            return line
+    return None
+
+
+def cover_wishes(
+    library: MediaLibrary,
+    lines: list[TranscriptLine],
+    cover: list[CoverEntry],
+    by_id: dict[str, Path],
+) -> tuple[tuple[str, str, float, float, float, float, str], ...]:
+    """Each cover entry as a wish over the transcript line that says its phrase."""
+    out: list[tuple[str, str, float, float, float, float, str]] = []
+    for entry in cover:
+        line = _line_saying(lines, entry.over)
+        if line is None:
+            print(f"  ! cover: nobody says {entry.over!r}")
+            continue
+        end = line.end
+        if entry.until is not None:
+            later = [x for x in lines if x.asset_id == line.asset_id and x.start >= line.start]
+            last = _line_saying(later, entry.until)
+            if last is None:
+                print(f"  ! cover: {entry.until!r} is not said after {entry.over!r}")
+                continue
+            end = last.end
+        imported = library.import_file(entry.footage.expanduser())
+        if isinstance(imported, Err):
+            print(f"  ! cover: {entry.footage}: {imported.error.user_message}")
+            continue
+        footage = imported.value.asset.id
+        print(
+            f"  cover {entry.footage.name} over {by_id[line.asset_id].name} "
+            f"{line.start:.1f}-{end:.1f}s ({entry.over!r})"
+        )
+        out.append(
+            (footage, line.asset_id, line.start, end, entry.start, entry.seconds, entry.over)
+        )
+    return tuple(out)
+
+
+def _overrides(
+    given: dict[str, str | int | float | bool | list[str]] | None,
+) -> tuple[tuple[str, str | int | float | bool | tuple[str, ...]], ...]:
+    return tuple(
+        sorted((k, tuple(v) if isinstance(v, list) else v) for k, v in (given or {}).items())
+    )
+
+
 def settings_from(config: RunConfig) -> StageSettings:
     return StageSettings(
         video_analysis_profile=config.video_analysis_profile,
@@ -631,6 +872,9 @@ def settings_from(config: RunConfig) -> StageSettings:
         transition_profile=config.transition_profile,
         vfx_profile=config.vfx_profile,
         sound_profile=config.sound_profile,
+        sound_overrides=_overrides(config.sound_overrides),
+        jump_cut_zoom=config.jump_cut_zoom or 1.0,
+        vfx_overrides=_overrides(config.vfx_overrides),
         layer4_render=config.layer4_render is not False,
         timeline_derivatives=config.timeline_derivatives,
         timeline_conflict_policy=config.timeline_conflict_policy,
@@ -716,6 +960,49 @@ def with_resolve_install(lib: Path | None, api: Path | None) -> list[Application
         *(m for m in installed_modules() if m.name != "resolve_adapter"),
         ResolveAdapterModule(install=install),
     ]
+
+
+def with_ai_engines(modules: list[ApplicationModule], config: RunConfig) -> list[ApplicationModule]:
+    """Swap in the hosted engines the configuration asks for; ``ValueError`` explains a refusal."""
+    remote_ok = config.allow_remote_ai is True
+    replace: dict[str, ApplicationModule] = {}
+    engine = config.transcription_engine or "local"
+    if engine not in {"local", "groq"}:
+        raise ValueError(f"transcription_engine must be local or groq, not {engine!r}")
+    if engine == "groq":
+        if not remote_ok:
+            raise ValueError(
+                "transcription_engine groq uploads client audio: add --allow-remote-ai"
+            )
+        audio = RemoteTranscriptionSettings()
+        if config.transcription_model:
+            audio = dataclasses.replace(audio, model=config.transcription_model)
+        replace["audio_intelligence"] = AudioIntelligenceModule(remote_transcription=audio)
+        print(f"! transcription: audio is UPLOADED to {audio.endpoint} ({audio.model})")
+    provider = config.llm_provider or "local"
+    if provider != "local":
+        preset = LLM_PROVIDERS.get(provider)
+        if preset is None:
+            raise ValueError(
+                f"unknown llm_provider {provider!r}; use local or {sorted(LLM_PROVIDERS)}"
+            )
+        if not config.llm_model:
+            raise ValueError(f"llm_provider {provider} needs llm_model (the provider's model id)")
+        remote = urlsplit(preset.endpoint).hostname not in LOOPBACK_HOSTS
+        if remote and not remote_ok:
+            raise ValueError(
+                f"llm_provider {provider} sends transcript text: add --allow-remote-ai"
+            )
+        settings = LlmSettings(
+            model=config.llm_model,
+            endpoint=preset.endpoint,
+            api_key_secret=preset.api_key_secret,
+            allow_remote_endpoint=remote,
+        )
+        replace["content_intelligence"] = ContentIntelligenceModule(generation=settings)
+        where = "SENT to" if remote else "served by"
+        print(f"! story wording: text is {where} {preset.endpoint} ({config.llm_model})")
+    return [replace.get(m.name, m) for m in modules]
 
 
 def print_mix(asset: AssetReport) -> None:
@@ -877,6 +1164,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "resolve_render_profile",
                 "mix_profile",
                 "mix_delivery",
+                "llm_provider",
+                "llm_model",
+                "transcription_engine",
+                "transcription_model",
+                "allow_remote_ai",
             )
             if getattr(args, key) is not None
         }
@@ -898,16 +1190,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         if slots is not None
     }
+    try:
+        modules = with_ai_engines(with_resolve_install(args.resolve_lib, args.resolve_api), merged)
+    except ValueError as exc:
+        parser.error(str(exc))
     token = CancellationToken()
     install_interrupt(token)
 
     app = Application.start(
         StartupOptions(
-            env={},
+            # Only secrets (API keys) come from the environment; they are held as SecretStr.
+            env={k: v for k, v in os.environ.items() if k.startswith("MEDIA_HOUSE_SECRET_")},  # noqa: TID251 - CLI entry point
             home=args.home,
             environment=Environment.DEVELOPMENT,
             shared_installs=True,  # models and HyperFrames are installed once per machine
-            modules=with_resolve_install(args.resolve_lib, args.resolve_api),
+            modules=modules,
         )
     )
     try:
@@ -917,6 +1214,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         if merged.cpu_only:
             print("cpu-only: models run on the CPU")
         print()
+        settings = settings_from(merged)
+        if args.script is not None:
+            if not args.project:
+                parser.error("--script needs --project")
+            files, settings = conform_to_script(
+                app, files, args.script, settings, merged.cover or []
+            )
+        if args.product_images is not None:
+            settings = import_product_images(app, args.product_images, settings)
         result = pipeline.execute(
             RunPipelineCommand(
                 paths=files,
@@ -925,8 +1231,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 content_uses_video=bool(merged.content_uses_video),
                 capacity=capacity,
                 dry_run=args.dry_run,
+                project=args.project,
                 max_running=args.max_workers,
-                settings=settings_from(merged),
+                settings=settings,
             ),
             JobContext("cli", token, JobContext.detached().progress),
             ConsoleObserver(args.verbose),

@@ -92,7 +92,7 @@ owning module, not guessed:
   so improvement never delays them.
 """
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 
 from media_house.modules.media_pipeline.domain.graph import TaskSpec
@@ -353,3 +353,54 @@ def plan_asset(
         not_applicable=frozenset(k for k in asked if k in STAGES and k not in applicable),
         disabled=frozenset(k for k in STAGES if k not in selected and k not in asked),
     )
+
+
+#: Stages that work on one recording at a time. In a project run every member gets these; every
+#: other stage (story, edit, Layer 4 to 6) is planned once, on the anchor, over all members.
+PER_ASSET_KINDS: frozenset[TaskKind] = _k(
+    TaskKind.INSPECT,
+    TaskKind.THUMBNAIL,
+    TaskKind.PROXY,
+    TaskKind.AUDIO_IMPROVEMENT,
+    TaskKind.VIDEO_IMPROVEMENT,
+    TaskKind.AUDIO_ANALYSIS,
+    TaskKind.VIDEO_ANALYSIS,
+    TaskKind.CONTENT_ANALYSIS,
+    TaskKind.ALIGNMENT,
+    TaskKind.RELATIONSHIPS,
+)
+
+#: What a project stage on the anchor reads from every member (stored by then, so the owners'
+#: ``STORED`` acquisition finds it).
+_MEMBER_RESULTS = _k(
+    TaskKind.INSPECT,
+    TaskKind.AUDIO_ANALYSIS,
+    TaskKind.VIDEO_ANALYSIS,
+    TaskKind.CONTENT_ANALYSIS,
+    TaskKind.ALIGNMENT,
+)
+
+
+def member_stages(anchor: AssetPlan) -> frozenset[TaskKind]:
+    """What each member of a project needs: the per-recording stages the anchor's plan selected
+    (asked for, or implied by a project stage such as the story)."""
+    return frozenset(spec.id.kind for spec in anchor.specs) & PER_ASSET_KINDS
+
+
+def link_project(plans: Sequence[AssetPlan]) -> tuple[TaskSpec, ...]:
+    """One video from several recordings: ``plans[0]`` is the anchor (planned with every requested
+    stage), the others are members (planned with ``PER_ASSET_KINDS`` only). Every project stage of
+    the anchor waits for the members' analyses; it runs whatever they do, as with any want."""
+    if not plans:
+        return ()
+    anchor, members = plans[0], plans[1:]
+    member_results = frozenset(
+        spec.id for plan in members for spec in plan.specs if spec.id.kind in _MEMBER_RESULTS
+    )
+    linked = tuple(
+        spec
+        if spec.id.kind in PER_ASSET_KINDS
+        else TaskSpec(spec.id, spec.lane, spec.needs, spec.wants | member_results)
+        for spec in anchor.specs
+    )
+    return linked + tuple(spec for plan in members for spec in plan.specs)

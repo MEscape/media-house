@@ -7,7 +7,7 @@ stores nothing of its own, which is why a rerun is a set of cache hits and not a
 
 import mimetypes
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Protocol
 
@@ -32,7 +32,12 @@ from media_house.modules.media_pipeline.application.tasks import (
     TaskRecord,
 )
 from media_house.modules.media_pipeline.domain.graph import PipelineGraph, TaskSpec
-from media_house.modules.media_pipeline.domain.plan import AssetPlan, plan_asset
+from media_house.modules.media_pipeline.domain.plan import (
+    AssetPlan,
+    link_project,
+    member_stages,
+    plan_asset,
+)
 from media_house.modules.media_pipeline.domain.values import Lane, TaskId, TaskKind, TaskStatus
 from media_house.shared.concurrency import JobContext
 from media_house.shared.errors import Err, Ok, Result, ValidationError
@@ -97,6 +102,9 @@ class RunPipelineCommand:
     max_running: int | None = None
     #: Per-stage choices (profiles, CPU-only); ``None`` keeps every owner's defaults.
     settings: StageSettings = field(default_factory=StageSettings)
+    #: All inputs, in the order given, make ONE video (the first is the anchor): each recording
+    #: is analysed on its own, the story, edit and every later stage once over all of them.
+    project: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -146,31 +154,40 @@ class RunPipeline:
                 )
             )
         sources, failures = self._resolve(command, ctx)
-        plans = {
-            s.asset_id: plan_asset(
-                s.asset_id,
-                has_video=s.media_type is MediaType.VIDEO,
-                has_audio=s.media_type in (MediaType.VIDEO, MediaType.AUDIO),
-                requested=command.stages,
+        media = [s for s in sources if s.media_type in (MediaType.VIDEO, MediaType.AUDIO)]
+        anchor = media[0].asset_id if command.project and media else None
+
+        def planned(source: _Source, requested: frozenset[TaskKind]) -> AssetPlan:
+            return plan_asset(
+                source.asset_id,
+                has_video=source.media_type is MediaType.VIDEO,
+                has_audio=source.media_type in (MediaType.VIDEO, MediaType.AUDIO),
+                requested=requested,
                 content_uses_video=command.content_uses_video,
             )
-            for s in sources
-            if s.media_type in (MediaType.VIDEO, MediaType.AUDIO)
-        }
-        graph = PipelineGraph(spec for plan in plans.values() for spec in plan.specs)
+
+        plans = {s.asset_id: planned(s, command.stages) for s in media[:1]}
+        member = member_stages(plans[anchor]) if anchor is not None else command.stages
+        plans |= {s.asset_id: planned(s, member) for s in media[1:]}
+        settings = command.settings
+        if anchor is not None:
+            settings = replace(settings, project_assets=tuple(s.asset_id for s in media))
+            graph = PipelineGraph(link_project(list(plans.values())))
+        else:
+            graph = PipelineGraph(spec for plan in plans.values() for spec in plan.specs)
         capacity = {**DEFAULT_CAPACITY, **command.capacity}
         levels = tuple(tuple(str(t) for t in level) for level in graph.levels())
 
         run: RunRecord | None = None
         if not command.dry_run and len(graph):
-            executors = self._executors(command.settings)
+            executors = self._executors(settings)
             run = GraphRunner(
                 executors.table(),
                 capacity,
                 peeks=executors.peeks(),
                 max_running=command.max_running,
                 flight=self._flight,
-                scope=command.settings,
+                scope=settings,
             ).run(graph, ctx, observer)
         _log.info(
             "Pipeline finished",
