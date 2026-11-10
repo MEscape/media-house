@@ -19,10 +19,39 @@ class ThemeTokens:
     accent: str
     accent_text: str
     border: str
+    #: Status roles: always paired with a text label, never colour alone.
+    success: str
+    warning: str
+    danger: str
+    surface_alt: str
 
 
-LIGHT = ThemeTokens("#f6f7f9", "#ffffff", "#1b1f24", "#57606a", "#0b5fff", "#ffffff", "#c9d1d9")
-DARK = ThemeTokens("#14171c", "#1d2127", "#e6e8eb", "#9aa4b0", "#5b9bff", "#0b1320", "#323943")
+LIGHT = ThemeTokens(
+    "#f6f7f9",
+    "#ffffff",
+    "#1b1f24",
+    "#57606a",
+    "#0b5fff",
+    "#ffffff",
+    "#c9d1d9",
+    success="#1a7f37",
+    warning="#9a6700",
+    danger="#cf222e",
+    surface_alt="#eef1f4",
+)
+DARK = ThemeTokens(
+    "#14171c",
+    "#1d2127",
+    "#e6e8eb",
+    "#9aa4b0",
+    "#5b9bff",
+    "#0b1320",
+    "#323943",
+    success="#3fb950",
+    warning="#d29922",
+    danger="#f85149",
+    surface_alt="#252a31",
+)
 
 
 class ThemeManager:

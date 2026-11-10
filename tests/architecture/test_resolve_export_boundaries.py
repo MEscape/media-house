@@ -34,7 +34,12 @@ READS = (
     "media_house.modules.timeline_builder",
     EXPORT,
 )
-CONSUMERS = ("media_house.modules.media_pipeline", "media_house.bootstrap", EXPORT)
+CONSUMERS = (
+    "media_house.modules.media_pipeline",
+    "media_house.modules.control_center",  # desktop control center: contracts only
+    "media_house.bootstrap",
+    EXPORT,
+)
 
 
 def module_files() -> list[Path]:

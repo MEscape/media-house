@@ -12,6 +12,7 @@ from media_house.modules.broll_intelligence.module import BrollIntelligenceModul
 from media_house.modules.caption_engine.module import CaptionEngineModule
 from media_house.modules.content_intelligence.module import ContentIntelligenceModule
 from media_house.modules.continuity_intelligence.module import ContinuityIntelligenceModule
+from media_house.modules.control_center.module import ControlCenterModule
 from media_house.modules.edit_plan_compiler.module import EditPlanCompilerModule
 from media_house.modules.editing_intelligence.module import EditingIntelligenceModule
 from media_house.modules.export_validation.module import ExportValidationModule
@@ -43,6 +44,7 @@ from media_house.modules.workspace.module import WorkspaceModule
 
 def installed_modules() -> Sequence[ApplicationModule]:
     return (
+        ControlCenterModule(),
         WorkspaceModule(),
         MediaLibraryModule(),
         VisualAssetGenerationModule(),

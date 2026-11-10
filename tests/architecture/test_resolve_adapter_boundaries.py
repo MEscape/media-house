@@ -116,6 +116,7 @@ def test_only_the_pipeline_and_the_composition_root_depend_on_the_adapter() -> N
         "media_house.modules.revision_engine",  # Layer 6 reads the stored result
         "media_house.modules.render_manager",  # Layer 6 reads the stored result
         "media_house.modules.resolve_export",  # Layer 6 reads the stored result
+        "media_house.modules.control_center",  # desktop control center: contracts only
         "media_house.bootstrap",
     )
     offenders = [
@@ -163,7 +164,8 @@ def test_the_rest_of_media_house_names_no_timeline_application() -> None:
     for path in sorted((SRC / "media_house" / "modules").rglob("*.py")):
         relative = path.relative_to(SRC / "media_house" / "modules")
         owner = relative.parts[0]
-        if owner in {"resolve_adapter", "media_pipeline"}:
+        # control_center: the desktop status page names the application to the person
+        if owner in {"resolve_adapter", "media_pipeline", "control_center"}:
             continue
         text = path.read_text(encoding="utf-8")
         # a module that merely says it is not the one is fine; code that names it is not

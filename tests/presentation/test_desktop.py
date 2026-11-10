@@ -42,12 +42,12 @@ def test_desktop_session_assembles_the_shell_from_module_contributions(
     application = Application.start(options(tmp_path))
     session = DesktopSession(application, qapp)
     try:
-        assert len(application.container.resolve_all(UiContributor)) == 2
+        assert len(application.container.resolve_all(UiContributor)) == 3
         window = session.window
         assert isinstance(window, QMainWindow)
         assert "[test]" in window.windowTitle()
         menus = [a.text().replace("&", "") for a in window.menuBar().actions()]
-        assert menus == ["File", "View", "Media", "Workspace", "Help"]
+        assert menus == ["File", "View", "Control Center", "Media", "Workspace", "Help"]
     finally:
         session.close()
         assert session.window is not None

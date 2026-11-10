@@ -35,6 +35,7 @@ CONSUMERS = (
     "media_house.modules.final_polish",
     "media_house.modules.resolve_export",
     "media_house.modules.media_pipeline",
+    "media_house.modules.control_center",  # desktop control center: contracts only
     "media_house.bootstrap",
     REVISION,
 )
