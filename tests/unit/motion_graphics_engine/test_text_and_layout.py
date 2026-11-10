@@ -19,7 +19,6 @@ from media_house.modules.motion_graphics_engine.domain.text import (
 )
 from media_house.modules.motion_graphics_engine.domain.values import (
     ChartKind,
-    ElementType,
     GraphicKind,
     Origin,
     OverlayKind,
@@ -128,9 +127,11 @@ def test_price_tag_shows_the_style_formatted_price_on_the_yellow_panel() -> None
     assert comp is not None, issues
     texts = {e.id: e.text.text for e in comp.elements if e.text}
     assert texts["g1.price"] == "15,99 €"
-    panel = next(e for e in comp.elements if e.type is ElementType.PANEL)
+    panel = next(e for e in comp.elements if e.id == "g1.panel")
     assert panel.fill == facts().hex("price_fill")
     assert comp.rect.inside(zone_rect("callout_right"))
+    chip = next(e for e in comp.elements if e.id == "g1.chip")  # what it costs, on black
+    assert chip.fill == facts().hex("black") and texts["g1.label"] == "LIDL BATTERIE"
 
 
 def test_a_price_without_exact_cents_is_refused() -> None:
@@ -179,8 +180,14 @@ def test_bar_chart_bars_are_proportional_to_the_supplied_values() -> None:
         request(K.CHART, GraphicContent(chart=ChartKind.BAR, data=data)), inputs()
     )
     assert comp is not None, issues
-    bars = {e.id: e.rect.height for e in comp.elements if ".bar" in e.id}
-    assert abs(bars["g1.bar0"] - 2 * bars["g1.bar1"]) <= 1
+    bars = {e.id: e for e in comp.elements if ".bar" in e.id}
+    assert abs(bars["g1.bar0"].rect.width - 2 * bars["g1.bar1"].rect.width) <= 1
+    assert bars["g1.bar0"].fill == facts().hex("accent")  # the best bar is marked
+    columns = GraphicContent(chart=ChartKind.BAR, data=data, variant="columns")
+    comp, issues = lay_out(request(K.CHART, columns), inputs())
+    assert comp is not None, issues
+    heights = {e.id: e.rect.height for e in comp.elements if ".bar" in e.id}
+    assert abs(heights["g1.bar0"] - 2 * heights["g1.bar1"]) <= 1
 
 
 def test_a_chart_without_data_is_refused() -> None:

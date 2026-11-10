@@ -10,6 +10,7 @@
 """
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from fractions import Fraction
 
@@ -30,6 +31,7 @@ from media_house.modules.motion_graphics_engine.domain.model import (
     StyleFacts,
     Timing,
 )
+from media_house.modules.motion_graphics_engine.domain.presets import bare_figure
 from media_house.modules.motion_graphics_engine.domain.profile import (
     MotionGraphicsConfig,
     MotionGraphicsProfile,
@@ -355,11 +357,28 @@ class _Planner:
                 )
             )
             return
+        concept = g.concept.strip()
+        label, spoken_at = g.label.strip(), g.spoken_at
+        if bare_figure(concept) and not label:
+            label, spoken_at = _figure_label(concept, self.brief.products, g)
+        if bare_figure(concept) and not label:
+            self.issues.append(
+                issue(
+                    "editorial.bare_figure",
+                    Severity.WARNING,
+                    f"{g.request_id}: {concept!r} alone says nothing (no label): not drawn",
+                    g.request_id,
+                    fix="supply the label (what the figure is) with the request",
+                )
+            )
+            return
+        if spoken_at is not None:  # fully in when it is said, not when the cut allows
+            start = self.spoken(spoken_at, start, g.request_id, "concept")
         kind = GraphicKind.CALLOUT if g.intent is Intent.SHOW_TEXT else GraphicKind.TEXT_PANEL
         self.add(
             g.request_id,
             kind,
-            GraphicContent(headline=g.concept.strip()),
+            GraphicContent(headline=concept, eyebrow=label),
             start,
             _f(g.duration)
             if g.duration
@@ -705,6 +724,27 @@ def _price_texts(cents: int) -> tuple[str, ...]:
         return (exact,)
     rounded = (f"{euros - 1},9",) if euros > 0 else ()
     return (exact, f"{euros},-", f"{euros}€", f"{euros}euro", *rounded)
+
+
+def _figure_label(
+    concept: str, products: Sequence[ProductFacts], g: EditorialGraphic
+) -> tuple[str, Rational | None]:
+    """What a bare figure is, from the facts heard where it was requested: '79,99' spoken as the
+    price of the section's product is its 'Preis'; ('', None) when no fact says so."""
+    digits = re.sub(r"\D", "", concept)
+    for product in products:
+        if product.section_id != g.section_id and product.product_id != g.product_id:
+            continue
+        if product.price_cents is not None:
+            euros, rest = divmod(product.price_cents, 100)
+            if digits in {f"{euros}{rest:02d}", str(euros) if not rest else ""}:
+                return "Preis", product.timeline_at
+        for spec in product.specs:
+            if spec.kind in SPEC_LABELS and digits == re.sub(
+                r"\D", "", german_number(spec.value)[0]
+            ):
+                return SPEC_LABELS[spec.kind], spec.timeline_at
+    return "", None
 
 
 def _spec_lines(product: ProductFacts) -> tuple[SpecLine, ...]:

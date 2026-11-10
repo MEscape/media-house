@@ -51,6 +51,10 @@ class Scene:
     scale: float = 1.0
     #: Several graphics in one file (a caption batch); empty = ``composition`` alone.
     parts: tuple["ScenePart", ...] = ()
+    #: Still fast path: only these local frames are drawn (ascending, from 0), with
+    #: ``animation`` resampled onto them (``engine.resample``); every other frame repeats the
+    #: last drawn one before it. Empty = every one of ``frames`` is drawn.
+    samples: tuple[int, ...] = ()
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -75,6 +79,8 @@ class ComposedScene:
     height: int
     frames: int
     still: bool
+    #: The drawn frames of a still fast path (``Scene.samples``); empty = all ``frames``.
+    samples: tuple[int, ...] = ()
 
 
 class GraphicsBackend(Protocol):

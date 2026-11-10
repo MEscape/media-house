@@ -280,9 +280,10 @@ class _Writer:
         match = _NUMBER.match(text)
         decimals = len(match.group("dec") or "") if match else 0
         unit = match.group("unit") if match else ""
-        run = (
-            element.text.lines[0].runs[0].id if element.text and element.text.lines else element_id
-        )
+        runs = element.text.lines[0].runs if element.text and element.text.lines else ()
+        run = runs[0].id if runs else element_id
+        if len(runs) > 1 and match is not None and runs[0].text == match.group("num"):
+            unit = ""  # the unit is its own word (run) and stays as drawn
         span = f'el("{self.html_id(run)}")'
         holder = f"c{len(self.counters)}"
         self.counters[element_id] = (decimals, unit)
@@ -313,7 +314,7 @@ class _Writer:
         s = self.scene
         comp = s.composition
         width, height = round(comp.width * s.scale), round(comp.height * s.scale)
-        frames = 1 if s.still_frame is not None else s.frames
+        frames = 1 if s.still_frame is not None else len(s.samples) or s.frames
         duration = _duration_text(frames, s.fps)
         faces = "\n".join(
             f"@font-face {{ font-family: 'mh-{f.key}';"
@@ -335,7 +336,7 @@ class _Writer:
             for e in s.easings
         )
         tracks = "\n".join(self.tracks())
-        end = seconds(Fraction(s.frames) * Fraction(s.fps.denominator, s.fps.numerator))
+        end = seconds(Fraction(frames) * Fraction(s.fps.denominator, s.fps.numerator))
         if s.still_frame is not None:
             at = seconds(Fraction(s.still_frame) * Fraction(s.fps.denominator, s.fps.numerator))
             register = (

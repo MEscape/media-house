@@ -6,6 +6,8 @@ stores. Frames are computed once here (``frame_span``) and nowhere else.
 
 import hashlib
 import json
+import math
+from bisect import bisect_right
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from datetime import datetime
@@ -92,6 +94,58 @@ def frame_span(timing: Timing, fps: Rational) -> FrameSpan:
         timeline_start=snapped,
         duration=_r(Fraction(frames) / rate),
     )
+
+
+def changing_frames(animation: CompiledAnimation, frames: int, fps: Rational) -> tuple[int, ...]:
+    """The local frames whose picture differs from the frame before (frame 0 always).
+
+    Every visual change is a keyframe segment: a tween from ``a`` to ``b`` with another value
+    changes the frames in ``(a, b]``, a jump at ``t`` changes the frame at ``t``. Every other
+    frame repeats its predecessor exactly, so it need not be rendered again (a still graphic
+    with an entry and an exit renders its entry, ONE hold frame and its exit).
+    """
+    rate = _f(fps)
+    changed = [False] * frames
+    for track in animation.tracks:
+        for a, b in zip(track.keyframes, track.keyframes[1:], strict=False):
+            if a.value == b.value:
+                continue
+            start, end = _f(a.local_at) * rate, _f(b.local_at) * rate
+            if start < end:
+                first, last = math.floor(start) + 1, math.floor(end)
+            else:  # a jump: the first frame at or after it
+                first = last = math.ceil(end)
+            for f in range(max(first, 0), min(last, frames - 1) + 1):
+                changed[f] = True
+    return tuple(f for f in range(frames) if f == 0 or changed[f])
+
+
+def held_frames(samples: tuple[int, ...], frames: int) -> tuple[int, ...]:
+    """For each output frame, the index into ``samples`` of the drawn frame it shows (the last
+    drawn frame at or before it)."""
+    return tuple(bisect_right(samples, f) - 1 for f in range(frames))
+
+
+def resample(
+    animation: CompiledAnimation, samples: tuple[int, ...], frames: int, fps: Rational
+) -> CompiledAnimation:
+    """``animation`` with the undrawn frames cut out: drawn frame ``samples[k]`` becomes frame
+    ``k``. Every keyframe moves back by the undrawn frames before it, so a changing segment
+    (only drawn frames) keeps its length and easing exactly; a constant one spanning a held
+    run just gets shorter. Rendered, frame ``k`` is pixel-identical to frame ``samples[k]``."""
+    rate = _f(fps)
+
+    def moved(at: Rational) -> Rational:
+        f = round(_f(at) * rate)
+        # frames kept up to f, minus one; after the last frame: shifted by every undrawn one
+        k = bisect_right(samples, f) - 1 if f < frames else f - (frames - len(samples))
+        return _r(Fraction(k) / rate)
+
+    tracks = tuple(
+        replace(t, keyframes=tuple(replace(k, local_at=moved(k.local_at)) for k in t.keyframes))
+        for t in animation.tracks
+    )
+    return replace(animation, tracks=tracks, duration=_r(Fraction(len(samples)) / rate))
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -441,8 +495,10 @@ def assemble_plan(
     partial = any(
         g.status is not ItemStatus.OK and g.status is not ItemStatus.REJECTED for g in graphics
     ) or blocking(checks)
+    # The last rendered frame, not start + nominal seconds: 20 s at 29.97 fps is 599 frames, and a
+    # sub-frame overhang made the music tail under the end screen run past the timeline.
     appended = [
-        _f(t.timeline_start) + _f(t.local_duration)
+        Fraction(frame_span(t, fps).end_frame) / _f(fps)
         for g in graphics
         if g.status is not ItemStatus.REJECTED
         and g.request.kind is GraphicKind.END_SCREEN

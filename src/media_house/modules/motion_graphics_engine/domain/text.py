@@ -91,10 +91,13 @@ def fit(
     space_px: int = 0,
     leading: float = 1.0,
     max_height: int | None = None,
+    balance: bool = True,
 ) -> Fitted | None:
     """The largest size (look size down to ``min_px``) at which ``text`` fits, or ``None``.
 
-    ``explicit_lines`` keeps the caller's line breaks (``\\n``) and only shrinks.
+    ``explicit_lines`` keeps the caller's line breaks (``\\n``) and only shrinks. ``balance``
+    evens the lines out at the same line count ("Schusszahl / pro Euro", not "Schusszahl pro /
+    Euro"); caption groups keep the greedy break (caption_engine reads them word by word).
     """
     size = size_px
     while size >= min_px:
@@ -107,6 +110,8 @@ def fit(
                 lines = None
         else:
             lines = wrap(text.split(), metrics, size, tracking_em, max_width, max_chars, space_px)
+            if lines is not None and balance:
+                lines = _balanced(lines, metrics, size, tracking_em, max_chars, space_px)
         allowed = max_lines
         if max_height is not None:
             allowed = min(max_lines, max_height // max(1, round(size * leading)))
@@ -118,6 +123,33 @@ def fit(
             break
         size = max(min_px, size - step)
     return None
+
+
+def _balanced(
+    lines: list[list[str]],
+    metrics: FaceMetrics,
+    size_px: int,
+    tracking_em: float,
+    max_chars: int,
+    space_px: int,
+) -> list[list[str]]:
+    """The narrowest wrap that keeps the greedy line count (binary search on the width)."""
+    if len(lines) < 2:
+        return lines
+    words = [w for line in lines for w in line]
+    low = max(measure(w, metrics, size_px, tracking_em) for w in words)
+    high = max(measure(" ".join(ln), metrics, size_px, tracking_em, space_px) for ln in lines)
+    best = lines
+    for _ in range(12):
+        if high - low < 1:
+            break
+        mid = (low + high) / 2
+        trial = wrap(words, metrics, size_px, tracking_em, int(mid) + 1, max_chars, space_px)
+        if trial is not None and len(trial) <= len(lines):
+            best, high = trial, mid
+        else:
+            low = mid
+    return best
 
 
 def key(word: str) -> str:

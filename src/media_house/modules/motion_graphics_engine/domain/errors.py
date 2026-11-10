@@ -93,3 +93,18 @@ class InvalidGraphicsDocument(MotionGraphicsError):
             f"Unreadable graphics plan: {detail}",
             user_message="A stored graphics plan could not be read.",
         )
+
+
+class InvalidGraphicOrder(MotionGraphicsError):
+    """An orchestration order outside its preset (unknown slot, too long, wrong variant...).
+    ``problems`` lists every reason, so a planner can fix them all at once."""
+
+    code = "motion_graphics_engine.invalid_order"
+
+    def __init__(self, order_id: str, problems: list[str]) -> None:
+        self.problems = tuple(problems)
+        super().__init__(
+            f"Graphic order {order_id}: " + "; ".join(problems),
+            user_message=f"The graphic {order_id} was ordered wrongly: " + "; ".join(problems[:3]),
+            details={"order_id": order_id, "problems": list(problems)},
+        )

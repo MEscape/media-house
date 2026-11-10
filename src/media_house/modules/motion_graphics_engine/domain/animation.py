@@ -24,6 +24,7 @@ from media_house.modules.motion_graphics_engine.domain.model import (
     TimedEmoji,
     Track,
 )
+from media_house.modules.motion_graphics_engine.domain.presets import EXIT_FOR, PRESETS
 from media_house.modules.motion_graphics_engine.domain.qc import issue
 from media_house.modules.motion_graphics_engine.domain.values import (
     ElementType,
@@ -52,8 +53,16 @@ _REVEAL_KINDS = frozenset(
         GraphicKind.CTA,
         GraphicKind.COMPARISON,
         GraphicKind.SPEC_CARD,
+        GraphicKind.CALLOUT,
+        GraphicKind.COMPARISON_MATRIX,
+        GraphicKind.STRIKE_VALUE,
+        GraphicKind.URL_CARD,
     }
 )
+#: Executors keep their own vocabulary (caption looks, transition covers).
+_EXECUTORS = frozenset({GraphicKind.CAPTION, GraphicKind.TRANSITION_OVERLAY})
+#: A struck value: the strike line is drawn after the value has arrived (the gesture).
+_STRIKE = ".strike"
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -174,9 +183,17 @@ class _Compiler:
         return hi - (hi - lo) * Fraction(intensity - 1, 3)
 
     def patterns(self, intensity: int) -> tuple[str, str]:
+        """The request's patterns, else the preset's choreography pair (the same for every
+        graphic of the kind); a named entry without an exit leaves with its natural pair."""
         a = self.request.animation
-        entry = a.entry or self._look_entry() or self.m.entry_pattern
-        exit_ = a.exit or self.m.exit_pattern
+        kind = self.request.kind
+        if kind in _EXECUTORS:
+            entry = a.entry or self._look_entry() or self.m.entry_pattern
+            exit_ = a.exit or self.m.exit_pattern
+        else:
+            preset = PRESETS[kind]
+            entry = a.entry or preset.entry
+            exit_ = a.exit or (preset.exit if entry == preset.entry else EXIT_FOR.get(entry, ""))
         if entry not in ENTRY_PATTERNS:
             self.warn("motion.pattern", f"unknown entry {entry!r}: the style's entry is used")
             entry = self.m.entry_pattern
@@ -278,8 +295,11 @@ class _Compiler:
     def entry(self, pattern: str, seconds: Fraction, intensity: int) -> None:
         elements = list(self.comp.elements)
         reveal = self.request.kind in _REVEAL_KINDS
-        panels = [e for e in elements if reveal and e.type is ElementType.PANEL]
-        content = [e for e in elements if e not in panels]
+        strikes = [e for e in elements if e.id.endswith(_STRIKE)]
+        panels = [
+            e for e in elements if reveal and e.type is ElementType.PANEL and e not in strikes
+        ]
+        content = [e for e in elements if e not in panels and e not in strikes]
         stagger = _f(self.m.stagger)
         start = Fraction(0)
         if pattern == "cut":
@@ -289,18 +309,35 @@ class _Compiler:
             self.tween(e.id, Prop.REVEAL, Fraction(0), seconds, 0.0, 1.0, self.m.move_easing)
         if panels:
             start = seconds * Fraction(2, 5)
+        rows = _reading_rows(content)
         budget = seconds  # all staggers together never exceed one entry duration
-        step = min(stagger, budget / max(len(content), 1)) if len(content) > 1 else Fraction(0)
+        step = min(stagger, budget / max(len(rows), 1)) if len(rows) > 1 else Fraction(0)
         end = start
-        for i, e in enumerate(content):
+        for i, row in enumerate(rows):
             s = start + step * i
             end = s + seconds
-            self.enter_one(e, pattern, s, end, intensity)
+            for e in row:
+                self.enter_one(e, pattern, s, end, intensity, inside=bool(panels))
         self.enter_peak = max(end, seconds)
+        for e in strikes:  # crossed out once the value is readable
+            self.tween(
+                e.id, Prop.REVEAL, self.enter_peak, self.enter_peak + seconds, 0.0, 1.0, "enter"
+            )
+            self.event(EventKind.EMPHASIS, self.enter_peak, max(intensity, 1) / 4, e.id)
+            self.enter_peak += seconds
 
     def enter_one(
-        self, e: Element, pattern: str, s: Fraction, end: Fraction, intensity: int
+        self,
+        e: Element,
+        pattern: str,
+        s: Fraction,
+        end: Fraction,
+        intensity: int,
+        *,
+        inside: bool = False,
     ) -> None:
+        """``inside``: content of a card whose panel wipes open: it slides a short way in the
+        reading direction (the card itself already moved)."""
         fade_end = s + (end - s) * Fraction(2, 5)
         easing = self.m.entry_easing
         if pattern == "pop_in":
@@ -310,8 +347,8 @@ class _Compiler:
             if intensity >= 4 and e.type is not ElementType.TEXT:
                 self.tween(e.id, Prop.ROTATION, s, end, -self.style.graphics.tilt_min, 0.0, easing)
         elif pattern == "slide_in":
-            distance = self.style.graphics.spacing_px * (1 + intensity)
-            sign = -1 if (e.rect.left + e.rect.width / 2) < self.style.width / 2 else 1
+            distance = self.style.graphics.spacing_px * (1 if inside else 1 + intensity)
+            sign = -1 if inside or (e.rect.left + e.rect.width / 2) < self.style.width / 2 else 1
             self.tween(e.id, Prop.X, s, end, sign * distance, 0.0, self.m.move_easing)
             self.tween(e.id, Prop.OPACITY, s, fade_end, 0.0, 1.0, "linear")
             if self.m.motion_blur and intensity >= 3:
@@ -516,6 +553,19 @@ class _Compiler:
             for i, e in enumerate(leave_order):
                 t = mid + mid * Fraction(9, 10) * i / n
                 self.tween(e.id, Prop.OPACITY, t, t + frame, 1.0, 0.0, "linear")
+
+
+def _reading_rows(elements: list[Element]) -> list[list[Element]]:
+    """Elements grouped into visual rows (overlapping vertical spans), top to bottom, each row
+    left to right: the stagger follows the reading order, not the element ids."""
+    rows: list[list[Element]] = []
+    for e in sorted(elements, key=lambda e: (e.rect.top, e.rect.left, e.id)):
+        first = rows[-1][0].rect if rows else None
+        if first is not None and first.top <= e.rect.top + e.rect.height // 2 < first.bottom:
+            rows[-1].append(e)
+        else:
+            rows.append([e])
+    return [sorted(r, key=lambda e: (e.rect.left, e.id)) for r in rows]
 
 
 def _digest(text: str) -> bytes:

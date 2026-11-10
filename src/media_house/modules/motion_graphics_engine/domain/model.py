@@ -111,6 +111,14 @@ class GraphicContent:
     direction: OverlayDirection | None = None
     #: Where the facts came from (verbatim provenance, e.g. "commerce_facts unit u12").
     source: str = ""
+    #: Small context label above the main text ("PREIS", "NUR BIS", "ALLE LINKS").
+    eyebrow: str = ""
+    #: Preset variant of the kind (``presets.PRESETS[kind].variants``); empty = the default.
+    variant: str = ""
+    #: Preset emphasis 0 subtle, 1 standard, 2 hero; ``None`` = the preset's default.
+    emphasis: int | None = None
+    #: Table cells: matrix rows (first row = column heads) or timeline events (lane, date, text).
+    rows: tuple[tuple[str, ...], ...] = ()
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

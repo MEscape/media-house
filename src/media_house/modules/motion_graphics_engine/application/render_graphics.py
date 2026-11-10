@@ -15,6 +15,7 @@ from media_house.modules.media_library.application.contracts import (
     MediaAssetDto,
     MediaError,
     MediaLibrary,
+    MediaQuery,
 )
 from media_house.modules.motion_graphics_engine.application.ports import (
     ComposedScene,
@@ -37,7 +38,10 @@ from media_house.modules.motion_graphics_engine.domain.engine import (
     BuildSettings,
     Built,
     build,
+    changing_frames,
+    digest,
     planned,
+    resample,
     resolve_collisions,
 )
 from media_house.modules.motion_graphics_engine.domain.errors import (
@@ -534,9 +538,14 @@ class GraphicsProducer:
         still = quality is RenderQuality.PREVIEW
         scale = profile.render.preview_scale if still else 1.0
         still_frame = _hold_frame(b) if still else None
+        samples = () if still else changing_frames(animation, frames.frames, frames.fps)
+        if len(samples) * 4 > frames.frames * 3:  # under a quarter repeats: draw every frame
+            samples = ()
         scene = Scene(
             composition=composition,
-            animation=animation,
+            animation=resample(animation, samples, frames.frames, frames.fps)
+            if samples
+            else animation,
             fps=frames.fps,
             frames=frames.frames,
             easings=facts.easings,
@@ -544,6 +553,7 @@ class GraphicsProducer:
             images=tuple(image_assets),
             still_frame=still_frame,
             scale=scale,
+            samples=samples,
         )
         composed = self._backend.compose(scene)
         name, version = self._backend.identity()
@@ -569,6 +579,10 @@ class GraphicsProducer:
             if record is not None:
                 _log.info("Graphic reused", request_id=rid, asset_id=existing.id)
                 return record, ()
+        content_tag = _content_tag(config)
+        shared = self._shared(anchor, b, content_tag, config, fingerprint.value, quality)
+        if shared is not None:
+            return shared, ()
         want = RenderExpectation(
             width=composed.width,
             height=composed.height,
@@ -632,6 +646,7 @@ class GraphicsProducer:
                 "alpha_max": alpha_max,
                 "opaque_fraction": opaque,
                 "item_fingerprint": b.fingerprint,
+                "drawn_frames": len(samples) or probe.frames,
             }
             registered = self._library.register_derived(
                 anchor.id,
@@ -648,7 +663,7 @@ class GraphicsProducer:
                 issue("library.register", Severity.ERROR, registered.error.user_message, rid),
             )
         asset = registered.value.asset
-        self._library.add_tags(asset.id, (RENDER_TAG,))
+        self._library.add_tags(asset.id, (RENDER_TAG, content_tag))
         record = _record_from(
             asset, created=registered.value.created, fingerprint=fingerprint.value
         )
@@ -658,9 +673,52 @@ class GraphicsProducer:
             )
         return record, problems
 
+    def _shared(
+        self,
+        anchor: MediaAssetDto,
+        b: Built,
+        tag: str,
+        config: dict[str, JsonValue],
+        fingerprint: str,
+        quality: RenderQuality,
+    ) -> RenderRecord | None:
+        """The identical render made for ANOTHER clip (same content tag): registered for this
+        anchor from the stored file (the library stores identical bytes once); nothing drawn.
+        The end screen of every clip is rendered once."""
+        roles = frozenset(
+            {AssetRole.PREVIEW if quality is RenderQuality.PREVIEW else AssetRole.DERIVED}
+        )
+        found = self._library.search(MediaQuery(tags=frozenset({tag}), roles=roles, page_size=1))
+        if not found.items:
+            return None
+        source = found.items[0]
+        path = self._library.local_path(source.id)
+        if isinstance(path, Err):
+            return None
+        rid = b.request.request_id
+        metadata = {**source.metadata, "request_id": rid, "shared_from": source.id}
+        registered = self._library.register_derived(
+            anchor.id, path.value, operation=RENDER_OPERATION, config=config,
+            version=RENDER_VERSION, display_name=f"{rid} ({b.request.kind.value})",
+            metadata=metadata, role=source.role,
+        )  # fmt: skip
+        if isinstance(registered, Err):
+            return None
+        self._library.add_tags(registered.value.asset.id, (RENDER_TAG, tag))
+        _log.info("Graphic shared", request_id=rid, source=source.id)
+        return _record_from(registered.value.asset, created=False, fingerprint=fingerprint)
+
 
 def _f(r: Rational) -> Fraction:
     return Fraction(r.numerator, r.denominator)
+
+
+def _content_tag(config: dict[str, JsonValue]) -> str:
+    """Library tag of a render's PIXELS: the composition digest (HTML, fonts, images, GSAP),
+    fps, frames, size, quality and renderer; not the anchor and not the style document (each
+    clip resolves its own, the drawn result is the composition). The same graphic of another
+    clip finds it."""
+    return f"mgc:{digest({k: v for k, v in config.items() if k != 'style'})[:40]}"
 
 
 def _batchable(b: Built, quality: RenderQuality, profile: MotionGraphicsProfile) -> bool:

@@ -26,6 +26,7 @@ from media_house.modules.motion_graphics_engine.application.ports import (
     ComposedScene,
     Scene,
 )
+from media_house.modules.motion_graphics_engine.domain.engine import held_frames
 from media_house.modules.motion_graphics_engine.domain.errors import RenderFailed
 from media_house.modules.motion_graphics_engine.domain.profile import RenderSettings
 from media_house.modules.motion_graphics_engine.infrastructure.composition import (
@@ -168,6 +169,14 @@ def setup(runner: ProcessRunner, install: Path, report: Callable[[str], None]) -
     return found if isinstance(found, str) else None
 
 
+#: HyperFrames' own MOV encode (``SDR_RGB_TO_TAGGED_BT709_FILTER`` of the pinned 0.9.5): the
+#: still fast path must give the same pixels as a full render.
+ENCODE_FILTER = (
+    "scale=out_color_matrix=bt709:out_range=tv:flags=neighbor,"
+    "setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709:range=tv"
+)
+
+
 class HyperFramesBackend:
     """``GraphicsBackend`` on a pinned HyperFrames install."""
 
@@ -199,6 +208,7 @@ class HyperFramesBackend:
             height=round(scene.composition.height * scene.scale),
             frames=1 if still else scene.frames,
             still=still,
+            samples=() if still else scene.samples,
         )
 
     def render(
@@ -221,13 +231,15 @@ class HyperFramesBackend:
             target = project / name
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(source, target)
-        target_path = output.parent / f"{output.stem}-frames" if composed.still else output
+        sampled = bool(composed.samples) and not composed.still
+        frames_dir = output.parent / f"{output.stem}-frames"
+        target_path = frames_dir if composed.still or sampled else output
         args = [
             str(runtime.cli),
             "render",
             str(project),
             "--format",
-            "png-sequence" if composed.still else "mov",
+            "png-sequence" if composed.still or sampled else "mov",
             "--fps",
             str(fps.numerator) if fps.denominator == 1 else f"{fps.numerator}/{fps.denominator}",
             "--output",
@@ -256,6 +268,10 @@ class HyperFramesBackend:
             tail = (result.stderr or result.stdout)[-1500:]
             _log.warning("HyperFrames render failed", exit_code=result.exit_code, tail=tail)
             return Err(RenderFailed(f"hyperframes exited with {result.exit_code}: {tail}"))
+        if sampled:
+            expanded = self._expand(composed, frames_dir, output, fps, settings, cancellation)
+            if expanded is not None:
+                return Err(expanded)
         if composed.still:
             pngs = sorted(target_path.glob("*.png"))
             if not pngs:
@@ -264,3 +280,56 @@ class HyperFramesBackend:
         if not output.is_file():
             return Err(RenderFailed(f"{output.name} was not written"))
         return Ok(output)
+
+    def _expand(
+        self,
+        composed: ComposedScene,
+        frames_dir: Path,
+        output: Path,
+        fps: Rational,
+        settings: RenderSettings,
+        cancellation: CancellationToken,
+    ) -> RenderFailed | None:
+        """The drawn frames -> the full ProRes 4444 MOV, encoding each drawn frame ONCE.
+
+        The drawn frames are encoded exactly as HyperFrames encodes its own MOV renders (same
+        filter, codec, profile and pixel format), one single-frame MOV each. ProRes is
+        intra-only, so a repeated frame is the same packet: the output is these files
+        concatenated by stream copy, frame ``f`` taken from the drawn frame it repeats
+        (``held_frames``). Exact frame count, no pixel re-encoded."""
+        pngs = sorted(frames_dir.glob("*.png"))
+        if len(pngs) != len(composed.samples):
+            return RenderFailed(f"{len(pngs)} frames drawn, {len(composed.samples)} expected")
+        ffmpeg = shutil.which("ffmpeg")
+        if ffmpeg is None:
+            return RenderFailed("FFmpeg (ffmpeg) is not on PATH")
+        for k, png in enumerate(pngs):
+            png.replace(frames_dir / f"s{k:06d}.png")
+        rate = str(fps.numerator) if fps.denominator == 1 else f"{fps.numerator}/{fps.denominator}"
+        split = ",".join(str(k) for k in range(1, len(pngs)))
+        encode = [
+            "-v", "error", "-y", "-framerate", rate, "-i", str(frames_dir / "s%06d.png"),
+            "-vf", ENCODE_FILTER, "-c:v", "prores_ks", "-profile:v", "4444",
+            "-vendor", "apl0", "-pix_fmt", "yuva444p10le", "-an",
+            *(["-f", "segment", "-segment_frames", split] if split else ["-f", "segment"]),
+            "-reset_timestamps", "1", str(frames_dir / "u%06d.mov"),
+        ]  # fmt: skip
+        listing = frames_dir / "frames.txt"
+        shown = held_frames(composed.samples, composed.frames)
+        listing.write_text("".join(f"file 'u{k:06d}.mov'\n" for k in shown), encoding="utf-8")
+        join = [
+            "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(listing),
+            "-c", "copy", "-frames:v", str(composed.frames), str(output),
+        ]  # fmt: skip
+        for args in (encode, join):
+            try:
+                spec = ProcessSpec(
+                    ffmpeg, tuple(args), cwd=frames_dir, timeout_seconds=settings.timeout_seconds
+                )
+                result = self._runner.run(spec, cancellation=cancellation)
+            except (ToolNotFoundError, ProcessTimeoutError) as exc:
+                return RenderFailed(str(exc))
+            if not result.succeeded:
+                tail = result.stderr[-1500:]
+                return RenderFailed(f"ffmpeg exited with {result.exit_code}: {tail}")
+        return None

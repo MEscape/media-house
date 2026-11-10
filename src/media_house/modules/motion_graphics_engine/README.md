@@ -64,7 +64,7 @@ AnimationEvent(graphic_id, kind: EventKind, local_at, timeline_at, strength, ref
 price_tag, rank_card, silhouette_teaser, spec_card, comparison, product_sticker, feature_list,
 step_list, chart (bar|line|pie|progress|counter), timeline, arrow, tracking_label, cta,
 sponsor_label, intro, end_screen, logo_sting, membership_plug, pip_frame, caption,
-transition_overlay`. `Origin`: `editorial | caption | transition | brand`.
+transition_overlay, comparison_matrix, strike_value, url_card, deadline_chip`. `Origin`: `editorial | caption | transition | brand`.
 `EventKind`: `enter_start | enter_peak | emphasis | exit_start | exit_end`.
 Entry patterns `pop_in | slide_in | fade_in | wipe_in | cut`, exits `pop_out | slide_out |
 fade_out | cut` (the style's vocabulary; `None` = the style's choice).
@@ -164,6 +164,44 @@ overlay = GraphicRequest(
 (`timeline_start` arithmetic above is illustrative: `Rational` has no operators; use
 `Fraction`.) Overlays are full frame (no zone) and may be opaque at the middle.
 
+## Presets and the orchestration surface
+
+A planner (rules or a weak language model) only puzzles. It sends
+`GraphicOrder(kind, at, slots, variant="", emphasis=None, duration=None, request_id="",
+section_id=None, priority=0.5, zone="")` to `order_request(order, style)`, which returns
+`Result[GraphicRequest, InvalidGraphicOrder]`. `at` is the timeline second when the fact is
+spoken: the graphic is fully visible then. Each kind's preset (`PRESETS`, `catalogue()` as plain
+data) fixes:
+
+* typed **slots**: `text` / `money` (cents) / `date` (`dd.mm.`) / `url` / `rank` / `image`
+  (cut-out id) / `list` / `table`, each with a max length and a max item count;
+* a few **variants** (the first one is the default) and **emphasis** 0 subtle / 1 standard /
+  2 hero (type scale x0.85 / 1 / 1.2; a hero that does not fit its zone is drawn one level
+  smaller);
+* one **choreography** pair (cards: wipe + slide, fade out; tags and stickers: pop in/out;
+  titles: fade; brand: cut) and the allowed **zones**.
+
+`validate_order` rejects anything else and lists every problem: an unknown slot, text that is too
+long, a wrong format, an unknown variant, emphasis or zone, a wrong table shape, or a bare number
+without its label. Design tokens (`domain/design.py`): one grid, type sizes from the style
+roles, radii, accent spine, soft shadow and a legibility floor for text on footage. Every card
+uses the same primitive.
+
+| Kind | Slots (required*) | Variants |
+| --- | --- | --- |
+| callout | text* (60), label | dark, accent, highlight |
+| price_tag | price* (cents), product (40), label | tag |
+| spec_card (data card) | facts* ((label, value) x4), product, price, image | tiles, rows |
+| chart | values* ((label, "1,25 €") x5), title, best | bars, columns, line, pie, progress, counter |
+| timeline | events* ((date, text) / (lane, date, text) x6) | steps, two_lane |
+| comparison_matrix | columns* (x3), rows* (x5), best, title | table |
+| strike_value | label*, old* (10), new | strike |
+| url_card | url*, label | dark, accent |
+| deadline_chip | date*, label | accent, highlight |
+| ... | see `PRESETS` (every orderable kind) | |
+
+Audit and before/after frames: `docs/layer4/preset-audit-2026-11-09.md`.
+
 ## Planning (`MotionGraphicsPlanner`)
 
 Input: `GraphicsBrief(anchor_asset_id, project_id, edit: EditRef | None, frame_rate, width,
@@ -229,6 +267,14 @@ membership_plug_at=None)`.
   input is 10-bit 4:4:4:4 with alpha), the edit's fps, the style's output size, exactly
   `FrameSpan.frames` frames. Preview quality = one PNG still of the hold at
   `render.preview_scale` (role PREVIEW).
+* Still fast path: only the frames whose picture changes are drawn (`changing_frames`, the
+  animation `resample`d onto them). Each drawn frame is encoded once, exactly like HyperFrames
+  encodes, and the MOV is joined by stream copy (ProRes is intra-only). The result is
+  pixel-identical to a full render. An 84.7 s "Werbung" label: 1 frame drawn, about 12 s instead
+  of about 5 min.
+* Across clips: a render carries a content tag (`mgc:<digest>`, without the anchor or the style
+  document). The same graphic of another clip (the end screen) is registered from the stored
+  file and not drawn again.
 * Cache: `register_derived(anchor, file, operation="motion_graphic_render", config={composition
   digest (HTML + font sha256 + image checksums + GSAP version), fps, frames, quality, renderer +
   version, style fingerprint, size, still frame, software_gl})`; a hit returns the existing

@@ -14,6 +14,13 @@ one animation compiler, one renderer (HyperFrames -> ProRes 4444 MOV with true a
   the edit's graphic requests are built (+ format templates and brand bookends), renders them
   and stores a ``graphics_plan`` document of the anchor.
 * ``GraphicsCatalog``: stored plans (``latest`` / ``history`` / ``load``).
+* ``GraphicOrder`` / ``order_request(order, style)``: the ORCHESTRATION SURFACE. A planner
+  (rules or a weak language model) only puzzles: per kind it fills a few typed slots (short
+  texts, cents, dates, image ids, small tables), picks a variant and an emphasis (0-2) and
+  names when the fact is spoken. Everything else (type scale, spacing, colours, zones,
+  choreography, durations) is the preset's, so an order cannot be ugly; an order outside its
+  preset is rejected with every reason (``InvalidGraphicOrder.problems``). ``PRESETS`` /
+  ``catalogue()`` describe the surface (e.g. for a prompt).
 * ``AnimationEvent``s (``enter_start | enter_peak | emphasis | exit_start | exit_end`` with
   ``local_at`` and ``timeline_at``) are what music_and_sound_design syncs to.
 
@@ -23,6 +30,7 @@ Blocking calls (rendering runs Chrome through HyperFrames): run them as jobs.
 from typing import Protocol
 
 from media_house.modules.media_library.application.contracts import MediaAssetDto, MediaError
+from media_house.modules.motion_graphics_engine.application.orders import order_request
 from media_house.modules.motion_graphics_engine.application.plan_graphics import (
     LIMITATIONS,
     PlanError,
@@ -51,6 +59,7 @@ from media_house.modules.motion_graphics_engine.domain.brief import (
 )
 from media_house.modules.motion_graphics_engine.domain.engine import frame_span
 from media_house.modules.motion_graphics_engine.domain.errors import (
+    InvalidGraphicOrder,
     InvalidGraphicRequest,
     InvalidGraphicsConfig,
     InvalidGraphicsDocument,
@@ -86,6 +95,17 @@ from media_house.modules.motion_graphics_engine.domain.model import (
     Timing,
     Track,
     TrackPoint,
+)
+from media_house.modules.motion_graphics_engine.domain.presets import (
+    EMPHASIS_LEVELS,
+    PRESETS,
+    GraphicOrder,
+    Preset,
+    Slot,
+    SlotType,
+    SlotValue,
+    catalogue,
+    validate_order,
 )
 from media_house.modules.motion_graphics_engine.domain.profile import (
     DEFAULT_PROFILE,
@@ -168,7 +188,9 @@ class GraphicsCatalog(Protocol):
 __all__ = [
     "DEFAULT_PROFILE",
     "DOCUMENT_TYPE",
+    "EMPHASIS_LEVELS",
     "LIMITATIONS",
+    "PRESETS",
     "PROFILES",
     "PROFILE_VERSION",
     "RENDER_OPERATION",
@@ -194,6 +216,7 @@ __all__ = [
     "GraphicContent",
     "GraphicDecision",
     "GraphicKind",
+    "GraphicOrder",
     "GraphicRequest",
     "GraphicsBrief",
     "GraphicsCatalog",
@@ -202,6 +225,7 @@ __all__ = [
     "InputHow",
     "InputRecord",
     "Intent",
+    "InvalidGraphicOrder",
     "InvalidGraphicRequest",
     "InvalidGraphicsConfig",
     "InvalidGraphicsDocument",
@@ -223,6 +247,7 @@ __all__ = [
     "PlanGraphicsCommand",
     "PlanGraphicsResult",
     "PlannedGraphic",
+    "Preset",
     "ProductFacts",
     "Prop",
     "Provenance",
@@ -241,6 +266,9 @@ __all__ = [
     "ResultState",
     "SectionOverride",
     "Severity",
+    "Slot",
+    "SlotType",
+    "SlotValue",
     "SpecFact",
     "SpecLine",
     "SponsoredSpan",
@@ -256,9 +284,12 @@ __all__ = [
     "TimingKnobs",
     "Track",
     "TrackPoint",
+    "catalogue",
     "frame_span",
     "knob_fields",
+    "order_request",
     "price_cents",
     "product_facts",
     "rank_of",
+    "validate_order",
 ]

@@ -7,22 +7,29 @@ from typing import Final
 from media_house.core.domain import Rational
 
 #: Shape of a stored ``graphics_plan`` document. Bump on any field change.
-SCHEMA_VERSION: Final = 1
+#: 2: ``GraphicContent`` carries ``eyebrow``, ``variant``, ``emphasis`` and ``rows`` (presets)
+SCHEMA_VERSION: Final = 2
 #: Planning rules (brief -> requests). Bump when the same brief plans differently.
 #: 2: cards at the spoken fact, every price once, not over on-screen text; 3: no label slivers;
-#: 4: a spoken whole-euro price is the shown 'x,9y' one; 5: the end screen is appended
-PLANNER_VERSION: Final = 5
+#: 4: a spoken whole-euro price is the shown 'x,9y' one; 5: the end screen is appended;
+#: 6: the appended end ends on its last rendered frame; 7: a bare figure is never a card on its
+#: own (it needs a label) and an editorial card opens at its spoken time when the brief knows it
+#: 8: a bare figure spoken as a product fact of its section is labelled by that fact
+PLANNER_VERSION: Final = 8
 #: Layout and animation compiler. Bump when the same request draws or moves differently: it
 #: changes every render fingerprint, so old renders are not reused for a new look.
-COMPILER_VERSION: Final = 1
+#: 2: the preset system (design tokens, cards, balanced lines, choreography pairs)
+COMPILER_VERSION: Final = 2
 #: Vocabulary of kinds, events and properties (additions are additive).
-VOCABULARY_VERSION: Final = 1
+#: 2: comparison matrix, struck value, URL card, deadline chip; preset variants and emphasis
+VOCABULARY_VERSION: Final = 2
 #: Schema of the configurable knobs in ``profile.py``.
 PROFILE_VERSION: Final = 1
 DOCUMENT_TYPE: Final = "graphics_plan"
 RESULT_OPERATION: Final = "graphics_plan"
 RENDER_OPERATION: Final = "motion_graphic_render"
-RENDER_VERSION: Final = 1
+#: 2: frames whose picture does not change are rendered once and repeated (still fast path)
+RENDER_VERSION: Final = 2
 #: Library tag on every rendered graphic, so all renders can be listed.
 RENDER_TAG: Final = "motion_graphic"
 
@@ -55,6 +62,14 @@ class GraphicKind(StrEnum):
     LOGO_STING = "logo_sting"
     MEMBERSHIP_PLUG = "membership_plug"
     PIP_FRAME = "pip_frame"
+    #: Up to five products x up to three facts, the best row marked.
+    COMPARISON_MATRIX = "comparison_matrix"
+    #: A value that no longer holds, struck through (``04:30``), with its replacement.
+    STRIKE_VALUE = "strike_value"
+    #: A web address with a short label ("Alle Links").
+    URL_CARD = "url_card"
+    #: A small dated chip ("NUR BIS 29.12.").
+    DEADLINE_CHIP = "deadline_chip"
     #: Executor only: caption_engine decides every word and its timing.
     CAPTION = "caption"
     #: Executor only: transition_engine decides kind, duration and alignment.

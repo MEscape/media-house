@@ -335,3 +335,64 @@ def test_caption_groups_of_one_run_render_as_one_file_and_each_knows_its_place(
     assert len({i.asset_id for i in items}) == 1 and len(backend.rendered) == 1
     assert [i.render.asset_start_frame for i in items if i.render] == [0, 50, 125]
     assert [i.frames.start_frame for i in items if i.frames] == [50, 100, 175]
+
+
+def test_appended_end_screen_ends_on_its_last_rendered_frame(
+    app: Application, tmp_path: Path
+) -> None:
+    # 20 s at 29.97 fps is 599 frames (19.987 s); a bookend end of content + 20.000 s overhung the
+    # timeline by a fraction of a frame and the builder refused the music tail under it.
+    anchor = import_png(app, tmp_path)
+    fps = R(30000, 1001)
+    brief = GraphicsBrief(
+        anchor_asset_id=anchor.id,
+        project_id=None,
+        edit=None,
+        frame_rate=fps,
+        width=1920,
+        height=1080,
+        timeline_duration=R(286 * 1001, 30000),  # content ends on frame 286
+        sponsored=False,
+    )
+    planner = app.container.resolve(MotionGraphicsPlanner)
+    result = planner.execute(
+        PlanGraphicsCommand(brief=brief, style=resolve(app, anchor.id)), JobContext.detached()
+    )
+    assert isinstance(result, Ok), result
+    assert result.value.plan.timeline_end_with_bookends == R(885 * 1001, 30000)
+
+
+@needs_ffmpeg
+def test_the_identical_end_screen_of_another_clip_is_registered_not_rendered(
+    app: Application, tmp_path: Path
+) -> None:
+    renderer, _, backend = wire(app)
+    library = app.container.resolve(MediaLibrary)
+    end = GraphicRequest(
+        request_id="brand:end_screen",
+        kind=GraphicKind.END_SCREEN,
+        origin=Origin.BRAND,
+        content=GraphicContent(),
+        timing=Timing(local_duration=R(2, 1), timeline_start=R(30, 1)),
+    )
+    assets = []
+    for name, size in (("clip1", (64, 36)), ("clip2", (96, 54))):
+        anchor = import_png(app, tmp_path, name=name, size=size)
+        result = renderer.render(
+            RenderGraphicsCommand(
+                anchor_asset_id=anchor.id,
+                requests=(end,),
+                style=resolve(app, anchor.id),
+                fps=R(25, 1),
+            ),
+            JobContext.detached(),
+        )
+        assert isinstance(result, Ok), result
+        item = result.value.items[0]
+        assert item.status is ItemStatus.OK and item.asset_id is not None
+        stored = library.get(item.asset_id)
+        assert isinstance(stored, Ok) and stored.value.derivation is not None
+        assert stored.value.derivation.source_asset_id == anchor.id  # derived of ITS clip
+        assets.append((item.created, stored.value.checksum))
+    assert len(backend.rendered) == 1  # the second clip reused the first render
+    assert assets[0][0] and not assets[1][0] and assets[0][1] == assets[1][1]

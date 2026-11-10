@@ -84,6 +84,12 @@ class EditorialGraphic:
     #: Supplied numbers for a chart/counter (never invented).
     data: tuple[DataPoint, ...] = ()
     reason: str = ""
+    #: What the concept is ("PREIS", "VERKAUFSSTART"): shown above it. A bare figure (a price,
+    #: a date, a count) without a label is never drawn.
+    label: str = ""
+    #: When the concept is spoken (timeline clock): the card is fully in then. ``None`` =
+    #: unknown (``timeline_at``, the edit's moment, is used).
+    spoken_at: Rational | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
