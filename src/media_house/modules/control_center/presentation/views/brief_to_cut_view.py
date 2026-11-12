@@ -9,13 +9,14 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QDate, Qt
+from PySide6.QtCore import QDate, Qt, QTimer
 from PySide6.QtGui import QDragEnterEvent, QDropEvent
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QFileDialog,
     QHBoxLayout,
+    QHeaderView,
     QInputDialog,
     QLabel,
     QLineEdit,
@@ -24,6 +25,7 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QProgressBar,
     QPushButton,
+    QSizePolicy,
     QSpinBox,
     QSplitter,
     QStackedWidget,
@@ -63,7 +65,7 @@ _FORMATS = (
 
 
 def _button(text: str, name: str) -> QPushButton:
-    button = QPushButton(text)
+    button = QPushButton(text.replace("&", "&&"))
     button.setAccessibleName(name)
     return button
 
@@ -151,6 +153,7 @@ class BriefToCutView(QWidget):
         self._saved_script = ""
         self._saved_brief = ""
         self._busy = False
+        self.setObjectName("briefToCut")
         self.setAccessibleName(strings.B2C_TITLE)
 
         root = QVBoxLayout(self)
@@ -173,11 +176,12 @@ class BriefToCutView(QWidget):
         body = QSplitter(Qt.Orientation.Horizontal)
         body.addWidget(self._stack)
         self._brainstorm_dock = self._dock()
-        self._brainstorm_dock.setMinimumWidth(250)
+        self._brainstorm_dock.setMinimumWidth(280)
         self._brainstorm_dock.setMaximumWidth(420)
         body.addWidget(self._brainstorm_dock)
         body.setStretchFactor(0, 3)
         body.setStretchFactor(1, 1)
+        body.setSizes([1000, 340])
         root.addWidget(body, 1)
         navigation = QHBoxLayout()
         self._back = _button(strings.B2C_BACK, strings.B2C_BACK)
@@ -196,6 +200,13 @@ class BriefToCutView(QWidget):
         self._activity.hide()
         root.addWidget(self._activity)
         self._go(0)
+        self._lint_timer = QTimer(self)
+        self._lint_timer.setSingleShot(True)
+        self._lint_timer.setInterval(500)
+        self._lint_timer.timeout.connect(
+            lambda: self._vm.refresh_report(self._script.toPlainText())
+        )
+        self._script.textChanged.connect(lambda: self._lint_timer.start())
 
         viewmodel.projects_changed.connect(self._set_projects)
         viewmodel.project_changed.connect(self._show_project)
@@ -210,7 +221,8 @@ class BriefToCutView(QWidget):
         viewmodel.refresh_projects()
 
     # --- header and stepper ---------------------------------------------------------------------
-    def _header(self) -> QHBoxLayout:
+    def _header(self) -> QVBoxLayout:
+        toolbar = QVBoxLayout()
         row = QHBoxLayout()
         row.addWidget(label(strings.B2C_PROJECT, "muted"))
         self._projects = QComboBox()
@@ -236,11 +248,14 @@ class BriefToCutView(QWidget):
         self._sponsored = QCheckBox(strings.B2C_SPONSORED)
         create = _button(strings.B2C_CREATE, strings.B2C_NEW_PROJECT)
         create.clicked.connect(self._create)
-        for widget in (self._title, self._client, self._format, create):
-            row.addWidget(widget)
-        row.addWidget(self._year)
         row.addWidget(self._sponsored)
-        return row
+        row.addStretch(1)
+        toolbar.addLayout(row)
+        new_project = QHBoxLayout()
+        for widget in (self._title, self._client, self._format, self._year, create):
+            new_project.addWidget(widget)
+        toolbar.addLayout(new_project)
+        return toolbar
 
     def _stepper(self) -> QHBoxLayout:
         row = QHBoxLayout()
@@ -286,6 +301,8 @@ class BriefToCutView(QWidget):
         self._ideas.setAccessibleName(strings.B2C_IDEAS_LABEL)
         left.addWidget(self._ideas, 1)
         self._enrich = QCheckBox(strings.B2C_MODEL_OPT_IN)
+        self._enrich.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
+        self._enrich.setToolTip(strings.B2C_MODEL_OPT_IN)
         left.addWidget(self._enrich)
         extract = _button(strings.B2C_EXTRACT, strings.B2C_EXTRACT)
         extract.setProperty("role", "primary")
@@ -302,6 +319,10 @@ class BriefToCutView(QWidget):
         self._model = QTreeWidget()
         self._model.setHeaderLabels(list(strings.B2C_MODEL_TREE))
         self._model.setAccessibleName("Brief Model")
+        self._model.header().setStretchLastSection(False)
+        self._model.header().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self._model.header().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self._model.header().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         right.addWidget(self._model, 1)
         export = _button(strings.B2C_EXPORT_DOCS, strings.B2C_EXPORT_DOCS)
         export.clicked.connect(self._export_docs)
@@ -452,7 +473,7 @@ class BriefToCutView(QWidget):
         self._diff.setReadOnly(True)
         self._diff.setAccessibleName("Änderung")
         layout.addWidget(self._diff, 1)
-        row = QHBoxLayout()
+        row = QVBoxLayout()
         self._apply = _button(strings.B2C_REWRITE_APPLY, strings.B2C_REWRITE_APPLY)
         self._apply.setEnabled(False)
         self._apply.clicked.connect(self._apply_proposal)
@@ -464,6 +485,9 @@ class BriefToCutView(QWidget):
         return dock
 
     def _propose(self, instruction: str) -> None:
+        if self._has_unsaved_script():
+            self._set_message(strings.B2C_UNSAVED)
+            return
         scene = self._scene_pick.currentData()
         if scene and instruction.strip():
             self._vm.propose_rewrite(str(scene), instruction.strip())
@@ -471,6 +495,9 @@ class BriefToCutView(QWidget):
             self._set_message(strings.B2C_NO_SCENE)
 
     def _apply_proposal(self) -> None:
+        if self._has_unsaved_script():
+            self._set_message(strings.B2C_UNSAVED)
+            return
         if self._proposal is not None:
             self._vm.apply_proposal(self._proposal)
 
@@ -522,6 +549,9 @@ class BriefToCutView(QWidget):
         return tab
 
     def _run_variant(self) -> None:
+        if self._has_unsaved_drafts():
+            self._set_message(strings.B2C_UNSAVED_DRAFTS)
+            return
         files, _filter = QFileDialog.getOpenFileNames(self, strings.B2C_VARIANT_PICK)
         if files:
             self._vm.run_variant(str(self._variant_level.currentData()), [Path(f) for f in files])
@@ -554,6 +584,13 @@ class BriefToCutView(QWidget):
         self._material_slots = QTreeWidget()
         self._material_slots.setHeaderLabels(list(strings.B2C_MATERIAL_HEADERS))
         self._material_slots.setAccessibleName(strings.B2C_PLAN)
+        self._material_slots.header().setStretchLastSection(False)
+        self._material_slots.header().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self._material_slots.header().setSectionResizeMode(
+            1, QHeaderView.ResizeMode.ResizeToContents
+        )
+        self._material_slots.header().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
+        self._material_slots.setColumnWidth(2, 90)
         self._material_slots.currentItemChanged.connect(self._show_requirement)
         slots.addWidget(self._material_slots)
         self._material_detail = QPlainTextEdit()
@@ -564,8 +601,10 @@ class BriefToCutView(QWidget):
         layout.addWidget(DropZone(self._vm.ingest))
         self._messages = QListWidget()
         self._messages.setAccessibleName("Hinweise")
+        self._messages.hide()
         layout.addWidget(self._messages, 1)
         self._ingest_table = table(strings.B2C_INGEST_HEADERS, "Material")
+        self._ingest_table.hide()
         layout.addWidget(self._ingest_table, 3)
         flags = QHBoxLayout()
         for text, how in (
@@ -634,6 +673,9 @@ class BriefToCutView(QWidget):
         return page
 
     def _export(self) -> None:
+        if self._has_unsaved_drafts():
+            self._set_message(strings.B2C_UNSAVED_DRAFTS)
+            return
         folder = QFileDialog.getExistingDirectory(self, strings.B2C_EXPORT)
         if folder:
             self._vm.export_package(Path(folder))
@@ -656,6 +698,20 @@ class BriefToCutView(QWidget):
     def _has_unsaved_script(self) -> bool:
         return self._script.toPlainText() != self._saved_script
 
+    def _has_unsaved_drafts(self) -> bool:
+        if self._project is None:
+            return False
+        contexts = {v.level: v.text for v in self._project.contexts}
+        return (
+            self._has_unsaved_script()
+            or self._brief.toPlainText() != self._project.brief_text
+            or self._ideas.toPlainText() != self._project.ideas
+            or any(
+                field.toPlainText() != contexts.get(level, "")
+                for level, field in self._context_views.items()
+            )
+        )
+
     def _generate_script(self) -> None:
         if self._has_unsaved_script():
             self._set_message(strings.B2C_UNSAVED)
@@ -670,8 +726,8 @@ class BriefToCutView(QWidget):
             self._vm.restore_script(int(version))
 
     def _create(self) -> None:
-        if self._has_unsaved_script():
-            self._set_message(strings.B2C_UNSAVED)
+        if self._has_unsaved_drafts():
+            self._set_message(strings.B2C_UNSAVED_DRAFTS)
             return
         self._vm.create_project(
             self._title.text(),
@@ -682,8 +738,11 @@ class BriefToCutView(QWidget):
         )
 
     def _open_selected(self, index: int) -> None:
-        if self._has_unsaved_script():
-            self._set_message(strings.B2C_UNSAVED)
+        if self._has_unsaved_drafts():
+            self._set_message(strings.B2C_UNSAVED_DRAFTS)
+            selected = self._projects.findData(self._vm.project_id)
+            if selected >= 0:
+                self._projects.setCurrentIndex(selected)
             return
         project_id = self._projects.itemData(index)
         if project_id:
@@ -703,11 +762,28 @@ class BriefToCutView(QWidget):
         same_project = previous is not None and previous.project_id == project.project_id
         locally_edited = self._has_unsaved_script()
         self._project = project
+        if not same_project:
+            for field in self._context_views.values():
+                field.clear()
+            for count in self._context_counts.values():
+                count.clear()
+            self._metadata.clear()
+            self._gate_list.clear()
+            self._gate_status.clear()
+            self._ingest_table.setRowCount(0)
+            self._ingest_table.hide()
+            self._messages.hide()
+            self._messages.clear()
+            self._lint.clear()
+            self._length.clear()
+            self._entries = []
+            self._show_proposal(None)
         if not same_project or self._brief.toPlainText() == self._saved_brief:
             self._brief.setPlainText(project.brief_text)
         self._saved_brief = project.brief_text
-        if not same_project:
+        if not same_project or self._ideas.toPlainText() == previous.ideas:
             self._ideas.setPlainText(project.ideas)
+        if not same_project:
             self._sponsored.setChecked(project.settings.sponsored)
         self._versions.clear()
         for version in reversed(project.script_versions):
@@ -722,7 +798,9 @@ class BriefToCutView(QWidget):
                 f"{mark}{c.logline}\n   Hook: {c.hook}\n   Faden: {c.red_thread}"
             )
         if not same_project or not locally_edited or project.script == self._script.toPlainText():
+            self._script.blockSignals(True)
             self._script.setPlainText(project.script)
+            self._script.blockSignals(False)
             self._saved_script = project.script
         self._show_facts(project)
         self._show_plan(project)
@@ -762,7 +840,11 @@ class BriefToCutView(QWidget):
         )
         self._dirty.setVisible(bool(project.dirty))
         self._dirty.setText(
-            strings.B2C_DIRTY.format(items=", ".join(a.value for a in project.dirty))
+            strings.B2C_DIRTY.format(
+                items=", ".join(
+                    strings.B2C_ARTIFACT_LABELS.get(a.value, a.value) for a in project.dirty
+                )
+            )
         )
 
     def _show_requirement(self, item: Any, _previous: Any = None) -> None:
@@ -776,8 +858,8 @@ class BriefToCutView(QWidget):
                 checklist="\n".join(f"☐ {step}" for step in requirement.howto),
                 name=requirement.target_name_pattern,
                 types=", ".join(requirement.accepts),
-                duration=requirement.duration_hint or "–",
-                depends=", ".join(requirement.depends_on) or "–",
+                duration=requirement.duration_hint or "-",
+                depends=", ".join(requirement.depends_on) or "-",
             )
         )
 
@@ -794,9 +876,9 @@ class BriefToCutView(QWidget):
             return groups[name]
 
         for c in brief.constraints:
-            QTreeWidgetItem(group("Vorgaben"), [c.text, c.kind.value, c.source.ref]).setToolTip(
-                0, c.source.quote
-            )
+            QTreeWidgetItem(
+                group("Vorgaben"), [c.text, strings.B2C_KIND_LABELS[c.kind.value], c.source.ref]
+            ).setToolTip(0, c.source.quote)
         for f in brief.facts:
             QTreeWidgetItem(
                 group("Fakten"),
@@ -816,7 +898,9 @@ class BriefToCutView(QWidget):
             QTreeWidgetItem(
                 group("Offene Fragen"), [q.text, str(q.priority), q.source.ref if q.source else ""]
             )
-        self._model.expandAll()
+        for name, node in groups.items():
+            node.setText(1, str(node.childCount()))
+            node.setExpanded(name in {"Vorgaben", "Offene Fragen"})
 
     def _show_risks(self, project: Any) -> None:
         self._risks = list(project.risks)
@@ -877,7 +961,14 @@ class BriefToCutView(QWidget):
         fill(
             self._requirements,
             [
-                (str(r.order), r.title, r.folder, r.priority.value, r.timing.value, r.status.value)
+                (
+                    str(r.order),
+                    r.title,
+                    r.folder,
+                    strings.B2C_PRIORITY_LABELS[r.priority.value],
+                    strings.B2C_TIMING_LABELS[r.timing.value],
+                    strings.B2C_STATUS_LABELS[r.status.value],
+                )
                 for r in project.requirements
             ],
         )
@@ -932,6 +1023,7 @@ class BriefToCutView(QWidget):
     def _show_ingest(self, report: Any) -> None:
         manifest = report.project.manifest
         self._entries = list(manifest.entries) if manifest else []
+        self._ingest_table.setVisible(bool(self._entries))
         fill(
             self._ingest_table,
             [
@@ -951,6 +1043,7 @@ class BriefToCutView(QWidget):
             self._messages.addItem(message)
         for name in report.ignored:
             self._messages.addItem(f"Ignoriert: {name}")
+        self._messages.setVisible(self._messages.count() > 0)
 
     def _show_gate(self, report: Any) -> None:
         self._gate_list.clear()

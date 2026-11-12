@@ -337,7 +337,7 @@ B2C_BACK = "Zurück"
 B2C_NEXT = "Weiter"
 B2C_YEAR = "Saison"
 B2C_SPONSORED = "Bezahlte Partnerschaft"
-B2C_MODEL_OPT_IN = "Briefing zusätzlich mit lokalem KI-Modell ergänzen (kann länger dauern)"
+B2C_MODEL_OPT_IN = "Mit KI ergänzen (optional, kann länger dauern)"
 B2C_BRIEF_HINT = (
     "Lade dein Briefing oder füge den Text ein. Fakten und Quellen bleiben zum Prüfen sichtbar."
 )
@@ -348,13 +348,23 @@ B2C_IDEAS_PLACEHOLDER = (
 B2C_SUMMARY_EMPTY = "Dein Projekt beginnt mit einem Briefing."
 B2C_SUMMARY = "{products} Produkte · {facts} Fakten · {questions} offene Fragen · {scenes} Szenen"
 B2C_DIRTY = "Nach Änderungen neu prüfen: {items}"
-B2C_UNSAVED = "Dein Script enthält ungespeicherte Änderungen. Speichere sie, bevor du das Projekt wechselst oder neu generierst."
-B2C_DRAFT_NOTE = "Arbeitsentwurf aus Regeln und Fakten. Prüfe Stimme, Dramaturgie und offene Felder vor der Aufnahme."
+B2C_UNSAVED = (
+    "Dein Script enthält ungespeicherte Änderungen. "
+    "Speichere sie, bevor du das Projekt wechselst oder neu generierst."
+)
+B2C_UNSAVED_DRAFTS = "Du hast ungespeicherte Änderungen. Speichere oder übernimm sie zuerst."
+B2C_DRAFT_NOTE = (
+    "Arbeitsentwurf aus Regeln und Fakten. "
+    "Prüfe Stimme, Dramaturgie und offene Felder vor der Aufnahme."
+)
 B2C_MATERIAL_EMPTY = (
     "Erstelle zuerst deinen Materialplan. Wähle dann einen Platz für die genaue Aufnahmeanleitung."
 )
 B2C_MATERIAL_HEADERS = ("Material / Ordner", "Status", "Szenen")
-B2C_MATERIAL_DETAIL = "{instruction}\n\nSo nimmst du es auf:\n{checklist}\n\nDateiname: {name}\nDateitypen: {types}\nDauer: {duration}\nVorher erledigen: {depends}"
+B2C_MATERIAL_DETAIL = (
+    "{instruction}\n\nSo nimmst du es auf:\n{checklist}\n\nDateiname: {name}\n"
+    "Dateitypen: {types}\nDauer: {duration}\nVorher erledigen: {depends}"
+)
 B2C_CONTEXT_SAVE = "Kontext speichern"
 B2C_VERSION = "Script-Version"
 B2C_RESTORE = "Version wiederherstellen"
@@ -368,6 +378,30 @@ B2C_STATUS_LABELS = {
 }
 B2C_PRIORITY_LABELS = {"required": "Pflicht", "recommended": "Empfohlen", "optional": "Optional"}
 B2C_LEVEL_LABELS = {"minimal": "Kurz", "normal": "Normal", "detailed": "Ausführlich"}
+B2C_KIND_LABELS = {
+    "hard": "Verbindlich",
+    "soft": "Empfohlen",
+    "conditional": "Mit Freigabe",
+    "confidential": "Vertraulich",
+}
+B2C_ARTIFACT_LABELS = {
+    "brief": "Briefing",
+    "risks": "Risiken",
+    "concepts": "Konzepte",
+    "facts": "Fakten",
+    "slots": "Technik-Felder",
+    "script": "Script",
+    "graphics_intent": "Grafikideen",
+    "requirements": "Materialplan",
+    "context": "Kontext",
+    "metadata": "Metadaten",
+    "kurzkonzept": "Kurzkonzept",
+}
+B2C_TIMING_LABELS = {
+    "anytime": "Jederzeit",
+    "before_source_live": "Vor Veröffentlichung der Quelle",
+    "after_source_live": "Wenn die Quelle live ist",
+}
 B2C_REWRITE_TITLE = "Szene bearbeiten"
 B2C_REWRITE_INSTRUCTION = "Anweisung (z. B. kürzer, lustiger, fachlicher)"
 B2C_REWRITE_RUN = "Vorschlag holen"

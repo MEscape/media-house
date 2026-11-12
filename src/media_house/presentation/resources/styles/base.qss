@@ -75,3 +75,9 @@ QLabel[role="dropzone"] {
 }
 QPushButton[role="step"] { border-radius: 14px; padding: 4px 14px; }
 QPushButton[role="step"]:checked { background-color: $accent; color: $accent_text; border-color: $accent; }
+/* Studio accents keep the wizard recognizable within the shared application theme. */
+QWidget#briefToCut QPushButton[role="primary"], QWidget#briefToCut QPushButton[role="step"]:checked {
+    background-color: #8b5cf6; color: #ffffff; border-color: #a78bfa;
+}
+QWidget#briefToCut QPushButton:focus, QWidget#briefToCut QPlainTextEdit:focus,
+QWidget#briefToCut QLineEdit:focus { border: 2px solid #a78bfa; }

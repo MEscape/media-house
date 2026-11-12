@@ -50,6 +50,7 @@ class BriefToCutViewModel(QObject):
         self._status = status
         self._project_id = ""
         self._pending = 0
+        self._report_serial = 0
 
     @property
     def project_id(self) -> str:
@@ -200,14 +201,21 @@ class BriefToCutViewModel(QObject):
             lambda _c, pid: self._workflow.fill_slot(pid, key, value), "Feld speichern"
         )
 
-    def refresh_report(self) -> None:
-        if not self._project_id:
+    def refresh_report(self, text: str | None = None) -> None:
+        if not self._project_id or self._pending:
             return
         pid = self._project_id
-        self._run(
+        self._report_serial += 1
+        serial = self._report_serial
+
+        def show(result: Any) -> None:
+            if serial == self._report_serial and pid == self._project_id and isinstance(result, Ok):
+                self.report_changed.emit(result.value)
+
+        self._jobs.submit(
             "Script prüfen",
-            lambda _c: self._workflow.lint(pid),
-            lambda report: self.report_changed.emit(report),
+            lambda _c: self._workflow.lint(pid, text=text),
+            on_success=show,
         )
 
     def propose_rewrite(self, scene_id: str, instruction: str) -> None:

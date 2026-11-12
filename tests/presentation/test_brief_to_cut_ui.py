@@ -192,7 +192,9 @@ def test_unsaved_script_survives_other_updates_and_dock_is_available_in_every_st
     assert view._material_slots.topLevelItemCount() > 0
     folder = view._material_slots.topLevelItem(0)
     assert folder is not None
-    view._material_slots.setCurrentItem(folder.child(0))
+    requirement = folder.child(0)
+    assert requirement is not None
+    view._material_slots.setCurrentItem(requirement)
     assert "Dateiname:" in view._material_detail.toPlainText()
 
 
@@ -214,7 +216,9 @@ def test_context_is_editable_and_unsaved_changes_survive_project_updates(
     vm.edit_context("normal", field.toPlainText())
     project = world.workflow.open_project(vm.project_id)
     assert isinstance(project, Ok)
-    assert next(v.text for v in project.value.contexts if v.level == "normal") == field.toPlainText()
+    assert (
+        next(v.text for v in project.value.contexts if v.level == "normal") == field.toPlainText()
+    )
 
 
 def test_opening_an_empty_project_clears_the_previous_script(
