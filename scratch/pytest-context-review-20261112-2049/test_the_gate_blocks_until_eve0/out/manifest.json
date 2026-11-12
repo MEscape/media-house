@@ -1,0 +1,946 @@
+{
+ "document_type": "manifest",
+ "entries": [
+  {
+   "asr_excerpt": "",
+   "asset_id": "asset-aufnahme_pc.mp4",
+   "file": "02_scr/lidlnico_screenrec_01.mp4",
+   "flags": [
+    {
+     "evidence": "email: anna…",
+     "kind": "private_data",
+     "message": "Datei prüfen: private Daten im Bild (email).",
+     "note": "Freigabe liegt vor",
+     "options": [
+      "blurred",
+      "replaced"
+     ],
+     "resolution": "approved",
+     "severity": "blocker"
+    }
+   ],
+   "license_state": "own",
+   "normalization": "",
+   "original_name": "aufnahme_pc.mp4",
+   "probe": [
+    [
+     "duration",
+     "95.0"
+    ]
+   ],
+   "role": "screenrec",
+   "scenes": [
+    "S11",
+    "S17"
+   ],
+   "sha256": "188f2af8fa53e287c881d516214929cbb68b9ded783bbe4f799561668edda035",
+   "slot": "screenrec",
+   "source_path": "C:\\Users\\L14\\Documents\\Programming\\media-house\\scratch\\pytest-context-review-20261112-2049\\test_the_gate_blocks_until_eve0\\upload\\02_scr\\aufnahme_pc.mp4",
+   "verification_state": "unchecked"
+  },
+  {
+   "asr_excerpt": "",
+   "asset_id": "asset-intro.mp4",
+   "file": "06_gfx/lidlnico_brand_intro.mp4",
+   "flags": [],
+   "license_state": "own",
+   "normalization": "",
+   "original_name": "intro.mp4",
+   "probe": [
+    [
+     "duration",
+     "4.0"
+    ]
+   ],
+   "role": "brand",
+   "scenes": [
+    "S01"
+   ],
+   "sha256": "1f7e34a1ac6f0d0275303391cc8c5503999fcd70a4096c7a85153bdbb12a66b3",
+   "slot": "brand-intro",
+   "source_path": "C:\\Users\\L14\\Documents\\Programming\\media-house\\scratch\\pytest-context-review-20261112-2049\\test_the_gate_blocks_until_eve0\\upload\\06_gfx\\intro.mp4",
+   "verification_state": "checked"
+  },
+  {
+   "asr_excerpt": "",
+   "asset_id": "asset-lidl_letztes_jahr_überblick.MP4",
+   "file": "04_arc/lidlnico_archive_archiv.mp4",
+   "flags": [
+    {
+     "evidence": "aldi, weco",
+     "kind": "third_party_brand",
+     "message": "Datei prüfen: sichtbare Fremdmarke (aldi, weco). Auf alten Prospekten kannst du das bewusst so lassen.",
+     "note": "Freigabe liegt vor",
+     "options": [
+      "approved",
+      "blurred",
+      "replaced"
+     ],
+     "resolution": "approved",
+     "severity": "warning"
+    },
+    {
+     "evidence": "4 Gesicht(er)",
+     "kind": "bystander_faces",
+     "message": "Datei prüfen: fremde Gesichter im Bild. Verpixeln ist am sichersten.",
+     "note": "Freigabe liegt vor",
+     "options": [
+      "blurred",
+      "approved",
+      "replaced"
+     ],
+     "resolution": "approved",
+     "severity": "warning"
+    }
+   ],
+   "license_state": "own",
+   "normalization": "",
+   "original_name": "lidl_letztes_jahr_überblick.MP4",
+   "probe": [
+    [
+     "duration",
+     "70.0"
+    ]
+   ],
+   "role": "archive",
+   "scenes": [],
+   "sha256": "f57daf57c243658661608f1bcd255443dfae7eeef6c59783e5fc8910ff6d5195",
+   "slot": "archive",
+   "source_path": "C:\\Users\\L14\\Documents\\Programming\\media-house\\scratch\\pytest-context-review-20261112-2049\\test_the_gate_blocks_until_eve0\\upload\\04_arc\\lidl_letztes_jahr_überblick.MP4",
+   "verification_state": "unchecked"
+  },
+  {
+   "asr_excerpt": "",
+   "asset_id": "asset-lidl_logo.svg.webp",
+   "file": "06_gfx/lidlnico_logo_logo.png",
+   "flags": [],
+   "license_state": "own",
+   "normalization": "Doppelte Endung .svg.webp: tatsächliches Format ist webp",
+   "original_name": "lidl_logo.svg.webp",
+   "probe": [
+    [
+     "width",
+     "600"
+    ],
+    [
+     "height",
+     "600"
+    ]
+   ],
+   "role": "logo",
+   "scenes": [
+    "S01"
+   ],
+   "sha256": "8f9b0ebcdad8b37cdd294a9107070f736e7d8086dca666cd3490b622eac70498",
+   "slot": "logo",
+   "source_path": "C:\\Users\\L14\\Documents\\Programming\\media-house\\scratch\\pytest-context-review-20261112-2049\\test_the_gate_blocks_until_eve0\\upload\\06_gfx\\lidl_logo.svg.webp",
+   "verification_state": "checked"
+  },
+  {
+   "asr_excerpt": "",
+   "asset_id": "asset-outro.mp4",
+   "file": "06_gfx/lidlnico_brand_outro.mp4",
+   "flags": [],
+   "license_state": "own",
+   "normalization": "",
+   "original_name": "outro.mp4",
+   "probe": [
+    [
+     "duration",
+     "5.0"
+    ]
+   ],
+   "role": "brand",
+   "scenes": [
+    "S16",
+    "S17"
+   ],
+   "sha256": "5ff8185c1b2a6dfa67315c57e1db8ff93ffe1e45ea17e30039683875b1e96da2",
+   "slot": "brand-outro",
+   "source_path": "C:\\Users\\L14\\Documents\\Programming\\media-house\\scratch\\pytest-context-review-20261112-2049\\test_the_gate_blocks_until_eve0\\upload\\06_gfx\\outro.mp4",
+   "verification_state": "checked"
+  },
+  {
+   "asr_excerpt": "",
+   "asset_id": "asset-pexels-fireworks-night-sky-slow-motion-4k-uhd-1234567.mp4",
+   "file": "05_bg/lidlnico_background_01.mp4",
+   "flags": [
+    {
+     "evidence": "pexels-fireworks-night-sky-slow-motion-4k-uhd-1234567.mp4",
+     "kind": "license_unknown",
+     "message": "Datei prüfen: sieht nach heruntergeladenem Stockmaterial aus. Bitte den Lizenznachweis bereithalten.",
+     "note": "Freigabe liegt vor",
+     "options": [
+      "approved",
+      "replaced"
+     ],
+     "resolution": "approved",
+     "severity": "warning"
+    }
+   ],
+   "license_state": "unknown",
+   "normalization": "",
+   "original_name": "pexels-fireworks-night-sky-slow-motion-4k-uhd-1234567.mp4",
+   "probe": [
+    [
+     "duration",
+     "300.0"
+    ]
+   ],
+   "role": "background",
+   "scenes": [
+    "S01",
+    "S03",
+    "S04",
+    "S05",
+    "S06",
+    "S07",
+    "S08",
+    "S09",
+    "S10",
+    "S11",
+    "S13",
+    "S16",
+    "S17"
+   ],
+   "sha256": "7601e7155d2b496265fab4a7630cd91e7228f85ebc4b9caf5ec14c4eafc57db8",
+   "slot": "background",
+   "source_path": "C:\\Users\\L14\\Documents\\Programming\\media-house\\scratch\\pytest-context-review-20261112-2049\\test_the_gate_blocks_until_eve0\\upload\\05_bg\\pexels-fireworks-night-sky-slow-motion-4k-uhd-1234567.mp4",
+   "verification_state": "unchecked"
+  },
+  {
+   "asr_excerpt": "",
+   "asset_id": "asset-prospekt_seite_03.png",
+   "file": "04_arc/lidlnico_archive_archiv-2.png",
+   "flags": [
+    {
+     "evidence": "prospektseite, vorschau, preisen",
+     "kind": "confidential",
+     "message": "Datei prüfen: sieht nach vertraulichem Material aus („Die Prospektseite mit den Vorschau-Preisen ist vertraulich und darf ni“).",
+     "note": "Freigabe liegt vor",
+     "options": [
+      "approved",
+      "replaced"
+     ],
+     "resolution": "approved",
+     "severity": "blocker"
+    }
+   ],
+   "license_state": "own",
+   "normalization": "",
+   "original_name": "prospekt_seite_03.png",
+   "probe": [
+    [
+     "width",
+     "1400"
+    ],
+    [
+     "height",
+     "1900"
+    ]
+   ],
+   "role": "archive",
+   "scenes": [],
+   "sha256": "eb566f71a4abf554f7b939168c4279d105f0da9940e43d17c779daf897ff167d",
+   "slot": "archive",
+   "source_path": "C:\\Users\\L14\\Documents\\Programming\\media-house\\scratch\\pytest-context-review-20261112-2049\\test_the_gate_blocks_until_eve0\\upload\\03_pck\\prospekt_seite_03.png",
+   "verification_state": "unchecked"
+  },
+  {
+   "asr_excerpt": "",
+   "asset_id": "asset-raketenset-orion.png",
+   "file": "03_pck/lidlnico_packshot_raketenset-orion.png",
+   "flags": [],
+   "license_state": "own",
+   "normalization": "",
+   "original_name": "raketenset-orion.png",
+   "probe": [
+    [
+     "width",
+     "900"
+    ],
+    [
+     "height",
+     "1100"
+    ]
+   ],
+   "role": "packshot",
+   "scenes": [
+    "S05"
+   ],
+   "sha256": "096f94f8a57b1f0badb8ba5d723028e174e40738cbbc0b5625b0dec47a3d4660",
+   "slot": "packshot-raketenset-orion",
+   "source_path": "C:\\Users\\L14\\Documents\\Programming\\media-house\\scratch\\pytest-context-review-20261112-2049\\test_the_gate_blocks_until_eve0\\upload\\03_pck\\raketenset-orion.png",
+   "verification_state": "checked"
+  },
+  {
+   "asr_excerpt": "",
+   "asset_id": "asset-reaktion_wecker_2.mp4",
+   "file": "01_cam/lidlnico_gags_01.mp4",
+   "flags": [],
+   "license_state": "own",
+   "normalization": "",
+   "original_name": "reaktion_wecker_2.mp4",
+   "probe": [
+    [
+     "duration",
+     "6.0"
+    ]
+   ],
+   "role": "gags",
+   "scenes": [
+    "S15"
+   ],
+   "sha256": "c29f398d18b691204dd703ef24ea50ffdc9c19f7a595b536e53e21bb54fe9cea",
+   "slot": "gags",
+   "source_path": "C:\\Users\\L14\\Documents\\Programming\\media-house\\scratch\\pytest-context-review-20261112-2049\\test_the_gate_blocks_until_eve0\\upload\\01_cam\\reaktion_wecker_2.mp4",
+   "verification_state": "checked"
+  },
+  {
+   "asr_excerpt": "",
+   "asset_id": "asset-shop.png",
+   "file": "02_scr/lidlnico_screenshot_shop.png",
+   "flags": [],
+   "license_state": "own",
+   "normalization": "",
+   "original_name": "shop.png",
+   "probe": [
+    [
+     "width",
+     "1440"
+    ],
+    [
+     "height",
+     "5200"
+    ]
+   ],
+   "role": "screenshot",
+   "scenes": [
+    "S11",
+    "S17"
+   ],
+   "sha256": "794953279a6e2cdb58d5d1293f5836e3e53da7b9edb85e7fc9fcde1646ae6375",
+   "slot": "screenshot",
+   "source_path": "C:\\Users\\L14\\Documents\\Programming\\media-house\\scratch\\pytest-context-review-20261112-2049\\test_the_gate_blocks_until_eve0\\upload\\02_scr\\shop.png",
+   "verification_state": "checked"
+  },
+  {
+   "asr_excerpt": "",
+   "asset_id": "asset-talking_1.mp4",
+   "file": "01_cam/lidlnico_talking_01.mp4",
+   "flags": [],
+   "license_state": "own",
+   "normalization": "",
+   "original_name": "talking_1.mp4",
+   "probe": [
+    [
+     "width",
+     "3840"
+    ],
+    [
+     "height",
+     "2160"
+    ],
+    [
+     "fps",
+     "25.0"
+    ],
+    [
+     "duration",
+     "40.0"
+    ],
+    [
+     "has_audio",
+     "True"
+    ]
+   ],
+   "role": "talking",
+   "scenes": [
+    "S01",
+    "S02",
+    "S03"
+   ],
+   "sha256": "9b79384e90f965efbf2268c6ec472becf41aec95044e3b5361c997b2c398393e",
+   "slot": "talking",
+   "source_path": "C:\\Users\\L14\\Documents\\Programming\\media-house\\scratch\\pytest-context-review-20261112-2049\\test_the_gate_blocks_until_eve0\\upload\\01_cam\\talking_1.mp4",
+   "verification_state": "checked"
+  },
+  {
+   "asr_excerpt": "",
+   "asset_id": "asset-talking_2.mp4",
+   "file": "01_cam/lidlnico_talking_02.mp4",
+   "flags": [],
+   "license_state": "own",
+   "normalization": "",
+   "original_name": "talking_2.mp4",
+   "probe": [
+    [
+     "width",
+     "3840"
+    ],
+    [
+     "height",
+     "2160"
+    ],
+    [
+     "fps",
+     "25.0"
+    ],
+    [
+     "duration",
+     "40.0"
+    ],
+    [
+     "has_audio",
+     "True"
+    ]
+   ],
+   "role": "talking",
+   "scenes": [
+    "S03",
+    "S04"
+   ],
+   "sha256": "b0aa2fd0eb2a787f02eae5c1c5cf533e201665e84ed877bcbfc03736d67c819e",
+   "slot": "talking",
+   "source_path": "C:\\Users\\L14\\Documents\\Programming\\media-house\\scratch\\pytest-context-review-20261112-2049\\test_the_gate_blocks_until_eve0\\upload\\01_cam\\talking_2.mp4",
+   "verification_state": "checked"
+  },
+  {
+   "asr_excerpt": "",
+   "asset_id": "asset-talking_3.mp4",
+   "file": "01_cam/lidlnico_talking_03.mp4",
+   "flags": [],
+   "license_state": "own",
+   "normalization": "",
+   "original_name": "talking_3.mp4",
+   "probe": [
+    [
+     "width",
+     "3840"
+    ],
+    [
+     "height",
+     "2160"
+    ],
+    [
+     "fps",
+     "25.0"
+    ],
+    [
+     "duration",
+     "40.0"
+    ],
+    [
+     "has_audio",
+     "True"
+    ]
+   ],
+   "role": "talking",
+   "scenes": [
+    "S04",
+    "S05"
+   ],
+   "sha256": "7d8c19adc54d625c2ce44480f3ba362e0b381b66d799995b7f814681356ed7f0",
+   "slot": "talking",
+   "source_path": "C:\\Users\\L14\\Documents\\Programming\\media-house\\scratch\\pytest-context-review-20261112-2049\\test_the_gate_blocks_until_eve0\\upload\\01_cam\\talking_3.mp4",
+   "verification_state": "checked"
+  },
+  {
+   "asr_excerpt": "",
+   "asset_id": "asset-talking_4.mp4",
+   "file": "01_cam/lidlnico_talking_04.mp4",
+   "flags": [],
+   "license_state": "own",
+   "normalization": "",
+   "original_name": "talking_4.mp4",
+   "probe": [
+    [
+     "width",
+     "3840"
+    ],
+    [
+     "height",
+     "2160"
+    ],
+    [
+     "fps",
+     "25.0"
+    ],
+    [
+     "duration",
+     "40.0"
+    ],
+    [
+     "has_audio",
+     "True"
+    ]
+   ],
+   "role": "talking",
+   "scenes": [
+    "S05"
+   ],
+   "sha256": "ef3ff166a5e2cdbde722de8ccf4425c2e5573a894e356f07fec09caeb7336cf3",
+   "slot": "talking",
+   "source_path": "C:\\Users\\L14\\Documents\\Programming\\media-house\\scratch\\pytest-context-review-20261112-2049\\test_the_gate_blocks_until_eve0\\upload\\01_cam\\talking_4.mp4",
+   "verification_state": "checked"
+  },
+  {
+   "asr_excerpt": "",
+   "asset_id": "asset-talking_5.mp4",
+   "file": "01_cam/lidlnico_talking_05.mp4",
+   "flags": [],
+   "license_state": "own",
+   "normalization": "",
+   "original_name": "talking_5.mp4",
+   "probe": [
+    [
+     "width",
+     "3840"
+    ],
+    [
+     "height",
+     "2160"
+    ],
+    [
+     "fps",
+     "25.0"
+    ],
+    [
+     "duration",
+     "40.0"
+    ],
+    [
+     "has_audio",
+     "True"
+    ]
+   ],
+   "role": "talking",
+   "scenes": [
+    "S05",
+    "S06"
+   ],
+   "sha256": "d8f9c2a0944d5c70824f4efefc2db3de651f9dd7eae346948163b587cf492ed0",
+   "slot": "talking",
+   "source_path": "C:\\Users\\L14\\Documents\\Programming\\media-house\\scratch\\pytest-context-review-20261112-2049\\test_the_gate_blocks_until_eve0\\upload\\01_cam\\talking_5.mp4",
+   "verification_state": "checked"
+  },
+  {
+   "asr_excerpt": "",
+   "asset_id": "asset-talking_6.mp4",
+   "file": "01_cam/lidlnico_talking_06.mp4",
+   "flags": [],
+   "license_state": "own",
+   "normalization": "",
+   "original_name": "talking_6.mp4",
+   "probe": [
+    [
+     "width",
+     "3840"
+    ],
+    [
+     "height",
+     "2160"
+    ],
+    [
+     "fps",
+     "25.0"
+    ],
+    [
+     "duration",
+     "40.0"
+    ],
+    [
+     "has_audio",
+     "True"
+    ]
+   ],
+   "role": "talking",
+   "scenes": [
+    "S06",
+    "S07"
+   ],
+   "sha256": "8483b47d10baf89b46f6337e0ac14dc30b0ee7e08f8b80a8b5aa5d92ff8b106f",
+   "slot": "talking",
+   "source_path": "C:\\Users\\L14\\Documents\\Programming\\media-house\\scratch\\pytest-context-review-20261112-2049\\test_the_gate_blocks_until_eve0\\upload\\01_cam\\talking_6.mp4",
+   "verification_state": "checked"
+  },
+  {
+   "asr_excerpt": "",
+   "asset_id": "asset-talking_7.mp4",
+   "file": "01_cam/lidlnico_talking_07.mp4",
+   "flags": [],
+   "license_state": "own",
+   "normalization": "",
+   "original_name": "talking_7.mp4",
+   "probe": [
+    [
+     "width",
+     "3840"
+    ],
+    [
+     "height",
+     "2160"
+    ],
+    [
+     "fps",
+     "25.0"
+    ],
+    [
+     "duration",
+     "40.0"
+    ],
+    [
+     "has_audio",
+     "True"
+    ]
+   ],
+   "role": "talking",
+   "scenes": [
+    "S07"
+   ],
+   "sha256": "758abc9d6efb90f757682931635c15f1b4ed29aa180bce0e27fe26d488cdbf62",
+   "slot": "talking",
+   "source_path": "C:\\Users\\L14\\Documents\\Programming\\media-house\\scratch\\pytest-context-review-20261112-2049\\test_the_gate_blocks_until_eve0\\upload\\01_cam\\talking_7.mp4",
+   "verification_state": "checked"
+  },
+  {
+   "asr_excerpt": "",
+   "asset_id": "asset-talking_8.mp4",
+   "file": "01_cam/lidlnico_talking_08.mp4",
+   "flags": [],
+   "license_state": "own",
+   "normalization": "",
+   "original_name": "talking_8.mp4",
+   "probe": [
+    [
+     "width",
+     "3840"
+    ],
+    [
+     "height",
+     "2160"
+    ],
+    [
+     "fps",
+     "25.0"
+    ],
+    [
+     "duration",
+     "40.0"
+    ],
+    [
+     "has_audio",
+     "True"
+    ]
+   ],
+   "role": "talking",
+   "scenes": [
+    "S05",
+    "S08"
+   ],
+   "sha256": "36baafbf2e3a6daa3ca4328566009829c6134b454d094ce2dad0d1408cf61cc7",
+   "slot": "talking",
+   "source_path": "C:\\Users\\L14\\Documents\\Programming\\media-house\\scratch\\pytest-context-review-20261112-2049\\test_the_gate_blocks_until_eve0\\upload\\01_cam\\talking_8.mp4",
+   "verification_state": "checked"
+  },
+  {
+   "asr_excerpt": "",
+   "asset_id": "asset-talking_9.mp4",
+   "file": "01_cam/lidlnico_talking_09.mp4",
+   "flags": [],
+   "license_state": "own",
+   "normalization": "",
+   "original_name": "talking_9.mp4",
+   "probe": [
+    [
+     "width",
+     "3840"
+    ],
+    [
+     "height",
+     "2160"
+    ],
+    [
+     "fps",
+     "25.0"
+    ],
+    [
+     "duration",
+     "40.0"
+    ],
+    [
+     "has_audio",
+     "True"
+    ]
+   ],
+   "role": "talking",
+   "scenes": [
+    "S08",
+    "S09",
+    "S10"
+   ],
+   "sha256": "b6fce8a0ee479d1ce276b6a04cca8452cd83ee2df078dcf8eeebb95e327703b0",
+   "slot": "talking",
+   "source_path": "C:\\Users\\L14\\Documents\\Programming\\media-house\\scratch\\pytest-context-review-20261112-2049\\test_the_gate_blocks_until_eve0\\upload\\01_cam\\talking_9.mp4",
+   "verification_state": "checked"
+  },
+  {
+   "asr_excerpt": "",
+   "asset_id": "asset-talking_10.mp4",
+   "file": "01_cam/lidlnico_talking_10.mp4",
+   "flags": [],
+   "license_state": "own",
+   "normalization": "",
+   "original_name": "talking_10.mp4",
+   "probe": [
+    [
+     "width",
+     "3840"
+    ],
+    [
+     "height",
+     "2160"
+    ],
+    [
+     "fps",
+     "25.0"
+    ],
+    [
+     "duration",
+     "40.0"
+    ],
+    [
+     "has_audio",
+     "True"
+    ]
+   ],
+   "role": "talking",
+   "scenes": [
+    "S03",
+    "S10",
+    "S11"
+   ],
+   "sha256": "c12297d9c992a744c7cc0370f71b6dd2ff27184448a71d9fd005e42617738d8a",
+   "slot": "talking",
+   "source_path": "C:\\Users\\L14\\Documents\\Programming\\media-house\\scratch\\pytest-context-review-20261112-2049\\test_the_gate_blocks_until_eve0\\upload\\01_cam\\talking_10.mp4",
+   "verification_state": "checked"
+  },
+  {
+   "asr_excerpt": "",
+   "asset_id": "asset-talking_11.mp4",
+   "file": "01_cam/lidlnico_talking_11.mp4",
+   "flags": [],
+   "license_state": "own",
+   "normalization": "",
+   "original_name": "talking_11.mp4",
+   "probe": [
+    [
+     "width",
+     "3840"
+    ],
+    [
+     "height",
+     "2160"
+    ],
+    [
+     "fps",
+     "25.0"
+    ],
+    [
+     "duration",
+     "40.0"
+    ],
+    [
+     "has_audio",
+     "True"
+    ]
+   ],
+   "role": "talking",
+   "scenes": [
+    "S11",
+    "S13",
+    "S14"
+   ],
+   "sha256": "cf61d5ae32240399c10db3c2d6af3972c0b67492b5d8e842762985e5fbe841f6",
+   "slot": "talking",
+   "source_path": "C:\\Users\\L14\\Documents\\Programming\\media-house\\scratch\\pytest-context-review-20261112-2049\\test_the_gate_blocks_until_eve0\\upload\\01_cam\\talking_11.mp4",
+   "verification_state": "checked"
+  },
+  {
+   "asr_excerpt": "",
+   "asset_id": "asset-talking_12.mp4",
+   "file": "01_cam/lidlnico_talking_12.mp4",
+   "flags": [],
+   "license_state": "own",
+   "normalization": "",
+   "original_name": "talking_12.mp4",
+   "probe": [
+    [
+     "width",
+     "3840"
+    ],
+    [
+     "height",
+     "2160"
+    ],
+    [
+     "fps",
+     "25.0"
+    ],
+    [
+     "duration",
+     "40.0"
+    ],
+    [
+     "has_audio",
+     "True"
+    ]
+   ],
+   "role": "talking",
+   "scenes": [
+    "S15",
+    "S16"
+   ],
+   "sha256": "517cf05361d6d42f04668f685f27746b510d29a99af975da3d3ac11bef790eb8",
+   "slot": "talking",
+   "source_path": "C:\\Users\\L14\\Documents\\Programming\\media-house\\scratch\\pytest-context-review-20261112-2049\\test_the_gate_blocks_until_eve0\\upload\\01_cam\\talking_12.mp4",
+   "verification_state": "checked"
+  },
+  {
+   "asr_excerpt": "",
+   "asset_id": "asset-talking_13.mp4",
+   "file": "01_cam/lidlnico_talking_13.mp4",
+   "flags": [],
+   "license_state": "own",
+   "normalization": "",
+   "original_name": "talking_13.mp4",
+   "probe": [
+    [
+     "width",
+     "3840"
+    ],
+    [
+     "height",
+     "2160"
+    ],
+    [
+     "fps",
+     "25.0"
+    ],
+    [
+     "duration",
+     "40.0"
+    ],
+    [
+     "has_audio",
+     "True"
+    ]
+   ],
+   "role": "talking",
+   "scenes": [
+    "S01",
+    "S02",
+    "S03",
+    "S04",
+    "S05",
+    "S06",
+    "S07",
+    "S08",
+    "S09",
+    "S10",
+    "S11",
+    "S12",
+    "S13",
+    "S14",
+    "S15",
+    "S16"
+   ],
+   "sha256": "73187c9bf18672f4be64a3b27efb233692c10c8ad9a851a4a1c9a312dbe0f4ee",
+   "slot": "talking",
+   "source_path": "C:\\Users\\L14\\Documents\\Programming\\media-house\\scratch\\pytest-context-review-20261112-2049\\test_the_gate_blocks_until_eve0\\upload\\01_cam\\talking_13.mp4",
+   "verification_state": "checked"
+  },
+  {
+   "asr_excerpt": "",
+   "asset_id": "asset-talking_14.mp4",
+   "file": "01_cam/lidlnico_talking_14.mp4",
+   "flags": [],
+   "license_state": "own",
+   "normalization": "",
+   "original_name": "talking_14.mp4",
+   "probe": [
+    [
+     "width",
+     "3840"
+    ],
+    [
+     "height",
+     "2160"
+    ],
+    [
+     "fps",
+     "25.0"
+    ],
+    [
+     "duration",
+     "40.0"
+    ],
+    [
+     "has_audio",
+     "True"
+    ]
+   ],
+   "role": "talking",
+   "scenes": [
+    "S01",
+    "S02",
+    "S03",
+    "S04",
+    "S05",
+    "S06",
+    "S07",
+    "S08",
+    "S09",
+    "S10",
+    "S11",
+    "S12",
+    "S13",
+    "S14",
+    "S15",
+    "S16"
+   ],
+   "sha256": "9396d60670b137cda6fff688e8ebf9dd229c3b4842d17a5c1c1acc8a036611f6",
+   "slot": "talking",
+   "source_path": "C:\\Users\\L14\\Documents\\Programming\\media-house\\scratch\\pytest-context-review-20261112-2049\\test_the_gate_blocks_until_eve0\\upload\\01_cam\\talking_14.mp4",
+   "verification_state": "checked"
+  },
+  {
+   "asr_excerpt": "",
+   "asset_id": "asset-wecker_gag_1.mp4",
+   "file": "01_cam/lidlnico_gags_02.mp4",
+   "flags": [],
+   "license_state": "own",
+   "normalization": "",
+   "original_name": "wecker_gag_1.mp4",
+   "probe": [
+    [
+     "duration",
+     "9.6"
+    ]
+   ],
+   "role": "gags",
+   "scenes": [
+    "S15"
+   ],
+   "sha256": "4b69b83a1a49c1f2dd7402d29e8b627d34c9d3e89be610369bdb25fe6baa5e1c",
+   "slot": "gags",
+   "source_path": "C:\\Users\\L14\\Documents\\Programming\\media-house\\scratch\\pytest-context-review-20261112-2049\\test_the_gate_blocks_until_eve0\\upload\\01_cam\\wecker_gag_1.mp4",
+   "verification_state": "checked"
+  }
+ ],
+ "ignored": [
+  "07_thumb (Thumbnails sind nicht Teil des Projekts)"
+ ],
+ "project_id": "555ce3d6bbd04da59a393a26b1a95866",
+ "slug": "lidlnico"
+}

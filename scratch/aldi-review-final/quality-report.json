@@ -1,0 +1,150 @@
+{
+  "source": "C:\\Users\\L14\\Downloads\\ALDI Feuerwerk 202627 – Video-Briefing.pdf",
+  "project_id": "3fbb938f31e941ab8de6a2b4896a4597",
+  "seconds": 2.752,
+  "model_calls": 0,
+  "safety_checks": {
+    "all_script_fact_references_exist": true,
+    "no_unsupported_basket_total": true,
+    "no_unverified_fact_marked_verified": true,
+    "three_context_variants": true,
+    "all_context_sections_survive_budget": true,
+    "no_thumbnail_deliverable": true,
+    "single_consolidated_talking_requirement": true,
+    "every_requirement_has_scene_consumers": true,
+    "metadata_tag_limit": true,
+    "aldi_current_products_found": true,
+    "aldi_current_prices_not_invented": true,
+    "reference_video_dates_not_project_deadlines": true,
+    "no_lidl_campaign_leakage": true
+  },
+  "safety_passed": true,
+  "can_export": false,
+  "blocking_findings": 1,
+  "estimated_minutes": 3.25,
+  "requirements_without_scenes": [],
+  "brief_duration_target_minutes": [
+    12,
+    20
+  ],
+  "manual_quality_equivalence": "Nicht nachgewiesen; eine Strukturprüfung ersetzt keine kreative Bewertung.",
+  "draft_comparison": {
+    "draft": {
+      "scenes": 17,
+      "spoken_words": 516,
+      "unfilled_markers": 7,
+      "spoken_characters": 4149,
+      "usable_spoken_words": 489,
+      "repeated_sentence_occurrences": 0
+    },
+    "manual_reference": {
+      "scenes": 17,
+      "spoken_words": 918,
+      "unfilled_markers": 8,
+      "spoken_characters": 5841,
+      "usable_spoken_words": 894,
+      "repeated_sentence_occurrences": 3
+    },
+    "reference_file": "C:\\Users\\L14\\Downloads\\yt-video\\00_kontext\\lidl-nico-transcript.md"
+  },
+  "creative_review": "Offen: Stimme, Dramaturgie, technische Tiefe und Länge am Referenzskript prüfen.",
+  "render_review": "Nicht ausgeführt: Es wurden keine ALDI-Aufnahmen oder fertigen Schnitte bewertet.",
+  "findings": [
+    {
+      "finding_id": "slots.unfilled:S13:dein-pick",
+      "rule_id": "slots.unfilled",
+      "stage": "script",
+      "severity": "warning",
+      "where": "S13",
+      "quote": "DEIN_PICK",
+      "message": "Das Technik-Feld {DEIN_PICK} ist leer: die Sätze dazu entfallen.",
+      "safe_alternative": "Das Feld ausfüllen oder leer lassen.",
+      "constraint_id": "",
+      "overridden": ""
+    },
+    {
+      "finding_id": "slots.unfilled:S08:effektmasse-colour-beast",
+      "rule_id": "slots.unfilled",
+      "stage": "script",
+      "severity": "warning",
+      "where": "S08",
+      "quote": "EFFEKTMASSE_COLOUR_BEAST",
+      "message": "Das Technik-Feld {EFFEKTMASSE_COLOUR_BEAST} ist leer: die Sätze dazu entfallen.",
+      "safe_alternative": "Das Feld ausfüllen oder leer lassen.",
+      "constraint_id": "",
+      "overridden": ""
+    },
+    {
+      "finding_id": "slots.unfilled:S07:effektmasse-golden-phoenix",
+      "rule_id": "slots.unfilled",
+      "stage": "script",
+      "severity": "warning",
+      "where": "S07",
+      "quote": "EFFEKTMASSE_GOLDEN_PHOENIX",
+      "message": "Das Technik-Feld {EFFEKTMASSE_GOLDEN_PHOENIX} ist leer: die Sätze dazu entfallen.",
+      "safe_alternative": "Das Feld ausfüllen oder leer lassen.",
+      "constraint_id": "",
+      "overridden": ""
+    },
+    {
+      "finding_id": "slots.unfilled:S04:effektmasse-plasma-pulse",
+      "rule_id": "slots.unfilled",
+      "stage": "script",
+      "severity": "warning",
+      "where": "S04",
+      "quote": "EFFEKTMASSE_PLASMA_PULSE",
+      "message": "Das Technik-Feld {EFFEKTMASSE_PLASMA_PULSE} ist leer: die Sätze dazu entfallen.",
+      "safe_alternative": "Das Feld ausfüllen oder leer lassen.",
+      "constraint_id": "",
+      "overridden": ""
+    },
+    {
+      "finding_id": "slots.unfilled:S08:kaliber-colour-beast",
+      "rule_id": "slots.unfilled",
+      "stage": "script",
+      "severity": "warning",
+      "where": "S08",
+      "quote": "KALIBER_COLOUR_BEAST",
+      "message": "Das Technik-Feld {KALIBER_COLOUR_BEAST} ist leer: die Sätze dazu entfallen.",
+      "safe_alternative": "Das Feld ausfüllen oder leer lassen.",
+      "constraint_id": "",
+      "overridden": ""
+    },
+    {
+      "finding_id": "slots.unfilled:S08:shots-colour-beast",
+      "rule_id": "slots.unfilled",
+      "stage": "script",
+      "severity": "warning",
+      "where": "S08",
+      "quote": "SHOTS_COLOUR_BEAST",
+      "message": "Das Technik-Feld {SHOTS_COLOUR_BEAST} ist leer: die Sätze dazu entfallen.",
+      "safe_alternative": "Das Feld ausfüllen oder leer lassen.",
+      "constraint_id": "",
+      "overridden": ""
+    },
+    {
+      "finding_id": "slots.unfilled:S14:sicherheitshinweis",
+      "rule_id": "slots.unfilled",
+      "stage": "script",
+      "severity": "warning",
+      "where": "S14",
+      "quote": "SICHERHEITSHINWEIS",
+      "message": "Das Technik-Feld {SICHERHEITSHINWEIS} ist leer: die Sätze dazu entfallen.",
+      "safe_alternative": "Das Feld ausfüllen oder leer lassen.",
+      "constraint_id": "",
+      "overridden": ""
+    },
+    {
+      "finding_id": "length.too_short:script:3-2-min",
+      "rule_id": "length.too_short",
+      "stage": "script",
+      "severity": "warning",
+      "where": "script",
+      "quote": "3.2 min",
+      "message": "Geschätzte Länge 3.2 min, Zielbereich 12-20 min.",
+      "safe_alternative": "",
+      "constraint_id": "",
+      "overridden": ""
+    }
+  ]
+}

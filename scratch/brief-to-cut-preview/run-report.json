@@ -1,0 +1,839 @@
+{
+  "theme": "dark",
+  "captures": [
+    {
+      "screenshot": "C:\\Users\\L14\\Documents\\Programming\\media-house\\scratch\\brief-to-cut-preview\\1600x1000-brief.png",
+      "requested": [
+        1600,
+        1000
+      ],
+      "actual": [
+        1600,
+        1000
+      ],
+      "minimum_hint": [
+        1019,
+        740
+      ],
+      "clipped_button_labels": [],
+      "buttons_outside_view": [],
+      "stack": {
+        "position": [
+          11,
+          252
+        ],
+        "size": [
+          1177,
+          701
+        ],
+        "minimum_hint": [
+          716,
+          416
+        ],
+        "visible": true
+      },
+      "dock": {
+        "position": [
+          1189,
+          252
+        ],
+        "size": [
+          400,
+          701
+        ],
+        "minimum_hint": [
+          181,
+          441
+        ],
+        "visible": true
+      },
+      "brief": {
+        "position": [
+          20,
+          305
+        ],
+        "size": [
+          577,
+          384
+        ],
+        "minimum_hint": [
+          70,
+          70
+        ],
+        "visible": true
+      },
+      "script": {
+        "position": [
+          29,
+          270
+        ],
+        "size": [
+          604,
+          180
+        ],
+        "minimum_hint": [
+          70,
+          70
+        ],
+        "visible": false
+      },
+      "material_slots": {
+        "position": [
+          20,
+          297
+        ],
+        "size": [
+          311,
+          82
+        ],
+        "minimum_hint": [
+          70,
+          70
+        ],
+        "visible": false
+      },
+      "material_detail": {
+        "position": [
+          332,
+          297
+        ],
+        "size": [
+          310,
+          82
+        ],
+        "minimum_hint": [
+          70,
+          70
+        ],
+        "visible": false
+      },
+      "page_minimums": [
+        [
+          490,
+          329
+        ],
+        [
+          420,
+          146
+        ],
+        [
+          569,
+          359
+        ],
+        [
+          354,
+          416
+        ],
+        [
+          716,
+          230
+        ]
+      ],
+      "wide_children": [
+        {
+          "type": "QWidget",
+          "name": "",
+          "minimum_hint": [
+            716,
+            230
+          ]
+        }
+      ]
+    },
+    {
+      "screenshot": "C:\\Users\\L14\\Documents\\Programming\\media-house\\scratch\\brief-to-cut-preview\\1600x1000-script.png",
+      "requested": [
+        1600,
+        1000
+      ],
+      "actual": [
+        1600,
+        1000
+      ],
+      "minimum_hint": [
+        1019,
+        740
+      ],
+      "clipped_button_labels": [],
+      "buttons_outside_view": [],
+      "stack": {
+        "position": [
+          11,
+          252
+        ],
+        "size": [
+          1177,
+          701
+        ],
+        "minimum_hint": [
+          716,
+          416
+        ],
+        "visible": true
+      },
+      "dock": {
+        "position": [
+          1189,
+          252
+        ],
+        "size": [
+          400,
+          701
+        ],
+        "minimum_hint": [
+          181,
+          441
+        ],
+        "visible": true
+      },
+      "brief": {
+        "position": [
+          20,
+          305
+        ],
+        "size": [
+          577,
+          384
+        ],
+        "minimum_hint": [
+          70,
+          70
+        ],
+        "visible": false
+      },
+      "script": {
+        "position": [
+          30,
+          297
+        ],
+        "size": [
+          1139,
+          296
+        ],
+        "minimum_hint": [
+          70,
+          70
+        ],
+        "visible": true
+      },
+      "material_slots": {
+        "position": [
+          20,
+          297
+        ],
+        "size": [
+          311,
+          82
+        ],
+        "minimum_hint": [
+          70,
+          70
+        ],
+        "visible": false
+      },
+      "material_detail": {
+        "position": [
+          332,
+          297
+        ],
+        "size": [
+          310,
+          82
+        ],
+        "minimum_hint": [
+          70,
+          70
+        ],
+        "visible": false
+      },
+      "page_minimums": [
+        [
+          490,
+          329
+        ],
+        [
+          420,
+          146
+        ],
+        [
+          569,
+          359
+        ],
+        [
+          354,
+          416
+        ],
+        [
+          716,
+          230
+        ]
+      ],
+      "wide_children": [
+        {
+          "type": "QWidget",
+          "name": "",
+          "minimum_hint": [
+            716,
+            230
+          ]
+        }
+      ]
+    },
+    {
+      "screenshot": "C:\\Users\\L14\\Documents\\Programming\\media-house\\scratch\\brief-to-cut-preview\\1600x1000-material.png",
+      "requested": [
+        1600,
+        1000
+      ],
+      "actual": [
+        1600,
+        1000
+      ],
+      "minimum_hint": [
+        1019,
+        740
+      ],
+      "clipped_button_labels": [],
+      "buttons_outside_view": [],
+      "stack": {
+        "position": [
+          11,
+          252
+        ],
+        "size": [
+          1177,
+          701
+        ],
+        "minimum_hint": [
+          716,
+          416
+        ],
+        "visible": true
+      },
+      "dock": {
+        "position": [
+          1189,
+          252
+        ],
+        "size": [
+          400,
+          701
+        ],
+        "minimum_hint": [
+          181,
+          441
+        ],
+        "visible": true
+      },
+      "brief": {
+        "position": [
+          20,
+          305
+        ],
+        "size": [
+          577,
+          384
+        ],
+        "minimum_hint": [
+          70,
+          70
+        ],
+        "visible": false
+      },
+      "script": {
+        "position": [
+          30,
+          297
+        ],
+        "size": [
+          1139,
+          296
+        ],
+        "minimum_hint": [
+          70,
+          70
+        ],
+        "visible": false
+      },
+      "material_slots": {
+        "position": [
+          20,
+          297
+        ],
+        "size": [
+          579,
+          168
+        ],
+        "minimum_hint": [
+          70,
+          70
+        ],
+        "visible": true
+      },
+      "material_detail": {
+        "position": [
+          600,
+          297
+        ],
+        "size": [
+          579,
+          168
+        ],
+        "minimum_hint": [
+          70,
+          70
+        ],
+        "visible": true
+      },
+      "page_minimums": [
+        [
+          490,
+          329
+        ],
+        [
+          420,
+          146
+        ],
+        [
+          569,
+          359
+        ],
+        [
+          354,
+          416
+        ],
+        [
+          716,
+          230
+        ]
+      ],
+      "wide_children": [
+        {
+          "type": "QWidget",
+          "name": "",
+          "minimum_hint": [
+            716,
+            230
+          ]
+        }
+      ]
+    },
+    {
+      "screenshot": "C:\\Users\\L14\\Documents\\Programming\\media-house\\scratch\\brief-to-cut-preview\\1280x900-brief.png",
+      "requested": [
+        1280,
+        900
+      ],
+      "actual": [
+        1280,
+        900
+      ],
+      "minimum_hint": [
+        1019,
+        740
+      ],
+      "clipped_button_labels": [],
+      "buttons_outside_view": [],
+      "stack": {
+        "position": [
+          11,
+          252
+        ],
+        "size": [
+          938,
+          601
+        ],
+        "minimum_hint": [
+          716,
+          416
+        ],
+        "visible": true
+      },
+      "dock": {
+        "position": [
+          950,
+          252
+        ],
+        "size": [
+          319,
+          601
+        ],
+        "minimum_hint": [
+          181,
+          441
+        ],
+        "visible": true
+      },
+      "brief": {
+        "position": [
+          20,
+          321
+        ],
+        "size": [
+          457,
+          297
+        ],
+        "minimum_hint": [
+          70,
+          70
+        ],
+        "visible": true
+      },
+      "script": {
+        "position": [
+          30,
+          297
+        ],
+        "size": [
+          1139,
+          296
+        ],
+        "minimum_hint": [
+          70,
+          70
+        ],
+        "visible": false
+      },
+      "material_slots": {
+        "position": [
+          20,
+          297
+        ],
+        "size": [
+          460,
+          130
+        ],
+        "minimum_hint": [
+          70,
+          70
+        ],
+        "visible": false
+      },
+      "material_detail": {
+        "position": [
+          481,
+          297
+        ],
+        "size": [
+          459,
+          130
+        ],
+        "minimum_hint": [
+          70,
+          70
+        ],
+        "visible": false
+      },
+      "page_minimums": [
+        [
+          490,
+          329
+        ],
+        [
+          420,
+          146
+        ],
+        [
+          569,
+          359
+        ],
+        [
+          354,
+          416
+        ],
+        [
+          716,
+          230
+        ]
+      ],
+      "wide_children": [
+        {
+          "type": "QWidget",
+          "name": "",
+          "minimum_hint": [
+            716,
+            230
+          ]
+        }
+      ]
+    },
+    {
+      "screenshot": "C:\\Users\\L14\\Documents\\Programming\\media-house\\scratch\\brief-to-cut-preview\\1280x900-script.png",
+      "requested": [
+        1280,
+        900
+      ],
+      "actual": [
+        1280,
+        900
+      ],
+      "minimum_hint": [
+        1019,
+        740
+      ],
+      "clipped_button_labels": [],
+      "buttons_outside_view": [],
+      "stack": {
+        "position": [
+          11,
+          252
+        ],
+        "size": [
+          938,
+          601
+        ],
+        "minimum_hint": [
+          716,
+          416
+        ],
+        "visible": true
+      },
+      "dock": {
+        "position": [
+          950,
+          252
+        ],
+        "size": [
+          319,
+          601
+        ],
+        "minimum_hint": [
+          181,
+          441
+        ],
+        "visible": true
+      },
+      "brief": {
+        "position": [
+          20,
+          321
+        ],
+        "size": [
+          457,
+          297
+        ],
+        "minimum_hint": [
+          70,
+          70
+        ],
+        "visible": false
+      },
+      "script": {
+        "position": [
+          30,
+          297
+        ],
+        "size": [
+          900,
+          236
+        ],
+        "minimum_hint": [
+          70,
+          70
+        ],
+        "visible": true
+      },
+      "material_slots": {
+        "position": [
+          20,
+          297
+        ],
+        "size": [
+          460,
+          130
+        ],
+        "minimum_hint": [
+          70,
+          70
+        ],
+        "visible": false
+      },
+      "material_detail": {
+        "position": [
+          481,
+          297
+        ],
+        "size": [
+          459,
+          130
+        ],
+        "minimum_hint": [
+          70,
+          70
+        ],
+        "visible": false
+      },
+      "page_minimums": [
+        [
+          490,
+          329
+        ],
+        [
+          420,
+          146
+        ],
+        [
+          569,
+          359
+        ],
+        [
+          354,
+          416
+        ],
+        [
+          716,
+          230
+        ]
+      ],
+      "wide_children": [
+        {
+          "type": "QWidget",
+          "name": "",
+          "minimum_hint": [
+            716,
+            230
+          ]
+        }
+      ]
+    },
+    {
+      "screenshot": "C:\\Users\\L14\\Documents\\Programming\\media-house\\scratch\\brief-to-cut-preview\\1280x900-material.png",
+      "requested": [
+        1280,
+        900
+      ],
+      "actual": [
+        1280,
+        900
+      ],
+      "minimum_hint": [
+        1019,
+        740
+      ],
+      "clipped_button_labels": [],
+      "buttons_outside_view": [],
+      "stack": {
+        "position": [
+          11,
+          252
+        ],
+        "size": [
+          938,
+          601
+        ],
+        "minimum_hint": [
+          716,
+          416
+        ],
+        "visible": true
+      },
+      "dock": {
+        "position": [
+          950,
+          252
+        ],
+        "size": [
+          319,
+          601
+        ],
+        "minimum_hint": [
+          181,
+          441
+        ],
+        "visible": true
+      },
+      "brief": {
+        "position": [
+          20,
+          321
+        ],
+        "size": [
+          457,
+          297
+        ],
+        "minimum_hint": [
+          70,
+          70
+        ],
+        "visible": false
+      },
+      "script": {
+        "position": [
+          30,
+          297
+        ],
+        "size": [
+          900,
+          236
+        ],
+        "minimum_hint": [
+          70,
+          70
+        ],
+        "visible": false
+      },
+      "material_slots": {
+        "position": [
+          20,
+          297
+        ],
+        "size": [
+          460,
+          130
+        ],
+        "minimum_hint": [
+          70,
+          70
+        ],
+        "visible": true
+      },
+      "material_detail": {
+        "position": [
+          481,
+          297
+        ],
+        "size": [
+          459,
+          130
+        ],
+        "minimum_hint": [
+          70,
+          70
+        ],
+        "visible": true
+      },
+      "page_minimums": [
+        [
+          490,
+          329
+        ],
+        [
+          420,
+          146
+        ],
+        [
+          569,
+          359
+        ],
+        [
+          354,
+          416
+        ],
+        [
+          716,
+          230
+        ]
+      ],
+      "wide_children": [
+        {
+          "type": "QWidget",
+          "name": "",
+          "minimum_hint": [
+            716,
+            230
+          ]
+        }
+      ]
+    }
+  ]
+}

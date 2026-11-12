@@ -1,0 +1,126 @@
+{
+  "findings": [
+    {
+      "finding_id": "slots.unfilled:S13:dein-pick",
+      "rule_id": "slots.unfilled",
+      "stage": "script",
+      "severity": "warning",
+      "where": "S13",
+      "quote": "DEIN_PICK",
+      "message": "Das Technik-Feld {DEIN_PICK} ist leer: die Sätze dazu entfallen.",
+      "safe_alternative": "Das Feld ausfüllen oder leer lassen.",
+      "constraint_id": "",
+      "overridden": ""
+    },
+    {
+      "finding_id": "slots.unfilled:S08:effektmasse-colour-beast",
+      "rule_id": "slots.unfilled",
+      "stage": "script",
+      "severity": "warning",
+      "where": "S08",
+      "quote": "EFFEKTMASSE_COLOUR_BEAST",
+      "message": "Das Technik-Feld {EFFEKTMASSE_COLOUR_BEAST} ist leer: die Sätze dazu entfallen.",
+      "safe_alternative": "Das Feld ausfüllen oder leer lassen.",
+      "constraint_id": "",
+      "overridden": ""
+    },
+    {
+      "finding_id": "slots.unfilled:S07:effektmasse-golden-phoenix",
+      "rule_id": "slots.unfilled",
+      "stage": "script",
+      "severity": "warning",
+      "where": "S07",
+      "quote": "EFFEKTMASSE_GOLDEN_PHOENIX",
+      "message": "Das Technik-Feld {EFFEKTMASSE_GOLDEN_PHOENIX} ist leer: die Sätze dazu entfallen.",
+      "safe_alternative": "Das Feld ausfüllen oder leer lassen.",
+      "constraint_id": "",
+      "overridden": ""
+    },
+    {
+      "finding_id": "slots.unfilled:S04:effektmasse-plasma-pulse",
+      "rule_id": "slots.unfilled",
+      "stage": "script",
+      "severity": "warning",
+      "where": "S04",
+      "quote": "EFFEKTMASSE_PLASMA_PULSE",
+      "message": "Das Technik-Feld {EFFEKTMASSE_PLASMA_PULSE} ist leer: die Sätze dazu entfallen.",
+      "safe_alternative": "Das Feld ausfüllen oder leer lassen.",
+      "constraint_id": "",
+      "overridden": ""
+    },
+    {
+      "finding_id": "slots.unfilled:S08:kaliber-colour-beast",
+      "rule_id": "slots.unfilled",
+      "stage": "script",
+      "severity": "warning",
+      "where": "S08",
+      "quote": "KALIBER_COLOUR_BEAST",
+      "message": "Das Technik-Feld {KALIBER_COLOUR_BEAST} ist leer: die Sätze dazu entfallen.",
+      "safe_alternative": "Das Feld ausfüllen oder leer lassen.",
+      "constraint_id": "",
+      "overridden": ""
+    },
+    {
+      "finding_id": "slots.unfilled:S08:shots-colour-beast",
+      "rule_id": "slots.unfilled",
+      "stage": "script",
+      "severity": "warning",
+      "where": "S08",
+      "quote": "SHOTS_COLOUR_BEAST",
+      "message": "Das Technik-Feld {SHOTS_COLOUR_BEAST} ist leer: die Sätze dazu entfallen.",
+      "safe_alternative": "Das Feld ausfüllen oder leer lassen.",
+      "constraint_id": "",
+      "overridden": ""
+    },
+    {
+      "finding_id": "slots.unfilled:S14:sicherheitshinweis",
+      "rule_id": "slots.unfilled",
+      "stage": "script",
+      "severity": "warning",
+      "where": "S14",
+      "quote": "SICHERHEITSHINWEIS",
+      "message": "Das Technik-Feld {SICHERHEITSHINWEIS} ist leer: die Sätze dazu entfallen.",
+      "safe_alternative": "Das Feld ausfüllen oder leer lassen.",
+      "constraint_id": "",
+      "overridden": ""
+    },
+    {
+      "finding_id": "length.too_short:script:3-2-min",
+      "rule_id": "length.too_short",
+      "stage": "script",
+      "severity": "warning",
+      "where": "script",
+      "quote": "3.2 min",
+      "message": "Geschätzte Länge 3.2 min, Zielbereich 12-20 min.",
+      "safe_alternative": "",
+      "constraint_id": "",
+      "overridden": ""
+    },
+    {
+      "finding_id": "project.missing_material",
+      "rule_id": "project.missing_material",
+      "stage": "asset",
+      "severity": "blocker",
+      "where": "material",
+      "quote": "",
+      "message": "Es fehlt geprüftes Material. Verknüpfe deinen Materialordner und kläre die Markierungen.",
+      "safe_alternative": "",
+      "constraint_id": "",
+      "overridden": ""
+    }
+  ],
+  "blocking": [
+    {
+      "finding_id": "project.missing_material",
+      "rule_id": "project.missing_material",
+      "stage": "asset",
+      "severity": "blocker",
+      "where": "material",
+      "quote": "",
+      "message": "Es fehlt geprüftes Material. Verknüpfe deinen Materialordner und kläre die Markierungen.",
+      "safe_alternative": "",
+      "constraint_id": "",
+      "overridden": ""
+    }
+  ]
+}

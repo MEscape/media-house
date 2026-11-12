@@ -1,0 +1,1765 @@
+{
+  "client": "ALDI",
+  "campaign": "ALDI Feuerwerk 202627",
+  "source_digest": "f634d15a98f9202c",
+  "constraints": [
+    {
+      "constraint_id": "c01",
+      "kind": "hard",
+      "text": "Die ALDI-Süd-Vitrine 2026/27 ist seit dem 10.11. bekannt: fünf Artikel werden als Neuheit gezeigt, davon sind mehrere vermutlich umetikettierte Altartikel; kaum Leuchtfeuerwerk, keine Preise.",
+      "rule": "facts.identity_unconfirmed",
+      "source": {
+        "ref": "S. 1",
+        "quote": "Die ALDI-Süd-Vitrine 2026/27 ist seit dem 10.11. bekannt: fünf Artikel werden als Neuheit gezeigt, davon sind mehrere vermutlich umetikettierte Altartikel; kaum Leuchtfeuerwerk, keine Preise."
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [],
+      "until": ""
+    },
+    {
+      "constraint_id": "c02",
+      "kind": "hard",
+      "text": "ALDI Nord und alle Preise fehlen noch.",
+      "rule": "facts.prices_pending",
+      "source": {
+        "ref": "S. 1",
+        "quote": "ALDI Nord und alle Preise fehlen noch."
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [],
+      "until": ""
+    },
+    {
+      "constraint_id": "c03",
+      "kind": "hard",
+      "text": "Sie ist ein jährlicher Termin Mitte November, kein Leak.",
+      "rule": "facts.no_leak",
+      "source": {
+        "ref": "S. 1",
+        "quote": "Sie ist ein jährlicher Termin Mitte November, kein Leak."
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [],
+      "until": ""
+    },
+    {
+      "constraint_id": "c04",
+      "kind": "hard",
+      "text": "Quelle und Datum nennen: Vitrine oder Prospekt, Nord oder Süd, wann gesehen.",
+      "rule": "",
+      "source": {
+        "ref": "S. 2",
+        "quote": "Quelle und Datum nennen: Vitrine oder Prospekt, Nord oder Süd, wann gesehen."
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [],
+      "until": ""
+    },
+    {
+      "constraint_id": "c05",
+      "kind": "hard",
+      "text": "Verkaufstermine (29.–31.12.2026), 18+ Regel, Jugendfeuerwerk (F1, ab 12), Ausverkaufsrisiko am ersten Tag.",
+      "rule": "",
+      "source": {
+        "ref": "S. 2",
+        "quote": "Verkaufstermine (29.–31.12.2026), 18+ Regel, Jugendfeuerwerk (F1, ab 12), Ausverkaufsrisiko am ersten Tag."
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [],
+      "until": ""
+    },
+    {
+      "constraint_id": "c06",
+      "kind": "hard",
+      "text": "Jeden Artikel zeigen, ohne Rosinenpicken: Name, Marke (Weco, Nico, andere), Nord/Süd/beide, Preis, Schusszahl oder Stückzahl, Kaliber, NEM, Effekt, Kategorie.",
+      "rule": "",
+      "source": {
+        "ref": "S. 2",
+        "quote": "Jeden Artikel zeigen, ohne Rosinenpicken: Name, Marke (Weco, Nico, andere), Nord/Süd/beide, Preis, Schusszahl oder Stückzahl, Kaliber, NEM, Effekt, Kategorie."
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [],
+      "until": ""
+    },
+    {
+      "constraint_id": "c07",
+      "kind": "hard",
+      "text": "Neu, zurück, gestrichen gegenüber 2025/26 einblenden.",
+      "rule": "",
+      "source": {
+        "ref": "S. 2",
+        "quote": "Neu, zurück, gestrichen gegenüber 2025/26 einblenden."
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [],
+      "until": ""
+    },
+    {
+      "constraint_id": "c08",
+      "kind": "hard",
+      "text": "Umlabelungen klar von echten Neuheiten trennen (siehe Artikelliste).",
+      "rule": "",
+      "source": {
+        "ref": "S. 2",
+        "quote": "Umlabelungen klar von echten Neuheiten trennen (siehe Artikelliste)."
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [],
+      "until": ""
+    },
+    {
+      "constraint_id": "c09",
+      "kind": "hard",
+      "text": "Wertmetriken: Preis pro Schuss und Preis pro Gramm NEM, sobald Preise da sind.",
+      "rule": "",
+      "source": {
+        "ref": "S. 2",
+        "quote": "Wertmetriken: Preis pro Schuss und Preis pro Gramm NEM, sobald Preise da sind."
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [],
+      "until": ""
+    },
+    {
+      "constraint_id": "c10",
+      "kind": "hard",
+      "text": "Unterschiede Nord und Süd erklären; Nutzer beklagen große Abweichungen bei Sortiment und Preis.",
+      "rule": "",
+      "source": {
+        "ref": "S. 2",
+        "quote": "Unterschiede Nord und Süd erklären; Nutzer beklagen große Abweichungen bei Sortiment und Preis."
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [],
+      "until": ""
+    },
+    {
+      "constraint_id": "c11",
+      "kind": "hard",
+      "text": "Hinweis, dass sich Preise bis zum Prospekt ändern; im Vorjahr gab es falsche Preisschilder.",
+      "rule": "",
+      "source": {
+        "ref": "S. 2",
+        "quote": "Hinweis, dass sich Preise bis zum Prospekt ändern; im Vorjahr gab es falsche Preisschilder."
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [],
+      "until": ""
+    },
+    {
+      "constraint_id": "c12",
+      "kind": "hard",
+      "text": "Sicherheit und lokale Regeln: Böllerverbotszonen, nur im Freien, Abstand.",
+      "rule": "safety.local_rules",
+      "source": {
+        "ref": "S. 2",
+        "quote": "Sicherheit und lokale Regeln: Böllerverbotszonen, nur im Freien, Abstand."
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [],
+      "until": ""
+    },
+    {
+      "constraint_id": "c13",
+      "kind": "hard",
+      "text": "Affiliate-Hinweis, falls Links genutzt werden.",
+      "rule": "",
+      "source": {
+        "ref": "S. 2",
+        "quote": "Affiliate-Hinweis, falls Links genutzt werden."
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [],
+      "until": ""
+    },
+    {
+      "constraint_id": "c14",
+      "kind": "hard",
+      "text": "Alle Preise sind offen, die Vitrine nennt keine.",
+      "rule": "facts.prices_pending",
+      "source": {
+        "ref": "S. 2",
+        "quote": "Alle Preise sind offen, die Vitrine nennt keine."
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [],
+      "until": ""
+    },
+    {
+      "constraint_id": "c15",
+      "kind": "hard",
+      "text": "Alles mit \"offen\" muss am Prospekt oder an der Ware geprüft werden.",
+      "rule": "",
+      "source": {
+        "ref": "S. 2",
+        "quote": "Alles mit \"offen\" muss am Prospekt oder an der Ware geprüft werden."
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [],
+      "until": ""
+    },
+    {
+      "constraint_id": "c16",
+      "kind": "hard",
+      "text": "Das ist der erste Punkt, den das Vitrinen-Video klären muss (Kapitelmarken prüfen).",
+      "rule": "",
+      "source": {
+        "ref": "S. 4",
+        "quote": "Das ist der erste Punkt, den das Vitrinen-Video klären muss (Kapitelmarken prüfen)."
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [],
+      "until": ""
+    },
+    {
+      "constraint_id": "c17",
+      "kind": "hard",
+      "text": "Vor dem Dreh jeden Preis am ALDI-Prospekt 2026/27 abgleichen.",
+      "rule": "facts.verification_required",
+      "source": {
+        "ref": "S. 5",
+        "quote": "Vor dem Dreh jeden Preis am ALDI-Prospekt 2026/27 abgleichen."
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [],
+      "until": ""
+    },
+    {
+      "constraint_id": "c18",
+      "kind": "hard",
+      "text": "Im Video deshalb keine Preisversprechen, nur den Vorjahresvergleich aus dem vorigen Abschnitt und die Ansage, dass Preise nachgetragen werden.",
+      "rule": "facts.prices_pending",
+      "source": {
+        "ref": "S. 5",
+        "quote": "Im Video deshalb keine Preisversprechen, nur den Vorjahresvergleich aus dem vorigen Abschnitt und die Ansage, dass Preise nachgetragen werden."
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [],
+      "until": ""
+    },
+    {
+      "constraint_id": "c19",
+      "kind": "hard",
+      "text": "Wichtig für die Einordnung: Die Vitrine ist die jährliche Mitte-November-Ausstellung und kein Leak.",
+      "rule": "facts.no_leak",
+      "source": {
+        "ref": "S. 6",
+        "quote": "Wichtig für die Einordnung: Die Vitrine ist die jährliche Mitte-November-Ausstellung und kein Leak."
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [],
+      "until": ""
+    },
+    {
+      "constraint_id": "c20",
+      "kind": "hard",
+      "text": "Zu prüfen vor Veröffentlichung: Termine und Altersregeln gegen die Prospekte beider ALDI-Gesellschaften und gegen die Sprengstoffverordnung abgleichen.",
+      "rule": "facts.verification_required",
+      "source": {
+        "ref": "S. 6",
+        "quote": "Zu prüfen vor Veröffentlichung: Termine und Altersregeln gegen die Prospekte beider ALDI-Gesellschaften und gegen die Sprengstoffverordnung abgleichen."
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [],
+      "until": ""
+    },
+    {
+      "constraint_id": "c21",
+      "kind": "hard",
+      "text": "Colour Beast gegen Weco Prisma 2015: sehr wahrscheinlich dasselbe Produkt.",
+      "rule": "facts.identity_unconfirmed",
+      "source": {
+        "ref": "S. 6",
+        "quote": "Colour Beast gegen Weco Prisma 2015: sehr wahrscheinlich dasselbe Produkt."
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [],
+      "until": ""
+    },
+    {
+      "constraint_id": "c22",
+      "kind": "hard",
+      "text": "Golden Phoenix gegen Weco 2019 und Goldfinger: Herkunft nachweisen, Richtung der Umlabelung offen lassen, solange nicht belegt.",
+      "rule": "facts.identity_unconfirmed",
+      "source": {
+        "ref": "S. 7",
+        "quote": "Golden Phoenix gegen Weco 2019 und Goldfinger: Herkunft nachweisen, Richtung der Umlabelung offen lassen, solange nicht belegt."
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [],
+      "until": ""
+    },
+    {
+      "constraint_id": "c23",
+      "kind": "hard",
+      "text": "Plasma Pulse und Wonderland als die beiden Kandidaten für echte Neuheiten; Urteil erst nach Funktionstest.",
+      "rule": "facts.verification_required",
+      "source": {
+        "ref": "S. 7",
+        "quote": "Plasma Pulse und Wonderland als die beiden Kandidaten für echte Neuheiten; Urteil erst nach Funktionstest."
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [],
+      "until": ""
+    },
+    {
+      "constraint_id": "c24",
+      "kind": "conditional",
+      "text": "Voraussetzung: Artikel am Verkaufstag kaufen und testen, Abstandsregeln einhalten.",
+      "rule": "conditional.item",
+      "source": {
+        "ref": "S. 7",
+        "quote": "Voraussetzung: Artikel am Verkaufstag kaufen und testen, Abstandsregeln einhalten."
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [
+        "voraussetzung",
+        "artikel",
+        "verkaufstag",
+        "kaufen",
+        "testen",
+        "abstandsregeln"
+      ],
+      "until": ""
+    },
+    {
+      "constraint_id": "c25",
+      "kind": "hard",
+      "text": "Hook: \"Dieses Jahr gibt es bei ALDI so wenige Raketen wie nie, und der Grund liegt 8.000 Kilometer entfernt.\" Vor Veröffentlichung prüfen, ob \"so wenige wie nie\" belegbar ist, sonst auf \"deutlich weniger als sonst\" abschwächen.",
+      "rule": "facts.verification_required",
+      "source": {
+        "ref": "S. 7",
+        "quote": "Hook: \"Dieses Jahr gibt es bei ALDI so wenige Raketen wie nie, und der Grund liegt 8.000 Kilometer entfernt.\" Vor Veröffentlichung prüfen, ob \"so wenige wie nie\" belegbar ist, sonst auf \"deutlich weniger als sonst\" abschwächen."
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [],
+      "until": ""
+    },
+    {
+      "constraint_id": "c26",
+      "kind": "conditional",
+      "text": "Nur möglich, wenn der Nord-Prospekt erscheint.",
+      "rule": "conditional.item",
+      "source": {
+        "ref": "S. 8",
+        "quote": "Nur möglich, wenn der Nord-Prospekt erscheint."
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [
+        "moglich",
+        "prospekt",
+        "erscheint"
+      ],
+      "until": ""
+    },
+    {
+      "constraint_id": "c27",
+      "kind": "hard",
+      "text": "Wichtig: Nord- Inhalt vor dem Dreh prüfen, derzeit ist er offen.",
+      "rule": "facts.verification_required",
+      "source": {
+        "ref": "S. 8",
+        "quote": "Wichtig: Nord- Inhalt vor dem Dreh prüfen, derzeit ist er offen."
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [],
+      "until": ""
+    },
+    {
+      "constraint_id": "c28",
+      "kind": "conditional",
+      "text": "\"Fünf Neuheiten, und keine davon ist, was sie scheint?\" (nur bei bestätigter Lage)",
+      "rule": "conditional.item",
+      "source": {
+        "ref": "S. 8",
+        "quote": "\"Fünf Neuheiten, und keine davon ist, was sie scheint?\" (nur bei bestätigter Lage)"
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [
+        "neuheiten",
+        "davon",
+        "scheint",
+        "bestatigter"
+      ],
+      "until": ""
+    },
+    {
+      "constraint_id": "c29",
+      "kind": "hard",
+      "text": "Das sagt dir ALDI nicht.\" (Quelle Forum, vor Veröffentlichung gegen Prospekt prüfen)",
+      "rule": "facts.verification_required",
+      "source": {
+        "ref": "S. 8",
+        "quote": "Das sagt dir ALDI nicht.\" (Quelle Forum, vor Veröffentlichung gegen Prospekt prüfen)"
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [],
+      "until": ""
+    },
+    {
+      "constraint_id": "c30",
+      "kind": "hard",
+      "text": "0:20–1:30 Kontext: Vitrine, China, Preise offen Erwartungen klären",
+      "rule": "facts.prices_pending",
+      "source": {
+        "ref": "S. 9",
+        "quote": "0:20–1:30 Kontext: Vitrine, China, Preise offen Erwartungen klären"
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [],
+      "until": ""
+    },
+    {
+      "constraint_id": "c31",
+      "kind": "hard",
+      "text": "Fremde Bilder aus Forum und Reddit sind Nutzerinhalte und dürfen nicht ohne Rückfrage weiterverwendet werden.",
+      "rule": "assets.permission_required",
+      "source": {
+        "ref": "S. 9",
+        "quote": "Fremde Bilder aus Forum und Reddit sind Nutzerinhalte und dürfen nicht ohne Rückfrage weiterverwendet werden."
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [],
+      "until": ""
+    },
+    {
+      "constraint_id": "c32",
+      "kind": "hard",
+      "text": "Nutzerrechte plus Nur mit Plattformregeln Zustimmung des",
+      "rule": "assets.permission_required",
+      "source": {
+        "ref": "S. 10",
+        "quote": "Nutzerrechte plus Nur mit Plattformregeln Zustimmung des"
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [],
+      "until": ""
+    },
+    {
+      "constraint_id": "c33",
+      "kind": "hard",
+      "text": "Ohne Antwort wird das Bild nicht verwendet.",
+      "rule": "assets.permission_required",
+      "source": {
+        "ref": "S. 10",
+        "quote": "Ohne Antwort wird das Bild nicht verwendet."
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [],
+      "until": ""
+    },
+    {
+      "constraint_id": "c34",
+      "kind": "hard",
+      "text": "ALDI-Süd-Prospekt abwarten und alle Preise nachtragen",
+      "rule": "facts.prices_pending",
+      "source": {
+        "ref": "S. 10",
+        "quote": "ALDI-Süd-Prospekt abwarten und alle Preise nachtragen"
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [],
+      "until": ""
+    },
+    {
+      "constraint_id": "c35",
+      "kind": "hard",
+      "text": "Herkunft von Power Circus prüfen (Starboy-Ähnlichkeit, \"exklusiv für ALDI Süd\" ist unbelegt)",
+      "rule": "facts.identity_unconfirmed",
+      "source": {
+        "ref": "S. 11",
+        "quote": "Herkunft von Power Circus prüfen (Starboy-Ähnlichkeit, \"exklusiv für ALDI Süd\" ist unbelegt)"
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [],
+      "until": ""
+    },
+    {
+      "constraint_id": "c36",
+      "kind": "hard",
+      "text": "Golden Phoenix gegen Goldfinger: Richtung der Umlabelung klären",
+      "rule": "facts.identity_unconfirmed",
+      "source": {
+        "ref": "S. 11",
+        "quote": "Golden Phoenix gegen Goldfinger: Richtung der Umlabelung klären"
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [],
+      "until": ""
+    },
+    {
+      "constraint_id": "c37",
+      "kind": "hard",
+      "text": "Bildrechte anfragen und Quellenlog anlegen",
+      "rule": "assets.permission_required",
+      "source": {
+        "ref": "S. 11",
+        "quote": "Bildrechte anfragen und Quellenlog anlegen"
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [],
+      "until": ""
+    },
+    {
+      "constraint_id": "c38",
+      "kind": "hard",
+      "text": "Power Circus XXL-Gold-Glitter- 80 20 mm 488 g ca. 40 s / ca. Sieht aus wie Weco Batterie mit 35 m Starboy (50 s, 45 m, 464 Crackling g), Daten weichen ab. Keine bestätigte Umlabelung.",
+      "rule": "facts.identity_unconfirmed",
+      "source": {
+        "ref": "S. 3",
+        "quote": "Power Circus XXL-Gold-Glitter- 80 20 mm 488 g ca. 40 s / ca. Sieht aus wie Weco Batterie mit 35 m Starboy (50 s, 45 m, 464 Crackling g), Daten weichen ab. Keine bestätigte Umlabelung."
+      },
+      "applies_to": [
+        "all"
+      ],
+      "keywords": [],
+      "until": ""
+    }
+  ],
+  "facts": [
+    {
+      "key": "product_plasma-pulse",
+      "label": "Plasma Pulse",
+      "value": "Plasma Pulse",
+      "unit": "",
+      "source": {
+        "ref": "S. 2",
+        "quote": "Plasma Pulse    Blitzstern-Batterie    100       15 mm    offen   ca. 80 s / ca.   Neu laut Forum; Karton\nmit Crackling                                     25 m             druckt \"80m\" statt\nSekunden. Optik erinnert\nan Pyromould."
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "product",
+      "subject": "plasma-pulse"
+    },
+    {
+      "key": "shots_plasma-pulse",
+      "label": "Schuss Plasma Pulse",
+      "value": "100",
+      "unit": "Schuss",
+      "source": {
+        "ref": "S. 2",
+        "quote": "Plasma Pulse    Blitzstern-Batterie    100       15 mm    offen   ca. 80 s / ca.   Neu laut Forum; Karton\nmit Crackling                                     25 m             druckt \"80m\" statt\nSekunden. Optik erinnert\nan Pyromould."
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "spec",
+      "subject": "plasma-pulse"
+    },
+    {
+      "key": "kaliber_plasma-pulse",
+      "label": "Kaliber Plasma Pulse",
+      "value": "15",
+      "unit": "mm",
+      "source": {
+        "ref": "S. 2",
+        "quote": "Plasma Pulse    Blitzstern-Batterie    100       15 mm    offen   ca. 80 s / ca.   Neu laut Forum; Karton\nmit Crackling                                     25 m             druckt \"80m\" statt\nSekunden. Optik erinnert\nan Pyromould."
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "spec",
+      "subject": "plasma-pulse"
+    },
+    {
+      "key": "duration_plasma-pulse",
+      "label": "Brenndauer Plasma Pulse",
+      "value": "80",
+      "unit": "s",
+      "source": {
+        "ref": "S. 2",
+        "quote": "Plasma Pulse    Blitzstern-Batterie    100       15 mm    offen   ca. 80 s / ca.   Neu laut Forum; Karton\nmit Crackling                                     25 m             druckt \"80m\" statt\nSekunden. Optik erinnert\nan Pyromould."
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": true,
+      "kind": "spec",
+      "subject": "plasma-pulse"
+    },
+    {
+      "key": "height_plasma-pulse",
+      "label": "Effekthöhe Plasma Pulse",
+      "value": "25",
+      "unit": "m",
+      "source": {
+        "ref": "S. 2",
+        "quote": "Plasma Pulse    Blitzstern-Batterie    100       15 mm    offen   ca. 80 s / ca.   Neu laut Forum; Karton\nmit Crackling                                     25 m             druckt \"80m\" statt\nSekunden. Optik erinnert\nan Pyromould."
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": true,
+      "kind": "spec",
+      "subject": "plasma-pulse"
+    },
+    {
+      "key": "product_wonderland",
+      "label": "Wonderland",
+      "value": "Wonderland",
+      "unit": "",
+      "source": {
+        "ref": "S. 2",
+        "quote": "Wonderland      Feuertopf-Glitter-     89        20 mm    392 g   ca. 40 s / ca.   Komplett neu laut Forum.\nBatterie                                          40 m"
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "product",
+      "subject": "wonderland"
+    },
+    {
+      "key": "shots_wonderland",
+      "label": "Schuss Wonderland",
+      "value": "89",
+      "unit": "Schuss",
+      "source": {
+        "ref": "S. 2",
+        "quote": "Wonderland      Feuertopf-Glitter-     89        20 mm    392 g   ca. 40 s / ca.   Komplett neu laut Forum.\nBatterie                                          40 m"
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "spec",
+      "subject": "wonderland"
+    },
+    {
+      "key": "kaliber_wonderland",
+      "label": "Kaliber Wonderland",
+      "value": "20",
+      "unit": "mm",
+      "source": {
+        "ref": "S. 2",
+        "quote": "Wonderland      Feuertopf-Glitter-     89        20 mm    392 g   ca. 40 s / ca.   Komplett neu laut Forum.\nBatterie                                          40 m"
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "spec",
+      "subject": "wonderland"
+    },
+    {
+      "key": "effektmasse_wonderland",
+      "label": "NEM Wonderland",
+      "value": "392",
+      "unit": "g",
+      "source": {
+        "ref": "S. 2",
+        "quote": "Wonderland      Feuertopf-Glitter-     89        20 mm    392 g   ca. 40 s / ca.   Komplett neu laut Forum.\nBatterie                                          40 m"
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "spec",
+      "subject": "wonderland"
+    },
+    {
+      "key": "duration_wonderland",
+      "label": "Brenndauer Wonderland",
+      "value": "40",
+      "unit": "s",
+      "source": {
+        "ref": "S. 2",
+        "quote": "Wonderland      Feuertopf-Glitter-     89        20 mm    392 g   ca. 40 s / ca.   Komplett neu laut Forum.\nBatterie                                          40 m"
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": true,
+      "kind": "spec",
+      "subject": "wonderland"
+    },
+    {
+      "key": "height_wonderland",
+      "label": "Effekthöhe Wonderland",
+      "value": "40",
+      "unit": "m",
+      "source": {
+        "ref": "S. 2",
+        "quote": "Wonderland      Feuertopf-Glitter-     89        20 mm    392 g   ca. 40 s / ca.   Komplett neu laut Forum.\nBatterie                                          40 m"
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": true,
+      "kind": "spec",
+      "subject": "wonderland"
+    },
+    {
+      "key": "product_power-circus",
+      "label": "Power Circus",
+      "value": "Power Circus",
+      "unit": "",
+      "source": {
+        "ref": "S. 3",
+        "quote": "Power Circus     XXL-Gold-Glitter-         80        20 mm     488 g    ca. 40 s / ca.    Sieht aus wie Weco\nBatterie mit                                           35 m              Starboy (50 s, 45 m, 464\nCrackling                                                                g), Daten weichen ab.\nKeine bestätigte\nUmlabelung."
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "product",
+      "subject": "power-circus"
+    },
+    {
+      "key": "shots_power-circus",
+      "label": "Schuss Power Circus",
+      "value": "80",
+      "unit": "Schuss",
+      "source": {
+        "ref": "S. 3",
+        "quote": "Power Circus     XXL-Gold-Glitter-         80        20 mm     488 g    ca. 40 s / ca.    Sieht aus wie Weco\nBatterie mit                                           35 m              Starboy (50 s, 45 m, 464\nCrackling                                                                g), Daten weichen ab.\nKeine bestätigte\nUmlabelung."
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "spec",
+      "subject": "power-circus"
+    },
+    {
+      "key": "kaliber_power-circus",
+      "label": "Kaliber Power Circus",
+      "value": "20",
+      "unit": "mm",
+      "source": {
+        "ref": "S. 3",
+        "quote": "Power Circus     XXL-Gold-Glitter-         80        20 mm     488 g    ca. 40 s / ca.    Sieht aus wie Weco\nBatterie mit                                           35 m              Starboy (50 s, 45 m, 464\nCrackling                                                                g), Daten weichen ab.\nKeine bestätigte\nUmlabelung."
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "spec",
+      "subject": "power-circus"
+    },
+    {
+      "key": "effektmasse_power-circus",
+      "label": "NEM Power Circus",
+      "value": "488",
+      "unit": "g",
+      "source": {
+        "ref": "S. 3",
+        "quote": "Power Circus     XXL-Gold-Glitter-         80        20 mm     488 g    ca. 40 s / ca.    Sieht aus wie Weco\nBatterie mit                                           35 m              Starboy (50 s, 45 m, 464\nCrackling                                                                g), Daten weichen ab.\nKeine bestätigte\nUmlabelung."
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "spec",
+      "subject": "power-circus"
+    },
+    {
+      "key": "duration_power-circus",
+      "label": "Brenndauer Power Circus",
+      "value": "40",
+      "unit": "s",
+      "source": {
+        "ref": "S. 3",
+        "quote": "Power Circus     XXL-Gold-Glitter-         80        20 mm     488 g    ca. 40 s / ca.    Sieht aus wie Weco\nBatterie mit                                           35 m              Starboy (50 s, 45 m, 464\nCrackling                                                                g), Daten weichen ab.\nKeine bestätigte\nUmlabelung."
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": true,
+      "kind": "spec",
+      "subject": "power-circus"
+    },
+    {
+      "key": "height_power-circus",
+      "label": "Effekthöhe Power Circus",
+      "value": "35",
+      "unit": "m",
+      "source": {
+        "ref": "S. 3",
+        "quote": "Power Circus     XXL-Gold-Glitter-         80        20 mm     488 g    ca. 40 s / ca.    Sieht aus wie Weco\nBatterie mit                                           35 m              Starboy (50 s, 45 m, 464\nCrackling                                                                g), Daten weichen ab.\nKeine bestätigte\nUmlabelung."
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": true,
+      "kind": "spec",
+      "subject": "power-circus"
+    },
+    {
+      "key": "product_golden-phoenix",
+      "label": "Golden Phoenix",
+      "value": "Golden Phoenix",
+      "unit": "",
+      "source": {
+        "ref": "S. 3",
+        "quote": "Golden           XXL-Gold-Glitter-         21        30 mm     offen    ca. 40 s / ca.    Kein neues Produkt:\nPhoenix          Fächer-Batterie                                        70 m              Weco-Neuheit von 2019,\nauch als Goldfinger\nverkauft. Karton druckt\n\"40m Brenndauer\"."
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "product",
+      "subject": "golden-phoenix"
+    },
+    {
+      "key": "shots_golden-phoenix",
+      "label": "Schuss Golden Phoenix",
+      "value": "21",
+      "unit": "Schuss",
+      "source": {
+        "ref": "S. 3",
+        "quote": "Golden           XXL-Gold-Glitter-         21        30 mm     offen    ca. 40 s / ca.    Kein neues Produkt:\nPhoenix          Fächer-Batterie                                        70 m              Weco-Neuheit von 2019,\nauch als Goldfinger\nverkauft. Karton druckt\n\"40m Brenndauer\"."
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "spec",
+      "subject": "golden-phoenix"
+    },
+    {
+      "key": "kaliber_golden-phoenix",
+      "label": "Kaliber Golden Phoenix",
+      "value": "30",
+      "unit": "mm",
+      "source": {
+        "ref": "S. 3",
+        "quote": "Golden           XXL-Gold-Glitter-         21        30 mm     offen    ca. 40 s / ca.    Kein neues Produkt:\nPhoenix          Fächer-Batterie                                        70 m              Weco-Neuheit von 2019,\nauch als Goldfinger\nverkauft. Karton druckt\n\"40m Brenndauer\"."
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "spec",
+      "subject": "golden-phoenix"
+    },
+    {
+      "key": "duration_golden-phoenix",
+      "label": "Brenndauer Golden Phoenix",
+      "value": "40",
+      "unit": "s",
+      "source": {
+        "ref": "S. 3",
+        "quote": "Golden           XXL-Gold-Glitter-         21        30 mm     offen    ca. 40 s / ca.    Kein neues Produkt:\nPhoenix          Fächer-Batterie                                        70 m              Weco-Neuheit von 2019,\nauch als Goldfinger\nverkauft. Karton druckt\n\"40m Brenndauer\"."
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": true,
+      "kind": "spec",
+      "subject": "golden-phoenix"
+    },
+    {
+      "key": "height_golden-phoenix",
+      "label": "Effekthöhe Golden Phoenix",
+      "value": "70",
+      "unit": "m",
+      "source": {
+        "ref": "S. 3",
+        "quote": "Golden           XXL-Gold-Glitter-         21        30 mm     offen    ca. 40 s / ca.    Kein neues Produkt:\nPhoenix          Fächer-Batterie                                        70 m              Weco-Neuheit von 2019,\nauch als Goldfinger\nverkauft. Karton druckt\n\"40m Brenndauer\"."
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": true,
+      "kind": "spec",
+      "subject": "golden-phoenix"
+    },
+    {
+      "key": "product_colour-beast",
+      "label": "Colour Beast",
+      "value": "Colour Beast",
+      "unit": "",
+      "source": {
+        "ref": "S. 3",
+        "quote": "Colour Beast     Fontänen-                 offen     offen     offen    ca. 80 s / ca. 4  Sehr wahrscheinlich die\nKombination                                            m                 Weco Prisma von 2015;\nText und Maße passen."
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "product",
+      "subject": "colour-beast"
+    },
+    {
+      "key": "duration_colour-beast",
+      "label": "Brenndauer Colour Beast",
+      "value": "80",
+      "unit": "s",
+      "source": {
+        "ref": "S. 3",
+        "quote": "Colour Beast     Fontänen-                 offen     offen     offen    ca. 80 s / ca. 4  Sehr wahrscheinlich die\nKombination                                            m                 Weco Prisma von 2015;\nText und Maße passen."
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": true,
+      "kind": "spec",
+      "subject": "colour-beast"
+    },
+    {
+      "key": "height_colour-beast",
+      "label": "Effekthöhe Colour Beast",
+      "value": "4",
+      "unit": "m",
+      "source": {
+        "ref": "S. 3",
+        "quote": "Colour Beast     Fontänen-                 offen     offen     offen    ca. 80 s / ca. 4  Sehr wahrscheinlich die\nKombination                                            m                 Weco Prisma von 2015;\nText und Maße passen."
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": true,
+      "kind": "spec",
+      "subject": "colour-beast"
+    },
+    {
+      "key": "product_poison",
+      "label": "Poison",
+      "value": "Poison",
+      "unit": "",
+      "source": {
+        "ref": "S. 3",
+        "quote": "Poison                    Zerleger-Batterie (16 Schuss              Wieder im Sortiment; tiefe Zerlegung,\nim Vorjahr)                               rot-grünes Bukett, Salut-Batterie.\nVorjahrespreis ca. 3,99 €."
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "product",
+      "subject": "poison"
+    },
+    {
+      "key": "product_hyperion",
+      "label": "Hyperion",
+      "value": "Hyperion",
+      "unit": "",
+      "source": {
+        "ref": "S. 3",
+        "quote": "Hyperion                  Batterie (31 Schuss im                    In der Vitrine; Forum-Nutzer würde sie\nVorjahr)                                  wieder kaufen."
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "product",
+      "subject": "hyperion"
+    },
+    {
+      "key": "product_heavy-metal-reloaded",
+      "label": "Heavy Metal Reloaded",
+      "value": "Heavy Metal Reloaded",
+      "unit": "",
+      "source": {
+        "ref": "S. 3",
+        "quote": "Heavy Metal               Batterie (19 Schuss im                    In der Vitrine bei Süd; der Preis\nReloaded                  Vorjahr)                                  schreckt Nutzer ab. Bei Nord laut\nForum gestrichen."
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "product",
+      "subject": "heavy-metal-reloaded"
+    },
+    {
+      "key": "product_hornito",
+      "label": "Hornito",
+      "value": "Hornito",
+      "unit": "",
+      "source": {
+        "ref": "S. 3",
+        "quote": "Hornito                   Fontänen-Batterie                         In der Vitrine; Nutzer halten sie für\nschwächer als die frühere Pegasus."
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "product",
+      "subject": "hornito"
+    },
+    {
+      "key": "product_schweizer-vulkane",
+      "label": "Schweizer Vulkane",
+      "value": "Schweizer Vulkane",
+      "unit": "",
+      "source": {
+        "ref": "S. 3",
+        "quote": "Schweizer                 Vulkane                                   In der Vitrine; Nutzer holen sie, wenn\nVulkane                                                             Lidl ausverkauft ist. Genaue Namen\noffen."
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "product",
+      "subject": "schweizer-vulkane"
+    },
+    {
+      "key": "product_camelot",
+      "label": "Camelot",
+      "value": "Camelot",
+      "unit": "",
+      "source": {
+        "ref": "S. 3",
+        "quote": "Camelot                   Raketenset                                Jetzt 10 normale Raketen; früher das\nGoliath-Set mit Doppel- und\nDreischlagraketen."
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "product",
+      "subject": "camelot"
+    },
+    {
+      "key": "product_night-hawk",
+      "label": "Night Hawk",
+      "value": "Night Hawk",
+      "unit": "",
+      "source": {
+        "ref": "S. 3",
+        "quote": "Night Hawk                Raketenset                                Früher Lancelot, davor Indianapolis;\nlaut Forum schwächer geworden."
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "product",
+      "subject": "night-hawk"
+    },
+    {
+      "key": "product_ivanhoe",
+      "label": "Ivanhoe",
+      "value": "Ivanhoe",
+      "unit": "",
+      "source": {
+        "ref": "S. 4",
+        "quote": "Ivanhoe                  Raketenset                           Früher das Tanga-Set; laut Forum\nschwächer geworden."
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "product",
+      "subject": "ivanhoe"
+    },
+    {
+      "key": "historical_product_time-machine",
+      "label": "Vorjahr: Time Machine",
+      "value": "Time Machine",
+      "unit": "",
+      "source": {
+        "ref": "S. 4",
+        "quote": "Time Machine                 Süd und           158 Schuss           offen\nNord"
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "historical_product",
+      "subject": "time-machine"
+    },
+    {
+      "key": "historical_product_dragons-breath-nico",
+      "label": "Vorjahr: Dragons Breath (Nico)",
+      "value": "Dragons Breath (Nico)",
+      "unit": "",
+      "source": {
+        "ref": "S. 4",
+        "quote": "Dragons Breath               Nord              160 Schuss           ca. 49,99 €\n(Nico)"
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "historical_product",
+      "subject": "dragons-breath-nico"
+    },
+    {
+      "key": "historical_price_dragons-breath-nico",
+      "label": "Preis Vorjahr Dragons Breath (Nico)",
+      "value": "49,99",
+      "unit": "€",
+      "source": {
+        "ref": "S. 4",
+        "quote": "Dragons Breath               Nord              160 Schuss           ca. 49,99 €\n(Nico)"
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "historical_price",
+      "subject": "dragons-breath-nico"
+    },
+    {
+      "key": "historical_product_glitzerkiste-nico",
+      "label": "Vorjahr: Glitzerkiste (Nico)",
+      "value": "Glitzerkiste (Nico)",
+      "unit": "",
+      "source": {
+        "ref": "S. 4",
+        "quote": "Glitzerkiste (Nico)          Nord              111 Schuss           ca. 7,99 €"
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "historical_product",
+      "subject": "glitzerkiste-nico"
+    },
+    {
+      "key": "historical_price_glitzerkiste-nico",
+      "label": "Preis Vorjahr Glitzerkiste (Nico)",
+      "value": "7,99",
+      "unit": "€",
+      "source": {
+        "ref": "S. 4",
+        "quote": "Glitzerkiste (Nico)          Nord              111 Schuss           ca. 7,99 €"
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "historical_price",
+      "subject": "glitzerkiste-nico"
+    },
+    {
+      "key": "historical_product_trickster-nico",
+      "label": "Vorjahr: Trickster (Nico)",
+      "value": "Trickster (Nico)",
+      "unit": "",
+      "source": {
+        "ref": "S. 4",
+        "quote": "Trickster (Nico)             Nord              45 Schuss            ca. 24,99 €"
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "historical_product",
+      "subject": "trickster-nico"
+    },
+    {
+      "key": "historical_price_trickster-nico",
+      "label": "Preis Vorjahr Trickster (Nico)",
+      "value": "24,99",
+      "unit": "€",
+      "source": {
+        "ref": "S. 4",
+        "quote": "Trickster (Nico)             Nord              45 Schuss            ca. 24,99 €"
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "historical_price",
+      "subject": "trickster-nico"
+    },
+    {
+      "key": "historical_product_hellhounds-nico",
+      "label": "Vorjahr: Hellhounds (Nico)",
+      "value": "Hellhounds (Nico)",
+      "unit": "",
+      "source": {
+        "ref": "S. 4",
+        "quote": "Hellhounds (Nico)            Nord              43 Schuss            ca. 22,99 €"
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "historical_product",
+      "subject": "hellhounds-nico"
+    },
+    {
+      "key": "historical_price_hellhounds-nico",
+      "label": "Preis Vorjahr Hellhounds (Nico)",
+      "value": "22,99",
+      "unit": "€",
+      "source": {
+        "ref": "S. 4",
+        "quote": "Hellhounds (Nico)            Nord              43 Schuss            ca. 22,99 €"
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "historical_price",
+      "subject": "hellhounds-nico"
+    },
+    {
+      "key": "historical_product_thunderbolt-nico",
+      "label": "Vorjahr: Thunderbolt (Nico)",
+      "value": "Thunderbolt (Nico)",
+      "unit": "",
+      "source": {
+        "ref": "S. 4",
+        "quote": "Thunderbolt (Nico)           Nord              47 Schuss            ca. 19,99 €"
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "historical_product",
+      "subject": "thunderbolt-nico"
+    },
+    {
+      "key": "historical_price_thunderbolt-nico",
+      "label": "Preis Vorjahr Thunderbolt (Nico)",
+      "value": "19,99",
+      "unit": "€",
+      "source": {
+        "ref": "S. 4",
+        "quote": "Thunderbolt (Nico)           Nord              47 Schuss            ca. 19,99 €"
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "historical_price",
+      "subject": "thunderbolt-nico"
+    },
+    {
+      "key": "historical_product_boss-monster-nico",
+      "label": "Vorjahr: Boss Monster (Nico)",
+      "value": "Boss Monster (Nico)",
+      "unit": "",
+      "source": {
+        "ref": "S. 4",
+        "quote": "Boss Monster (Nico)          Nord              30 Schuss            ca. 16,99 €"
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "historical_product",
+      "subject": "boss-monster-nico"
+    },
+    {
+      "key": "historical_price_boss-monster-nico",
+      "label": "Preis Vorjahr Boss Monster (Nico)",
+      "value": "16,99",
+      "unit": "€",
+      "source": {
+        "ref": "S. 4",
+        "quote": "Boss Monster (Nico)          Nord              30 Schuss            ca. 16,99 €"
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "historical_price",
+      "subject": "boss-monster-nico"
+    },
+    {
+      "key": "historical_product_kaboomer-nico",
+      "label": "Vorjahr: Kaboomer (Nico)",
+      "value": "Kaboomer (Nico)",
+      "unit": "",
+      "source": {
+        "ref": "S. 5",
+        "quote": "Kaboomer (Nico)               Nord             54 Schuss             ca. 7,99 €"
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "historical_product",
+      "subject": "kaboomer-nico"
+    },
+    {
+      "key": "historical_price_kaboomer-nico",
+      "label": "Preis Vorjahr Kaboomer (Nico)",
+      "value": "7,99",
+      "unit": "€",
+      "source": {
+        "ref": "S. 5",
+        "quote": "Kaboomer (Nico)               Nord             54 Schuss             ca. 7,99 €"
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "historical_price",
+      "subject": "kaboomer-nico"
+    },
+    {
+      "key": "historical_product_parzival",
+      "label": "Vorjahr: Parzival",
+      "value": "Parzival",
+      "unit": "",
+      "source": {
+        "ref": "S. 5",
+        "quote": "Parzival                      Süd und          72 Schuss             ca. 6,99 €\nNord"
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "historical_product",
+      "subject": "parzival"
+    },
+    {
+      "key": "historical_price_parzival",
+      "label": "Preis Vorjahr Parzival",
+      "value": "6,99",
+      "unit": "€",
+      "source": {
+        "ref": "S. 5",
+        "quote": "Parzival                      Süd und          72 Schuss             ca. 6,99 €\nNord"
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "historical_price",
+      "subject": "parzival"
+    },
+    {
+      "key": "historical_product_poison",
+      "label": "Vorjahr: Poison",
+      "value": "Poison",
+      "unit": "",
+      "source": {
+        "ref": "S. 5",
+        "quote": "Poison                        Süd und          16 Schuss             ca. 3,79–3,99 €\nNord"
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "historical_product",
+      "subject": "poison"
+    },
+    {
+      "key": "historical_product_hornito",
+      "label": "Vorjahr: Hornito",
+      "value": "Hornito",
+      "unit": "",
+      "source": {
+        "ref": "S. 5",
+        "quote": "Hornito                       Süd und          Fontäne               2,99 € oder 3,99 € (Quellen\nNord                                   weichen ab)"
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "historical_product",
+      "subject": "hornito"
+    },
+    {
+      "key": "historical_product_camelot",
+      "label": "Vorjahr: Camelot",
+      "value": "Camelot",
+      "unit": "",
+      "source": {
+        "ref": "S. 5",
+        "quote": "Camelot                       Süd              Raketenset            ca. 19,99 €"
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "historical_product",
+      "subject": "camelot"
+    },
+    {
+      "key": "historical_price_camelot",
+      "label": "Preis Vorjahr Camelot",
+      "value": "19,99",
+      "unit": "€",
+      "source": {
+        "ref": "S. 5",
+        "quote": "Camelot                       Süd              Raketenset            ca. 19,99 €"
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "historical_price",
+      "subject": "camelot"
+    },
+    {
+      "key": "historical_product_night-hawk",
+      "label": "Vorjahr: Night Hawk",
+      "value": "Night Hawk",
+      "unit": "",
+      "source": {
+        "ref": "S. 5",
+        "quote": "Night Hawk                    Süd              15 Raketen            ca. 19,99 €"
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "historical_product",
+      "subject": "night-hawk"
+    },
+    {
+      "key": "historical_price_night-hawk",
+      "label": "Preis Vorjahr Night Hawk",
+      "value": "19,99",
+      "unit": "€",
+      "source": {
+        "ref": "S. 5",
+        "quote": "Night Hawk                    Süd              15 Raketen            ca. 19,99 €"
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "historical_price",
+      "subject": "night-hawk"
+    },
+    {
+      "key": "historical_product_ivanhoe",
+      "label": "Vorjahr: Ivanhoe",
+      "value": "Ivanhoe",
+      "unit": "",
+      "source": {
+        "ref": "S. 5",
+        "quote": "Ivanhoe                       Süd              Raketenset            ca. 12,99 €"
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "historical_product",
+      "subject": "ivanhoe"
+    },
+    {
+      "key": "historical_price_ivanhoe",
+      "label": "Preis Vorjahr Ivanhoe",
+      "value": "12,99",
+      "unit": "€",
+      "source": {
+        "ref": "S. 5",
+        "quote": "Ivanhoe                       Süd              Raketenset            ca. 12,99 €"
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "historical_price",
+      "subject": "ivanhoe"
+    },
+    {
+      "key": "historical_product_magma-monster",
+      "label": "Vorjahr: Magma Monster",
+      "value": "Magma Monster",
+      "unit": "",
+      "source": {
+        "ref": "S. 5",
+        "quote": "Magma Monster                 Süd              Vulkan                ca. 6,99 €"
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "historical_product",
+      "subject": "magma-monster"
+    },
+    {
+      "key": "historical_price_magma-monster",
+      "label": "Preis Vorjahr Magma Monster",
+      "value": "6,99",
+      "unit": "€",
+      "source": {
+        "ref": "S. 5",
+        "quote": "Magma Monster                 Süd              Vulkan                ca. 6,99 €"
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "historical_price",
+      "subject": "magma-monster"
+    },
+    {
+      "key": "historical_product_lichter-fest-lichterfest",
+      "label": "Vorjahr: Lichter Fest / Lichterfest",
+      "value": "Lichter Fest / Lichterfest",
+      "unit": "",
+      "source": {
+        "ref": "S. 5",
+        "quote": "Lichter Fest /                Süd und          85+ Teile             ca. 4,99 €\nLichterfest                   Nord"
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "historical_product",
+      "subject": "lichter-fest-lichterfest"
+    },
+    {
+      "key": "historical_price_lichter-fest-lichterfest",
+      "label": "Preis Vorjahr Lichter Fest / Lichterfest",
+      "value": "4,99",
+      "unit": "€",
+      "source": {
+        "ref": "S. 5",
+        "quote": "Lichter Fest /                Süd und          85+ Teile             ca. 4,99 €\nLichterfest                   Nord"
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "historical_price",
+      "subject": "lichter-fest-lichterfest"
+    },
+    {
+      "key": "campaign_window",
+      "label": "Zeitraum",
+      "value": "2026-12-29/2026-12-31",
+      "unit": "",
+      "source": {
+        "ref": "S. 2",
+        "quote": "Verkaufstermine (29.–31.12.2026), 18+ Regel, Jugendfeuerwerk (F1, ab 12), Ausverkaufsrisiko am ersten Tag."
+      },
+      "verified": false,
+      "derived_from": [],
+      "approximate": false,
+      "kind": "date",
+      "subject": ""
+    }
+  ],
+  "deadlines": [],
+  "mandatory": [],
+  "optional": [],
+  "open_questions": [
+    {
+      "question_id": "q-c24",
+      "text": "Liegt die Freigabe vor? „Voraussetzung: Artikel am Verkaufstag kaufen und testen, Abstandsregeln einhalten.“",
+      "why": "Nur nach Bestätigung erlaubt.",
+      "priority": 1,
+      "source": {
+        "ref": "S. 7",
+        "quote": "Voraussetzung: Artikel am Verkaufstag kaufen und testen, Abstandsregeln einhalten."
+      }
+    },
+    {
+      "question_id": "q-c26",
+      "text": "Liegt die Freigabe vor? „Nur möglich, wenn der Nord-Prospekt erscheint.“",
+      "why": "Nur nach Bestätigung erlaubt.",
+      "priority": 1,
+      "source": {
+        "ref": "S. 8",
+        "quote": "Nur möglich, wenn der Nord-Prospekt erscheint."
+      }
+    },
+    {
+      "question_id": "q-c28",
+      "text": "Liegt die Freigabe vor? „\"Fünf Neuheiten, und keine davon ist, was sie scheint?\" (nur bei bestätigter Lage)“",
+      "why": "Nur nach Bestätigung erlaubt.",
+      "priority": 1,
+      "source": {
+        "ref": "S. 8",
+        "quote": "\"Fünf Neuheiten, und keine davon ist, was sie scheint?\" (nur bei bestätigter Lage)"
+      }
+    },
+    {
+      "question_id": "q-src-01",
+      "text": "Klären: Alle Preise sind offen, die Vitrine nennt keine.",
+      "why": "Das Briefing lässt es selbst offen.",
+      "priority": 1,
+      "source": {
+        "ref": "S. 2",
+        "quote": "Alle Preise sind offen, die Vitrine nennt keine."
+      }
+    },
+    {
+      "question_id": "q-src-02",
+      "text": "Klären: Alles mit \"offen\" muss am Prospekt oder an der Ware geprüft werden.",
+      "why": "Das Briefing lässt es selbst offen.",
+      "priority": 1,
+      "source": {
+        "ref": "S. 2",
+        "quote": "Alles mit \"offen\" muss am Prospekt oder an der Ware geprüft werden."
+      }
+    },
+    {
+      "question_id": "q-src-03",
+      "text": "Klären: Plasma Pulse Blitzstern-Batterie 100 15 mm offen ca. 80 s / ca.",
+      "why": "Das Briefing lässt es selbst offen.",
+      "priority": 1,
+      "source": {
+        "ref": "S. 2",
+        "quote": "Plasma Pulse Blitzstern-Batterie 100 15 mm offen ca. 80 s / ca."
+      }
+    },
+    {
+      "question_id": "q-src-04",
+      "text": "Klären: Golden XXL-Gold-Glitter- 21 30 mm offen ca. 40 s / ca.",
+      "why": "Das Briefing lässt es selbst offen.",
+      "priority": 1,
+      "source": {
+        "ref": "S. 3",
+        "quote": "Golden XXL-Gold-Glitter- 21 30 mm offen ca. 40 s / ca."
+      }
+    },
+    {
+      "question_id": "q-src-05",
+      "text": "Klären: Colour Beast Fontänen- offen offen offen ca. 80 s / ca. 4 Sehr wahrscheinlich die",
+      "why": "Das Briefing lässt es selbst offen.",
+      "priority": 1,
+      "source": {
+        "ref": "S. 3",
+        "quote": "Colour Beast Fontänen- offen offen offen ca. 80 s / ca. 4 Sehr wahrscheinlich die"
+      }
+    },
+    {
+      "question_id": "q-src-06",
+      "text": "Klären: offen.",
+      "why": "Das Briefing lässt es selbst offen.",
+      "priority": 1,
+      "source": {
+        "ref": "S. 3",
+        "quote": "offen."
+      }
+    },
+    {
+      "question_id": "q-src-07",
+      "text": "Klären: Jugendfeuerwerk (Vorjahr: Schatzinsel, Happy Hotspots) und Knallsortimente: in den Forum-Beiträgen nicht erwähnt, Status offen.",
+      "why": "Das Briefing lässt es selbst offen.",
+      "priority": 1,
+      "source": {
+        "ref": "S. 4",
+        "quote": "Jugendfeuerwerk (Vorjahr: Schatzinsel, Happy Hotspots) und Knallsortimente: in den Forum-Beiträgen nicht erwähnt, Status offen."
+      }
+    },
+    {
+      "question_id": "q-src-08",
+      "text": "Klären: ALDI Nord ist ganz offen; ein Nutzer sagt, bei Nord gebe es weiter Nico-Artikel, ein anderer erwartet dort kaum ein besseres Angebot.",
+      "why": "Das Briefing lässt es selbst offen.",
+      "priority": 1,
+      "source": {
+        "ref": "S. 4",
+        "quote": "ALDI Nord ist ganz offen; ein Nutzer sagt, bei Nord gebe es weiter Nico-Artikel, ein anderer erwartet dort kaum ein besseres Angebot."
+      }
+    },
+    {
+      "question_id": "q-src-09",
+      "text": "Klären: Time Machine Süd und 158 Schuss offen",
+      "why": "Das Briefing lässt es selbst offen.",
+      "priority": 1,
+      "source": {
+        "ref": "S. 4",
+        "quote": "Time Machine Süd und 158 Schuss offen"
+      }
+    },
+    {
+      "question_id": "q-src-10",
+      "text": "Klären: Golden Phoenix gegen Weco 2019 und Goldfinger: Herkunft nachweisen, Richtung der Umlabelung offen lassen, solange nicht belegt.",
+      "why": "Das Briefing lässt es selbst offen.",
+      "priority": 1,
+      "source": {
+        "ref": "S. 7",
+        "quote": "Golden Phoenix gegen Weco 2019 und Goldfinger: Herkunft nachweisen, Richtung der Umlabelung offen lassen, solange nicht belegt."
+      }
+    },
+    {
+      "question_id": "q-src-11",
+      "text": "Text maximal drei Wörter: \"NEU??",
+      "why": "Das Briefing lässt es selbst offen.",
+      "priority": 1,
+      "source": {
+        "ref": "S. 7",
+        "quote": "Text maximal drei Wörter: \"NEU??"
+      }
+    },
+    {
+      "question_id": "q-src-12",
+      "text": "Konzept 3: \"Warum fehlen die Raketen?",
+      "why": "Das Briefing lässt es selbst offen.",
+      "priority": 1,
+      "source": {
+        "ref": "S. 7",
+        "quote": "Konzept 3: \"Warum fehlen die Raketen?"
+      }
+    },
+    {
+      "question_id": "q-src-13",
+      "text": "Klären: Wichtig: Nord- Inhalt vor dem Dreh prüfen, derzeit ist er offen.",
+      "why": "Das Briefing lässt es selbst offen.",
+      "priority": 1,
+      "source": {
+        "ref": "S. 8",
+        "quote": "Wichtig: Nord- Inhalt vor dem Dreh prüfen, derzeit ist er offen."
+      }
+    },
+    {
+      "question_id": "q-src-14",
+      "text": "Klären: 0:20–1:30 Kontext: Vitrine, China, Preise offen Erwartungen klären",
+      "why": "Das Briefing lässt es selbst offen.",
+      "priority": 1,
+      "source": {
+        "ref": "S. 9",
+        "quote": "0:20–1:30 Kontext: Vitrine, China, Preise offen Erwartungen klären"
+      }
+    },
+    {
+      "question_id": "q-src-15",
+      "text": "Klären: Offen, bevor gedreht wird:",
+      "why": "Das Briefing lässt es selbst offen.",
+      "priority": 1,
+      "source": {
+        "ref": "S. 10",
+        "quote": "Offen, bevor gedreht wird:"
+      }
+    },
+    {
+      "question_id": "q-src-16",
+      "text": "Klären: Plasma Pulse Blitzstern-Batterie 100 15 mm offen ca. 80 s / ca. Neu laut Forum; Karton mit Crackling 25 m druckt \"80m\" statt Sekunden. Optik erinnert an Pyromould.",
+      "why": "Das Briefing lässt es selbst offen.",
+      "priority": 1,
+      "source": {
+        "ref": "S. 2",
+        "quote": "Plasma Pulse Blitzstern-Batterie 100 15 mm offen ca. 80 s / ca. Neu laut Forum; Karton mit Crackling 25 m druckt \"80m\" statt Sekunden. Optik erinnert an Pyromould."
+      }
+    },
+    {
+      "question_id": "q-src-17",
+      "text": "Klären: Golden XXL-Gold-Glitter- 21 30 mm offen ca. 40 s / ca. Kein neues Produkt: Phoenix Fächer-Batterie 70 m Weco-Neuheit von 2019, auch als Goldfinger verkauft. Karton druckt \"40m Brenndauer\".",
+      "why": "Das Briefing lässt es selbst offen.",
+      "priority": 1,
+      "source": {
+        "ref": "S. 3",
+        "quote": "Golden XXL-Gold-Glitter- 21 30 mm offen ca. 40 s / ca. Kein neues Produkt: Phoenix Fächer-Batterie 70 m Weco-Neuheit von 2019, auch als Goldfinger verkauft. Karton druckt \"40m Brenndauer\"."
+      }
+    },
+    {
+      "question_id": "q-src-18",
+      "text": "Klären: Colour Beast Fontänen- offen offen offen ca. 80 s / ca. 4 Sehr wahrscheinlich die Kombination m Weco Prisma von 2015; Text und Maße passen.",
+      "why": "Das Briefing lässt es selbst offen.",
+      "priority": 1,
+      "source": {
+        "ref": "S. 3",
+        "quote": "Colour Beast Fontänen- offen offen offen ca. 80 s / ca. 4 Sehr wahrscheinlich die Kombination m Weco Prisma von 2015; Text und Maße passen."
+      }
+    },
+    {
+      "question_id": "q-src-19",
+      "text": "Klären: Schweizer Vulkane In der Vitrine; Nutzer holen sie, wenn Vulkane Lidl ausverkauft ist. Genaue Namen offen.",
+      "why": "Das Briefing lässt es selbst offen.",
+      "priority": 1,
+      "source": {
+        "ref": "S. 3",
+        "quote": "Schweizer Vulkane In der Vitrine; Nutzer holen sie, wenn Vulkane Lidl ausverkauft ist. Genaue Namen offen."
+      }
+    }
+  ]
+}

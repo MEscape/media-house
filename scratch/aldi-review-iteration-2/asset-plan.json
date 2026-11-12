@@ -1,0 +1,1013 @@
+[
+  {
+    "requirement_id": "brand-intro",
+    "folder": "06_gfx",
+    "role": "brand",
+    "title": "Kanal-Intro",
+    "instruction": "Dein intro des Kanals als Videoclip.",
+    "howto": [
+      "Das fertige Intro oder Outro, wie es sonst in deinen Videos läuft."
+    ],
+    "duration_hint": "",
+    "spec": {
+      "resolution": "",
+      "fps": 0,
+      "audio": "any",
+      "transparent": false
+    },
+    "priority": "recommended",
+    "scene_ids": [
+      "S01"
+    ],
+    "depends_on": [],
+    "switched_by": "",
+    "target_name_pattern": "aldi-feuerwerk-2026-27_brand_intro.mp4",
+    "accepts": [
+      "mp4",
+      "mov",
+      "mkv",
+      "mxf",
+      "avi",
+      "m4v"
+    ],
+    "multi_file": "single",
+    "validators": [],
+    "forbidden": [],
+    "timing": "anytime",
+    "order": 1,
+    "status": "open",
+    "subject": ""
+  },
+  {
+    "requirement_id": "brand-outro",
+    "folder": "06_gfx",
+    "role": "brand",
+    "title": "Kanal-Outro",
+    "instruction": "Dein outro des Kanals als Videoclip.",
+    "howto": [
+      "Das fertige Intro oder Outro, wie es sonst in deinen Videos läuft."
+    ],
+    "duration_hint": "",
+    "spec": {
+      "resolution": "",
+      "fps": 0,
+      "audio": "any",
+      "transparent": false
+    },
+    "priority": "recommended",
+    "scene_ids": [
+      "S23",
+      "S24"
+    ],
+    "depends_on": [],
+    "switched_by": "",
+    "target_name_pattern": "aldi-feuerwerk-2026-27_brand_outro.mp4",
+    "accepts": [
+      "mp4",
+      "mov",
+      "mkv",
+      "mxf",
+      "avi",
+      "m4v"
+    ],
+    "multi_file": "single",
+    "validators": [],
+    "forbidden": [],
+    "timing": "anytime",
+    "order": 2,
+    "status": "open",
+    "subject": ""
+  },
+  {
+    "requirement_id": "logo",
+    "folder": "06_gfx",
+    "role": "logo",
+    "title": "Logo ALDI",
+    "instruction": "Das Logo von ALDI als PNG mit Transparenz (oder als SVG).",
+    "howto": [
+      "Vom Auftraggeber oder aus dem Presseportal.",
+      "Nicht abfotografieren."
+    ],
+    "duration_hint": "",
+    "spec": {
+      "resolution": "",
+      "fps": 0,
+      "audio": "none",
+      "transparent": true
+    },
+    "priority": "recommended",
+    "scene_ids": [
+      "S01"
+    ],
+    "depends_on": [],
+    "switched_by": "",
+    "target_name_pattern": "aldi-feuerwerk-2026-27_logo_logo.png",
+    "accepts": [
+      "png",
+      "svg",
+      "webp"
+    ],
+    "multi_file": "single",
+    "validators": [],
+    "forbidden": [],
+    "timing": "anytime",
+    "order": 3,
+    "status": "open",
+    "subject": ""
+  },
+  {
+    "requirement_id": "packshot-camelot",
+    "folder": "03_pck",
+    "role": "packshot",
+    "title": "Packshot Camelot",
+    "instruction": "Ein freigestelltes Bild von Camelot.",
+    "howto": [
+      "Von vorn, gerade, gleichmäßig ausgeleuchtet.",
+      "Heller, ruhiger Hintergrund."
+    ],
+    "duration_hint": "",
+    "spec": {
+      "resolution": "",
+      "fps": 0,
+      "audio": "none",
+      "transparent": true
+    },
+    "priority": "required",
+    "scene_ids": [
+      "S14"
+    ],
+    "depends_on": [],
+    "switched_by": "",
+    "target_name_pattern": "aldi-feuerwerk-2026-27_packshot_camelot.png",
+    "accepts": [
+      "png",
+      "jpg",
+      "jpeg",
+      "webp",
+      "svg",
+      "tif",
+      "tiff"
+    ],
+    "multi_file": "set",
+    "validators": [
+      "no-third-party-brands",
+      "no-confidential"
+    ],
+    "forbidden": [],
+    "timing": "anytime",
+    "order": 4,
+    "status": "open",
+    "subject": "camelot"
+  },
+  {
+    "requirement_id": "packshot-colour-beast",
+    "folder": "03_pck",
+    "role": "packshot",
+    "title": "Packshot Colour Beast",
+    "instruction": "Ein freigestelltes Bild von Colour Beast.",
+    "howto": [
+      "Von vorn, gerade, gleichmäßig ausgeleuchtet.",
+      "Heller, ruhiger Hintergrund."
+    ],
+    "duration_hint": "",
+    "spec": {
+      "resolution": "",
+      "fps": 0,
+      "audio": "none",
+      "transparent": true
+    },
+    "priority": "required",
+    "scene_ids": [
+      "S08"
+    ],
+    "depends_on": [],
+    "switched_by": "",
+    "target_name_pattern": "aldi-feuerwerk-2026-27_packshot_colour-beast.png",
+    "accepts": [
+      "png",
+      "jpg",
+      "jpeg",
+      "webp",
+      "svg",
+      "tif",
+      "tiff"
+    ],
+    "multi_file": "set",
+    "validators": [
+      "no-third-party-brands",
+      "no-confidential"
+    ],
+    "forbidden": [],
+    "timing": "anytime",
+    "order": 5,
+    "status": "open",
+    "subject": "colour-beast"
+  },
+  {
+    "requirement_id": "packshot-golden-phoenix",
+    "folder": "03_pck",
+    "role": "packshot",
+    "title": "Packshot Golden Phoenix",
+    "instruction": "Ein freigestelltes Bild von Golden Phoenix.",
+    "howto": [
+      "Von vorn, gerade, gleichmäßig ausgeleuchtet.",
+      "Heller, ruhiger Hintergrund."
+    ],
+    "duration_hint": "",
+    "spec": {
+      "resolution": "",
+      "fps": 0,
+      "audio": "none",
+      "transparent": true
+    },
+    "priority": "required",
+    "scene_ids": [
+      "S07"
+    ],
+    "depends_on": [],
+    "switched_by": "",
+    "target_name_pattern": "aldi-feuerwerk-2026-27_packshot_golden-phoenix.png",
+    "accepts": [
+      "png",
+      "jpg",
+      "jpeg",
+      "webp",
+      "svg",
+      "tif",
+      "tiff"
+    ],
+    "multi_file": "set",
+    "validators": [
+      "no-third-party-brands",
+      "no-confidential"
+    ],
+    "forbidden": [],
+    "timing": "anytime",
+    "order": 6,
+    "status": "open",
+    "subject": "golden-phoenix"
+  },
+  {
+    "requirement_id": "packshot-heavy-metal-reloaded",
+    "folder": "03_pck",
+    "role": "packshot",
+    "title": "Packshot Heavy Metal Reloaded",
+    "instruction": "Ein freigestelltes Bild von Heavy Metal Reloaded.",
+    "howto": [
+      "Von vorn, gerade, gleichmäßig ausgeleuchtet.",
+      "Heller, ruhiger Hintergrund."
+    ],
+    "duration_hint": "",
+    "spec": {
+      "resolution": "",
+      "fps": 0,
+      "audio": "none",
+      "transparent": true
+    },
+    "priority": "required",
+    "scene_ids": [
+      "S11"
+    ],
+    "depends_on": [],
+    "switched_by": "",
+    "target_name_pattern": "aldi-feuerwerk-2026-27_packshot_heavy-metal-reloaded.png",
+    "accepts": [
+      "png",
+      "jpg",
+      "jpeg",
+      "webp",
+      "svg",
+      "tif",
+      "tiff"
+    ],
+    "multi_file": "set",
+    "validators": [
+      "no-third-party-brands",
+      "no-confidential"
+    ],
+    "forbidden": [],
+    "timing": "anytime",
+    "order": 7,
+    "status": "open",
+    "subject": "heavy-metal-reloaded"
+  },
+  {
+    "requirement_id": "packshot-hornito",
+    "folder": "03_pck",
+    "role": "packshot",
+    "title": "Packshot Hornito",
+    "instruction": "Ein freigestelltes Bild von Hornito.",
+    "howto": [
+      "Von vorn, gerade, gleichmäßig ausgeleuchtet.",
+      "Heller, ruhiger Hintergrund."
+    ],
+    "duration_hint": "",
+    "spec": {
+      "resolution": "",
+      "fps": 0,
+      "audio": "none",
+      "transparent": true
+    },
+    "priority": "required",
+    "scene_ids": [
+      "S12"
+    ],
+    "depends_on": [],
+    "switched_by": "",
+    "target_name_pattern": "aldi-feuerwerk-2026-27_packshot_hornito.png",
+    "accepts": [
+      "png",
+      "jpg",
+      "jpeg",
+      "webp",
+      "svg",
+      "tif",
+      "tiff"
+    ],
+    "multi_file": "set",
+    "validators": [
+      "no-third-party-brands",
+      "no-confidential"
+    ],
+    "forbidden": [],
+    "timing": "anytime",
+    "order": 8,
+    "status": "open",
+    "subject": "hornito"
+  },
+  {
+    "requirement_id": "packshot-hyperion",
+    "folder": "03_pck",
+    "role": "packshot",
+    "title": "Packshot Hyperion",
+    "instruction": "Ein freigestelltes Bild von Hyperion.",
+    "howto": [
+      "Von vorn, gerade, gleichmäßig ausgeleuchtet.",
+      "Heller, ruhiger Hintergrund."
+    ],
+    "duration_hint": "",
+    "spec": {
+      "resolution": "",
+      "fps": 0,
+      "audio": "none",
+      "transparent": true
+    },
+    "priority": "required",
+    "scene_ids": [
+      "S10"
+    ],
+    "depends_on": [],
+    "switched_by": "",
+    "target_name_pattern": "aldi-feuerwerk-2026-27_packshot_hyperion.png",
+    "accepts": [
+      "png",
+      "jpg",
+      "jpeg",
+      "webp",
+      "svg",
+      "tif",
+      "tiff"
+    ],
+    "multi_file": "set",
+    "validators": [
+      "no-third-party-brands",
+      "no-confidential"
+    ],
+    "forbidden": [],
+    "timing": "anytime",
+    "order": 9,
+    "status": "open",
+    "subject": "hyperion"
+  },
+  {
+    "requirement_id": "packshot-ivanhoe",
+    "folder": "03_pck",
+    "role": "packshot",
+    "title": "Packshot Ivanhoe",
+    "instruction": "Ein freigestelltes Bild von Ivanhoe.",
+    "howto": [
+      "Von vorn, gerade, gleichmäßig ausgeleuchtet.",
+      "Heller, ruhiger Hintergrund."
+    ],
+    "duration_hint": "",
+    "spec": {
+      "resolution": "",
+      "fps": 0,
+      "audio": "none",
+      "transparent": true
+    },
+    "priority": "required",
+    "scene_ids": [
+      "S16"
+    ],
+    "depends_on": [],
+    "switched_by": "",
+    "target_name_pattern": "aldi-feuerwerk-2026-27_packshot_ivanhoe.png",
+    "accepts": [
+      "png",
+      "jpg",
+      "jpeg",
+      "webp",
+      "svg",
+      "tif",
+      "tiff"
+    ],
+    "multi_file": "set",
+    "validators": [
+      "no-third-party-brands",
+      "no-confidential"
+    ],
+    "forbidden": [],
+    "timing": "anytime",
+    "order": 10,
+    "status": "open",
+    "subject": "ivanhoe"
+  },
+  {
+    "requirement_id": "packshot-night-hawk",
+    "folder": "03_pck",
+    "role": "packshot",
+    "title": "Packshot Night Hawk",
+    "instruction": "Ein freigestelltes Bild von Night Hawk.",
+    "howto": [
+      "Von vorn, gerade, gleichmäßig ausgeleuchtet.",
+      "Heller, ruhiger Hintergrund."
+    ],
+    "duration_hint": "",
+    "spec": {
+      "resolution": "",
+      "fps": 0,
+      "audio": "none",
+      "transparent": true
+    },
+    "priority": "required",
+    "scene_ids": [
+      "S15"
+    ],
+    "depends_on": [],
+    "switched_by": "",
+    "target_name_pattern": "aldi-feuerwerk-2026-27_packshot_night-hawk.png",
+    "accepts": [
+      "png",
+      "jpg",
+      "jpeg",
+      "webp",
+      "svg",
+      "tif",
+      "tiff"
+    ],
+    "multi_file": "set",
+    "validators": [
+      "no-third-party-brands",
+      "no-confidential"
+    ],
+    "forbidden": [],
+    "timing": "anytime",
+    "order": 11,
+    "status": "open",
+    "subject": "night-hawk"
+  },
+  {
+    "requirement_id": "packshot-plasma-pulse",
+    "folder": "03_pck",
+    "role": "packshot",
+    "title": "Packshot Plasma Pulse",
+    "instruction": "Ein freigestelltes Bild von Plasma Pulse.",
+    "howto": [
+      "Von vorn, gerade, gleichmäßig ausgeleuchtet.",
+      "Heller, ruhiger Hintergrund."
+    ],
+    "duration_hint": "",
+    "spec": {
+      "resolution": "",
+      "fps": 0,
+      "audio": "none",
+      "transparent": true
+    },
+    "priority": "required",
+    "scene_ids": [
+      "S04"
+    ],
+    "depends_on": [],
+    "switched_by": "",
+    "target_name_pattern": "aldi-feuerwerk-2026-27_packshot_plasma-pulse.png",
+    "accepts": [
+      "png",
+      "jpg",
+      "jpeg",
+      "webp",
+      "svg",
+      "tif",
+      "tiff"
+    ],
+    "multi_file": "set",
+    "validators": [
+      "no-third-party-brands",
+      "no-confidential"
+    ],
+    "forbidden": [],
+    "timing": "anytime",
+    "order": 12,
+    "status": "open",
+    "subject": "plasma-pulse"
+  },
+  {
+    "requirement_id": "packshot-poison",
+    "folder": "03_pck",
+    "role": "packshot",
+    "title": "Packshot Poison",
+    "instruction": "Ein freigestelltes Bild von Poison.",
+    "howto": [
+      "Von vorn, gerade, gleichmäßig ausgeleuchtet.",
+      "Heller, ruhiger Hintergrund."
+    ],
+    "duration_hint": "",
+    "spec": {
+      "resolution": "",
+      "fps": 0,
+      "audio": "none",
+      "transparent": true
+    },
+    "priority": "required",
+    "scene_ids": [
+      "S09"
+    ],
+    "depends_on": [],
+    "switched_by": "",
+    "target_name_pattern": "aldi-feuerwerk-2026-27_packshot_poison.png",
+    "accepts": [
+      "png",
+      "jpg",
+      "jpeg",
+      "webp",
+      "svg",
+      "tif",
+      "tiff"
+    ],
+    "multi_file": "set",
+    "validators": [
+      "no-third-party-brands",
+      "no-confidential"
+    ],
+    "forbidden": [],
+    "timing": "anytime",
+    "order": 13,
+    "status": "open",
+    "subject": "poison"
+  },
+  {
+    "requirement_id": "packshot-power-circus",
+    "folder": "03_pck",
+    "role": "packshot",
+    "title": "Packshot Power Circus",
+    "instruction": "Ein freigestelltes Bild von Power Circus.",
+    "howto": [
+      "Von vorn, gerade, gleichmäßig ausgeleuchtet.",
+      "Heller, ruhiger Hintergrund."
+    ],
+    "duration_hint": "",
+    "spec": {
+      "resolution": "",
+      "fps": 0,
+      "audio": "none",
+      "transparent": true
+    },
+    "priority": "required",
+    "scene_ids": [
+      "S06"
+    ],
+    "depends_on": [],
+    "switched_by": "",
+    "target_name_pattern": "aldi-feuerwerk-2026-27_packshot_power-circus.png",
+    "accepts": [
+      "png",
+      "jpg",
+      "jpeg",
+      "webp",
+      "svg",
+      "tif",
+      "tiff"
+    ],
+    "multi_file": "set",
+    "validators": [
+      "no-third-party-brands",
+      "no-confidential"
+    ],
+    "forbidden": [],
+    "timing": "anytime",
+    "order": 14,
+    "status": "open",
+    "subject": "power-circus"
+  },
+  {
+    "requirement_id": "packshot-schweizer-vulkane",
+    "folder": "03_pck",
+    "role": "packshot",
+    "title": "Packshot Schweizer Vulkane",
+    "instruction": "Ein freigestelltes Bild von Schweizer Vulkane.",
+    "howto": [
+      "Von vorn, gerade, gleichmäßig ausgeleuchtet.",
+      "Heller, ruhiger Hintergrund."
+    ],
+    "duration_hint": "",
+    "spec": {
+      "resolution": "",
+      "fps": 0,
+      "audio": "none",
+      "transparent": true
+    },
+    "priority": "required",
+    "scene_ids": [
+      "S13"
+    ],
+    "depends_on": [],
+    "switched_by": "",
+    "target_name_pattern": "aldi-feuerwerk-2026-27_packshot_schweizer-vulkane.png",
+    "accepts": [
+      "png",
+      "jpg",
+      "jpeg",
+      "webp",
+      "svg",
+      "tif",
+      "tiff"
+    ],
+    "multi_file": "set",
+    "validators": [
+      "no-third-party-brands",
+      "no-confidential"
+    ],
+    "forbidden": [],
+    "timing": "anytime",
+    "order": 15,
+    "status": "open",
+    "subject": "schweizer-vulkane"
+  },
+  {
+    "requirement_id": "packshot-wonderland",
+    "folder": "03_pck",
+    "role": "packshot",
+    "title": "Packshot Wonderland",
+    "instruction": "Ein freigestelltes Bild von Wonderland.",
+    "howto": [
+      "Von vorn, gerade, gleichmäßig ausgeleuchtet.",
+      "Heller, ruhiger Hintergrund."
+    ],
+    "duration_hint": "",
+    "spec": {
+      "resolution": "",
+      "fps": 0,
+      "audio": "none",
+      "transparent": true
+    },
+    "priority": "required",
+    "scene_ids": [
+      "S05"
+    ],
+    "depends_on": [],
+    "switched_by": "",
+    "target_name_pattern": "aldi-feuerwerk-2026-27_packshot_wonderland.png",
+    "accepts": [
+      "png",
+      "jpg",
+      "jpeg",
+      "webp",
+      "svg",
+      "tif",
+      "tiff"
+    ],
+    "multi_file": "set",
+    "validators": [
+      "no-third-party-brands",
+      "no-confidential"
+    ],
+    "forbidden": [],
+    "timing": "anytime",
+    "order": 16,
+    "status": "open",
+    "subject": "wonderland"
+  },
+  {
+    "requirement_id": "background",
+    "folder": "05_bg",
+    "role": "background",
+    "title": "Feuerwerk im Hintergrund",
+    "instruction": "Ein langes Video von Feuerwerk am Nachthimmel, ohne Personen.",
+    "howto": [
+      "Mindestens fünf Minuten am Stück.",
+      "Nur eigenes Material oder mit Lizenznachweis.",
+      "Keine Gesichter, keine Logos im Bild."
+    ],
+    "duration_hint": "5 bis 10 Minuten",
+    "spec": {
+      "resolution": "1920x1080",
+      "fps": 0,
+      "audio": "none",
+      "transparent": false
+    },
+    "priority": "recommended",
+    "scene_ids": [
+      "S01",
+      "S03",
+      "S04",
+      "S05",
+      "S06",
+      "S07",
+      "S08",
+      "S09",
+      "S10",
+      "S11",
+      "S12",
+      "S13",
+      "S14",
+      "S15",
+      "S16",
+      "S17",
+      "S18",
+      "S19",
+      "S20",
+      "S23",
+      "S24"
+    ],
+    "depends_on": [],
+    "switched_by": "",
+    "target_name_pattern": "aldi-feuerwerk-2026-27_background_{nn}.mp4",
+    "accepts": [
+      "mp4",
+      "mov",
+      "mkv",
+      "mxf",
+      "avi",
+      "m4v"
+    ],
+    "multi_file": "single",
+    "validators": [
+      "license-known",
+      "no-bystanders",
+      "no-third-party-brands"
+    ],
+    "forbidden": [],
+    "timing": "anytime",
+    "order": 17,
+    "status": "open",
+    "subject": ""
+  },
+  {
+    "requirement_id": "archive",
+    "folder": "04_arc",
+    "role": "archive",
+    "title": "Archivmaterial älterer Prospekte",
+    "instruction": "Fotos oder Aufnahmen älterer Prospekte, nur nach Freigabe des Auftraggebers.",
+    "howto": [
+      "Erst die Freigabe einholen.",
+      "Seiten gerade und vollständig abfotografieren."
+    ],
+    "duration_hint": "",
+    "spec": {
+      "resolution": "",
+      "fps": 0,
+      "audio": "any",
+      "transparent": false
+    },
+    "priority": "optional",
+    "scene_ids": [],
+    "depends_on": [
+      "approval:c26"
+    ],
+    "switched_by": "c26",
+    "target_name_pattern": "aldi-feuerwerk-2026-27_archive_archiv.jpg",
+    "accepts": [
+      "mp4",
+      "mov",
+      "mkv",
+      "mxf",
+      "avi",
+      "m4v",
+      "png",
+      "jpg",
+      "jpeg",
+      "webp",
+      "svg",
+      "tif",
+      "tiff"
+    ],
+    "multi_file": "set",
+    "validators": [
+      "no-third-party-brands",
+      "no-bystanders",
+      "no-confidential"
+    ],
+    "forbidden": [],
+    "timing": "anytime",
+    "order": 18,
+    "status": "open",
+    "subject": ""
+  },
+  {
+    "requirement_id": "talking",
+    "folder": "01_cam",
+    "role": "talking",
+    "title": "Sprechtext in einem durchgehenden Take",
+    "instruction": "Nimm das ganze Skript an einem Stück auf. Die Engine schneidet alles: du brauchst keine Datei pro Szene.",
+    "howto": [
+      "Zuerst fünf Sekunden Raumton aufnehmen, ohne zu sprechen.",
+      "Das Skript Szene für Szene sprechen, bei einem Versprecher den Satz neu ansetzen.",
+      "Vor jeder Szene laut „Szene …“ und die Nummer sagen (als Marker).",
+      "Kameralicht und Ton prüfen, bevor du startest.",
+      "Keine Logos auf Kleidung, Marken am Set abkleben."
+    ],
+    "duration_hint": "so lang wie das Skript (ca. 8 bis 10 Minuten)",
+    "spec": {
+      "resolution": "3840x2160",
+      "fps": 0,
+      "audio": "required",
+      "transparent": false
+    },
+    "priority": "required",
+    "scene_ids": [
+      "S01",
+      "S02",
+      "S03",
+      "S04",
+      "S05",
+      "S06",
+      "S07",
+      "S08",
+      "S09",
+      "S10",
+      "S11",
+      "S12",
+      "S13",
+      "S14",
+      "S15",
+      "S16",
+      "S17",
+      "S18",
+      "S19",
+      "S20",
+      "S22",
+      "S23"
+    ],
+    "depends_on": [
+      "fact-check",
+      "slots-filled"
+    ],
+    "switched_by": "",
+    "target_name_pattern": "aldi-feuerwerk-2026-27_talking_{nn}.mp4",
+    "accepts": [
+      "mp4",
+      "mov",
+      "mkv",
+      "mxf",
+      "avi",
+      "m4v"
+    ],
+    "multi_file": "ordered-chunks",
+    "validators": [
+      "no-third-party-brands",
+      "audio-present",
+      "no-confidential",
+      "resolution-ok"
+    ],
+    "forbidden": [],
+    "timing": "anytime",
+    "order": 19,
+    "status": "open",
+    "subject": ""
+  },
+  {
+    "requirement_id": "gags",
+    "folder": "01_cam",
+    "role": "gags",
+    "title": "Gags und Reaktionen in einer Datei",
+    "instruction": "Alle kurzen Gag- und Reaktionsclips hintereinander in einer Aufnahme.",
+    "howto": [
+      "Vor jedem Clip das Stichwort laut sagen (z. B. „Wecker eins“).",
+      "Jeden Clip nur ein paar Sekunden, danach kurz Pause.",
+      "Ruhig mehrere Varianten pro Gag, die Engine wählt."
+    ],
+    "duration_hint": "30 bis 60 Sekunden gesamt",
+    "spec": {
+      "resolution": "",
+      "fps": 0,
+      "audio": "any",
+      "transparent": false
+    },
+    "priority": "recommended",
+    "scene_ids": [
+      "S22"
+    ],
+    "depends_on": [],
+    "switched_by": "",
+    "target_name_pattern": "aldi-feuerwerk-2026-27_gags_{nn}.mp4",
+    "accepts": [
+      "mp4",
+      "mov",
+      "mkv",
+      "mxf",
+      "avi",
+      "m4v"
+    ],
+    "multi_file": "ordered-chunks",
+    "validators": [
+      "no-third-party-brands",
+      "no-bystanders"
+    ],
+    "forbidden": [],
+    "timing": "anytime",
+    "order": 20,
+    "status": "open",
+    "subject": ""
+  },
+  {
+    "requirement_id": "screenrec",
+    "folder": "02_scr",
+    "role": "screenrec",
+    "title": "Bildschirmaufnahme der Bestellseite",
+    "instruction": "Eine einzige Aufnahme, in der du die Seite von oben nach unten durchgehst.",
+    "howto": [
+      "Browserleiste und Lesezeichen leeren, Benachrichtigungen ausschalten.",
+      "Nicht einloggen: keine Konto- oder Zahlungsdaten im Bild.",
+      "Langsam scrollen, an jedem Produkt kurz anhalten."
+    ],
+    "duration_hint": "1 bis 2 Minuten",
+    "spec": {
+      "resolution": "1920x1080",
+      "fps": 30,
+      "audio": "none",
+      "transparent": false
+    },
+    "priority": "required",
+    "scene_ids": [
+      "S24"
+    ],
+    "depends_on": [
+      "fact-check"
+    ],
+    "switched_by": "",
+    "target_name_pattern": "aldi-feuerwerk-2026-27_screenrec_{nn}.mp4",
+    "accepts": [
+      "mp4",
+      "mov",
+      "mkv",
+      "mxf",
+      "avi",
+      "m4v"
+    ],
+    "multi_file": "single",
+    "validators": [
+      "no-private-data",
+      "no-confidential"
+    ],
+    "forbidden": [
+      "private Daten (Adresse, Login, Zahlungsdaten)"
+    ],
+    "timing": "after_source_live",
+    "order": 21,
+    "status": "open",
+    "subject": ""
+  },
+  {
+    "requirement_id": "screenshot",
+    "folder": "02_scr",
+    "role": "screenshot",
+    "title": "Komplette Seite als Screenshot",
+    "instruction": "Ein Screenshot der gesamten Seite in voller Länge.",
+    "howto": [
+      "Browserfunktion „ganze Seite“ nutzen.",
+      "Keine Konto- oder Zahlungsdaten im Bild."
+    ],
+    "duration_hint": "",
+    "spec": {
+      "resolution": "",
+      "fps": 0,
+      "audio": "none",
+      "transparent": false
+    },
+    "priority": "recommended",
+    "scene_ids": [
+      "S24"
+    ],
+    "depends_on": [],
+    "switched_by": "",
+    "target_name_pattern": "aldi-feuerwerk-2026-27_screenshot_shop.png",
+    "accepts": [
+      "png",
+      "jpg",
+      "jpeg",
+      "webp"
+    ],
+    "multi_file": "single",
+    "validators": [
+      "no-private-data",
+      "no-confidential"
+    ],
+    "forbidden": [
+      "private Daten (Adresse, Login, Zahlungsdaten)"
+    ],
+    "timing": "after_source_live",
+    "order": 22,
+    "status": "open",
+    "subject": ""
+  }
+]

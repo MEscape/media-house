@@ -1,0 +1,6 @@
+Thema: Lidl Feuerwerk, Ranking / Top-N: 5 Produkte. Zahlen nur aus der Faktentabelle. Produkte und Preise: Feuerwerksbatterie Nova 14,99 €; Raketenset Orion 9,99 €; Verbundfeuerwerk Titan 24,99 €; Fontänen-Box Lumen 12,99 €; Kompaktbatterie Vega 6,99 €.
+Idee: Ein Countdown durch 5 Produkte von Lidl, von der letzten Wahl bis … Bogen zum Anfang: Der letzte Platz ist der Anfang: der Favorit kommt zuerst als Frage zurück.
+Look: Tempo 4-6 Schnitte/min, max. 3 Overlays. Erlaubte Übergänge: hard_cut, jump_cut, cross_dissolve, whip_pan, flash, slide, zoom_tunnel, pixel_dissolve. Verboten: glitch, shape, mask_reveal, wipe. Die Lieblingsvideos haben keine eingebrannten Untertitel; nur das Werbung-Label.
+Regeln: Vertrauliches nicht zeigen oder teilen; Bedingtes erst nach Bestätigung verwenden; Werbung-Label durchgehend. Alle weiteren Briefingregeln bleiben verbindlich; offene Angaben nicht erfinden.
+Material: Talking-Takes nach Szenen zuordnen; Rollen laut manifest.json. Jede Datei nur für ihre Rolle nutzen.
+Freiheit: Frei: Schnitt, Tempo, Grafik, Ton. Fest: Zahlen, Skript. Bei Zweifel weniger Effekte, nicht mehr. Musik, Effekte und Schnittfolge entscheidest du innerhalb der Regeln.
