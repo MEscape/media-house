@@ -117,12 +117,82 @@ class CompilerConfig:
     jump_cut_zoom: float = field(
         default=1.0,
         metadata={
-            "label": "Punch-in on jump cuts",
-            "help": "Every other back-to-back clip of the main picture is framed this much "
-            "tighter (a static window, no animation). 1.0 = off; creators use 1.08-1.15.",
+            "label": "Camera moves on the talking picture",
+            "help": "Tightest framing of the camera moves (eased push-ins, fast punch-ins with a "
+            "slow release, pulls and holds) that hide jump cuts. 1.0 = off; creators use "
+            "1.08-1.15.",
             "min": 1.0,
             "max": 1.5,
             "kind": "float",
+        },
+    )
+    #: Seconds between framing changes of a Short's talking picture; ``None`` = by the output
+    #: format (portrait: ``SHORT_BEAT``, landscape: the calm cycle of ``jump_cut_zoom``).
+    camera_beat: float | None = field(
+        default=None,
+        metadata={
+            "label": "Camera beat (Shorts)",
+            "help": "A new framing (fast punch in/out) every this many seconds, and a zoom "
+            "through every cut between shots. Empty = automatic (9:16: 2.2 s, 16:9: off); "
+            "0 = off.",
+            "unit": "s",
+            "min": 0.0,
+            "max": 10.0,
+            "kind": "float",
+        },
+    )
+    beat_zoom: float = field(
+        default=1.3,
+        metadata={
+            "label": "Camera beat tightest framing",
+            "help": "Tightest framing of the camera beats (the widest is the full frame).",
+            "min": 1.05,
+            "max": 1.45,
+            "kind": "float",
+        },
+    )
+    #: Screen recordings shown without their browser bar and task bar: recording asset id ->
+    #: the page window (x, y, w, h, normalised, top-left), sorted by asset id.
+    screen_windows: tuple[tuple[str, float, float, float, float], ...] = field(
+        default=(),
+        metadata={
+            "label": "Screen recording windows",
+            "help": "Per recording the page window shown (x, y, w, h), slowly pushed in.",
+            "kind": "windows",
+            "advanced": True,
+        },
+    )
+    #: ``crop`` shows only the page window, filling the frame; ``card`` floats the whole page
+    #: window as a card over a dark ground (nothing of the page is cut off).
+    screen_style: str = field(
+        default="crop",
+        metadata={
+            "label": "Screen recording look",
+            "help": "crop = the page fills the frame; card = the page floats as a card",
+            "choices": ("crop", "card"),
+            "kind": "choice",
+        },
+    )
+    #: Blur of the talking picture while a focus graphic (a chart, list, comparison) is on
+    #: screen over it; 0 = off.
+    focus_blur: float = field(
+        default=0.0,
+        metadata={
+            "label": "Background blur under focus graphics",
+            "help": "Blur size while a chart, list or comparison is on screen; 0 = off.",
+            "min": 0.0,
+            "max": 30.0,
+            "kind": "float",
+        },
+    )
+    #: Footage (asset id) that plays muted under every full-frame graphic; ``None`` = none.
+    background_footage: str | None = field(
+        default=None,
+        metadata={
+            "label": "Background footage under full-screen cards",
+            "help": "A library asset shown under full-screen graphics (e.g. a fireworks plate).",
+            "kind": "asset",
+            "advanced": True,
         },
     )
     version: int = PROFILE_VERSION
@@ -131,6 +201,14 @@ class CompilerConfig:
         found: list[str] = []
         if not 1.0 <= self.jump_cut_zoom <= 1.5:
             found.append("jump_cut_zoom must be between 1.0 and 1.5")
+        if self.camera_beat is not None and not 0.0 <= self.camera_beat <= 10.0:
+            found.append("camera_beat must be between 0 and 10")
+        if not 1.05 <= self.beat_zoom <= 1.45:
+            found.append("beat_zoom must be between 1.05 and 1.45")
+        if self.screen_style not in ("crop", "card"):
+            found.append("screen_style must be crop or card")
+        if not 0.0 <= self.focus_blur <= 30.0:
+            found.append("focus_blur must be between 0 and 30")
         if self.timeline_frame_rate is not None and fr(self.timeline_frame_rate) <= 0:
             found.append("timeline_frame_rate must be positive")
         if not 8_000 <= self.sample_rate <= 192_000:
@@ -159,5 +237,11 @@ class CompilerConfig:
             "gap_tolerance_frames": self.gap_tolerance_frames,
             "handle_tolerance_frames": self.handle_tolerance_frames,
             "jump_cut_zoom": self.jump_cut_zoom,
+            "camera_beat": self.camera_beat,
+            "beat_zoom": self.beat_zoom,
+            "screen_windows": [list(w) for w in self.screen_windows],
+            "screen_style": self.screen_style,
+            "focus_blur": self.focus_blur,
+            "background_footage": self.background_footage,
             "version": self.version,
         }

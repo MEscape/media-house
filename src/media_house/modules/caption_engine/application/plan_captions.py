@@ -9,6 +9,7 @@ drift check -> render through motion graphics (optional) -> QC gate -> store.
 import json
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field, replace
+from fractions import Fraction
 from typing import Final
 
 from media_house.core.application.ports import Clock
@@ -26,6 +27,7 @@ from media_house.modules.caption_engine.application.results import CaptionResult
 from media_house.modules.caption_engine.application.views import (
     burned_in_spans,
     covered_spans,
+    full_screen_spans,
     style_facts,
     subject_boxes,
     transcript_facts,
@@ -85,6 +87,7 @@ from media_house.modules.media_library.application.contracts import (
 )
 from media_house.modules.motion_graphics_engine.application.contracts import (
     GraphicsCatalog,
+    GraphicsPlan,
     GraphicsRenderer,
     RendererNotAvailable,
     RenderGraphicsCommand,
@@ -131,6 +134,8 @@ class PlanCaptionsCommand:
     carry_decisions: bool = True
     transcripts: Mapping[str, AudioIntelligenceTimeline] = field(default_factory=dict)
     contents: Mapping[str, ContentAnalysis] = field(default_factory=dict)
+    #: The graphics plan of this edit the caller already has (else the newest stored one).
+    graphics: GraphicsPlan | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -155,6 +160,7 @@ class _Gathered:
     transcripts: list[TranscriptFacts] = field(default_factory=list)
     subjects: list[SubjectBox] = field(default_factory=list)
     covered: list[CoveredSpan] = field(default_factory=list)
+    full_screen: list[tuple[Fraction, Fraction]] = field(default_factory=list)
     burned_in: list[BurnedInSpan] = field(default_factory=list)
     records: list[InputRecord] = field(default_factory=list)
     stages: list[StageReport] = field(default_factory=list)
@@ -232,6 +238,7 @@ class PlanCaptions:
             style=facts,
             subjects=tuple(gathered.subjects),
             covered=tuple(gathered.covered),
+            full_screen=tuple(gathered.full_screen),
             burned_in=tuple(gathered.burned_in),
         )
         previous = self._results.latest(timeline.anchor_asset_id, project_id=timeline.project_id)
@@ -354,7 +361,7 @@ class PlanCaptions:
         if not profile.layout.avoid_subjects:
             out.stages.append(StageReport(stage="subjects", state=StageState.SKIPPED))
         if timeline.edit is not None:
-            self._covered(timeline, out)
+            self._covered(timeline, command.graphics, out)
         return out
 
     def _content_latest(
@@ -369,6 +376,9 @@ class PlanCaptions:
         framing = None
         if size is None or abs(size[0] / size[1] - timeline.width / timeline.height) >= 0.01:
             found = self._reframing.latest(asset_id, target=timeline.aspect)
+            if not (isinstance(found, Ok) and found.value):
+                # one analysis covers all the story's recordings and is stored under the anchor
+                found = self._reframing.latest(timeline.anchor_asset_id, target=timeline.aspect)
             framing = found.value[0] if isinstance(found, Ok) and found.value else None
             out.records.append(
                 InputRecord(
@@ -398,9 +408,13 @@ class PlanCaptions:
             return asset.value.width, asset.value.height
         return None
 
-    def _covered(self, timeline: CaptionTimeline, out: _Gathered) -> None:
-        found = self._graphics.latest(timeline.anchor_asset_id, project_id=timeline.project_id)
-        plan = found.value[0] if isinstance(found, Ok) and found.value else None
+    def _covered(
+        self, timeline: CaptionTimeline, given: GraphicsPlan | None, out: _Gathered
+    ) -> None:
+        plan = given
+        if plan is None:
+            found = self._graphics.latest(timeline.anchor_asset_id, project_id=timeline.project_id)
+            plan = found.value[0] if isinstance(found, Ok) and found.value else None
         edit = timeline.edit
         usable = (
             plan is not None
@@ -420,6 +434,7 @@ class PlanCaptions:
         )
         if usable and plan is not None:
             out.covered += covered_spans(plan)
+            out.full_screen += full_screen_spans(plan)
 
     # --- after planning ----------------------------------------------------------------------
 

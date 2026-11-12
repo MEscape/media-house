@@ -8,7 +8,10 @@ bumps ``SCHEMA_VERSION`` (older documents are then refused, never reinterpreted)
 from enum import StrEnum
 
 SCHEMA_VERSION = 1
-COMPILER_VERSION = 2
+#: 8: a portrait Short's camera beats and zoom-through cuts
+COMPILER_VERSION = 8
+#: The zone of a graphic that fills the frame (placed with the cover footage, under graphics).
+FULL_FRAME_ZONE = "full_frame"
 VOCABULARY_VERSION = 1
 PROFILE_VERSION = 1
 DOCUMENT_TYPE = "timeline_specification"

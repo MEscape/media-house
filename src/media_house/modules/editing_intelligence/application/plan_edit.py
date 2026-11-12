@@ -333,6 +333,9 @@ class PlanEdit:
         for wish in command.config.cover_wishes:
             if wish.footage_asset_id not in story_assets:
                 self._cover_asset(wish.footage_asset_id, wish.footage_asset_id, gathered.value)
+        for bookend in (command.config.intro_asset_id, command.config.outro_asset_id):
+            if bookend is not None and bookend not in story_assets:
+                self._cover_asset(bookend, bookend, gathered.value)
         complete = len(gathered.value.known) == len(plan.source_assets)
         problems = validate_plan(plan, gathered.value.known if complete else None)
         if problems:
@@ -717,6 +720,22 @@ class PlanEdit:
             return
         found = self._library.get(original)
         video = self._video.latest(analysed)
+        if isinstance(found, Ok) and (isinstance(video, Err) or video.value is None):
+            inspected = self._inspections.find(original)
+            source = source_facts(found.value, inspected, None)
+            if source.duration is not None:
+                # a clip played whole (a channel intro / outro) needs no picture analysis
+                out.cover[original] = AssetEvidence(source=source)
+                out.identities[f"cover:{original}"] = {"source": source.identity, "video": None}
+                out.records.append(
+                    InputRecord(
+                        kind="video_analysis",
+                        how=InputHow.NOT_AVAILABLE,
+                        asset_id=original,
+                        detail="no video analysis: placed from its stored facts only",
+                    )
+                )
+                return
         if isinstance(found, Err) or isinstance(video, Err) or video.value is None:
             out.records.append(
                 InputRecord(

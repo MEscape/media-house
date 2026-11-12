@@ -7,7 +7,7 @@ make the next version, which names the one it supersedes and reuses its unchange
 """
 
 import json
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import cast
 
@@ -253,6 +253,8 @@ class CompileTimeline:
         ctx.progress.report(2, _STEPS, "Verifying every file the timeline points at")
         wanted = {c.asset_id for c in source.clips} | set(asset_ids_of(gf, cf, tf, vf, sf))
         wanted |= {b.asset_id for b in resolved.brand_assets if b.asset_id}
+        if command.config.background_footage:
+            wanted.add(command.config.background_footage)
         assets = self._assets.read(
             wanted,
             with_derivatives=command.config.derivative_policy is DerivativePolicy.PREFER_IMPROVED,
@@ -418,7 +420,9 @@ class CompileTimeline:
         for asset_id, rec_id, analysis_id, target in sorted(wanted):
             analysis = analyses.get((asset_id, analysis_id, target))
             if (asset_id, analysis_id, target) not in analyses:
-                analysis = self._analysis(asset_id, analysis_id, target)
+                # one analysis covers all the story's recordings and is stored under the anchor
+                others = [source.anchor_asset_id] if source.anchor_asset_id != asset_id else []
+                analysis = self._analysis((asset_id, *others), analysis_id, target)
                 analyses[(asset_id, analysis_id, target)] = analysis
             rec = analysis.recommendation(rec_id) if analysis else None
             if analysis is None or rec is None:
@@ -443,18 +447,21 @@ class CompileTimeline:
             )
         return found
 
-    def _analysis(self, asset_id: str, analysis_id: str, target: str) -> ReframingAnalysis | None:
-        latest = self._reframing.latest(asset_id, target=target)
-        if (
-            isinstance(latest, Ok)
-            and latest.value
-            and latest.value[0].reframing_analysis_id == analysis_id
-        ):
-            return latest.value[0]
-        for asset in self._reframing.history(asset_id):
-            loaded = self._reframing.load(asset.id)
-            if isinstance(loaded, Ok) and loaded.value.reframing_analysis_id == analysis_id:
-                return loaded.value
+    def _analysis(
+        self, assets: Sequence[str], analysis_id: str, target: str
+    ) -> ReframingAnalysis | None:
+        for asset_id in assets:
+            latest = self._reframing.latest(asset_id, target=target)
+            if (
+                isinstance(latest, Ok)
+                and latest.value
+                and latest.value[0].reframing_analysis_id == analysis_id
+            ):
+                return latest.value[0]
+            for asset in self._reframing.history(asset_id):
+                loaded = self._reframing.load(asset.id)
+                if isinstance(loaded, Ok) and loaded.value.reframing_analysis_id == analysis_id:
+                    return loaded.value
         return None
 
     def _history(

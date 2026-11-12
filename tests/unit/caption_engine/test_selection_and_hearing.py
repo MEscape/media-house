@@ -81,17 +81,22 @@ def test_full_captions_show_all_reliable_speech() -> None:
 def test_a_picture_that_already_shows_burned_in_captions_gets_none_on_top() -> None:
     # E2E regression: a published (already captioned) Short was captioned a second time although
     # video analysis had reported its burned-in captions.
-    shown = BurnedInSpan(asset_id="clip", start=Fraction(0), end=Fraction(60))
-    elsewhere = BurnedInSpan(asset_id="other", start=Fraction(0), end=Fraction(60))
+    read = " ".join(PRICE.split()[:2])
+    shown = BurnedInSpan(asset_id="clip", start=Fraction(0), end=Fraction(60), text=read)
+    elsewhere = BurnedInSpan(asset_id="other", start=Fraction(0), end=Fraction(60), text=read)
+    # E2E regression: OCR read "9AX" off a whole uncaptioned take and all captions were dropped
+    misread = BurnedInSpan(asset_id="clip", start=Fraction(0), end=Fraction(60), text="9AX")
     given = inputs(transcript(PRICE))
 
     p = plan(replace(given, burned_in=(shown,)), "shorts_haul")
     unrelated = plan(replace(given, burned_in=(elsewhere,)), "shorts_haul")
+    garbage = plan(replace(given, burned_in=(misread,)), "shorts_haul")
 
     assert p.mode is CaptionMode.DISABLED and p.segments == ()
     assert "burned-in captions" in p.mode_reason
     assert p.subtitles is not None and "19,99 €" in p.subtitles.srt
     assert unrelated.mode is CaptionMode.FULL_CAPTIONS and unrelated.segments
+    assert garbage.mode is CaptionMode.FULL_CAPTIONS and garbage.segments
 
 
 def test_other_on_screen_text_counts_only_where_it_is_the_spoken_words() -> None:
@@ -205,3 +210,28 @@ def test_a_rejected_caption_and_a_word_correction_survive() -> None:
     last = p.segments[-1].words[-1]
     assert last.text == "herrlich." and last.corrected
     assert any(c.code == "decision.rejected" and c.severity is Severity.INFO for c in p.checks)
+
+
+def test_a_short_of_a_ranking_video_gets_short_captions_with_emoji() -> None:
+    from media_house.modules.caption_engine.domain.profile import CaptionConfig
+
+    profile = CaptionConfig().resolve(style_profile="ranking", aspect="9:16")
+
+    assert profile.name == "shorts_product_test" and profile.emoji.enabled
+    assert CaptionConfig().resolve(style_profile="ranking", aspect="16:9").name == "ranking"
+
+
+def test_no_caption_is_drawn_while_a_full_screen_card_fills_the_picture() -> None:
+    # E2E regression: a Short's caption band ran through the product card's text
+    given = inputs(transcript(PRICE))
+    whole = plan(given, "shorts_haul")
+    t = whole.segments[0].timeline_end
+    end = Fraction(t.numerator, t.denominator)
+
+    p = plan(replace(given, full_screen=((Fraction(0), end),)), "shorts_haul")
+
+    assert len(p.segments) < len(whole.segments)
+    assert all(
+        Fraction(s.timeline_start.numerator, s.timeline_start.denominator) >= end
+        for s in p.segments
+    )

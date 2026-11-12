@@ -263,6 +263,9 @@ class CaptionInputs:
     subjects: tuple[SubjectBox, ...] = ()
     covered: tuple[CoveredSpan, ...] = ()
     burned_in: tuple[BurnedInSpan, ...] = ()
+    #: Where a full-screen graphic fills the picture (timeline seconds): no caption is drawn over
+    #: it (the card carries the facts; a Short's caption band runs through its text).
+    full_screen: tuple[tuple[Fraction, Fraction], ...] = ()
 
     def transcript(self, asset_id: str) -> TranscriptFacts | None:
         return next((t for t in self.transcripts if t.asset_id == asset_id), None)

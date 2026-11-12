@@ -378,7 +378,7 @@ def _candidates(
     accepted: list[CoverCandidate] = []
     rejected: list[str] = []
     for choice in sorted(choices, key=lambda c: c.rank):
-        verdict = _judge(
+        verdict = judge_shot(
             choice, evidence, span_start, span_end, profile, passage, visual.source.asset_id
         )
         if isinstance(verdict, str):
@@ -389,7 +389,7 @@ def _candidates(
     return accepted, tuple(rejected)
 
 
-def _judge(
+def judge_shot(
     choice: ShotChoice,
     evidence: Mapping[str, AssetEvidence],
     span_start: Fraction,

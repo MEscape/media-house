@@ -24,11 +24,18 @@ from media_house.shared.errors import InvariantViolation
 
 SCHEMA_VERSION = 1
 #: Bump when any rule, threshold or formula changes so stored plans are not reused.
-EDITOR_VERSION = 8
+EDITOR_VERSION = 14
 #: Bump when a member is added to an enum below (readers refuse unknown members).
 VOCABULARY_VERSION = 3
 DOCUMENT_TYPE = "edit_plan"
 RESULT_OPERATION = "edit_plan"
+
+
+class ExcerptMode(StrEnum):
+    """How a short is cut from the long story."""
+
+    CONDENSED = "condensed"
+    CONTIGUOUS = "contiguous"
 
 
 class Origin(StrEnum):

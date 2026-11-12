@@ -235,19 +235,34 @@ class TestIdentity:
 
 
 class TestJumpCutPunchIn:
-    def test_every_other_back_to_back_talking_clip_gets_a_static_tighter_window(self) -> None:
+    def test_talking_clips_get_camera_moves_and_every_cut_changes_the_framing(self) -> None:
         spec = compile_timeline(
             f.inputs(vfx=None), CompilerConfig(jump_cut_zoom=1.12), meta=f.meta()
         ).spec
 
         by_clip = {v.clip_id: v for v in spec.video}
-        assert by_clip["pA"].reframe == ()
-        (window,) = by_clip["pB"].reframe
-        (key,) = window.keys
-        assert window.strategy == "punch_in"
-        assert key.w == key.h == round(1 / 1.12, 6)
-        assert key.x == round((1 - 1 / 1.12) / 2, 6)
         assert by_clip["pC"].reframe == ()  # cover footage keeps its framing
+        moved = [by_clip[c] for c in ("pA", "pB") if by_clip[c].reframe]
+        assert moved
+        for clip in moved:
+            (window,) = clip.reframe
+            assert window.strategy in ("camera_move", "punch_in")
+            for key in window.keys:
+                assert key.w >= round(1 / 1.12, 6) - 1e-6  # never tighter than asked
+                assert key.x + key.w <= 1 + 1e-6 and key.y + key.h <= 1 + 1e-6
+        a, b = by_clip["pA"], by_clip["pB"]
+        if a.timeline_end == b.timeline_start and a.asset_id == b.asset_id:
+            end = a.reframe[0].keys[-1].w if a.reframe else 1.0
+            start = b.reframe[0].keys[0].w if b.reframe else 1.0
+            assert end != start  # the jump cut shows a change of framing
 
     def test_off_by_default(self) -> None:
         assert all(v.reframe == () for v in compiled(vfx=None).spec.video)
+
+    def test_a_portrait_short_gets_camera_beats_by_default_and_can_switch_them_off(self) -> None:
+        portrait = f.inputs(vfx=None, style=f.style(width=1080, height=1920))
+        spec = compile_timeline(portrait, CompilerConfig(), meta=f.meta()).spec
+        beats = [r for v in spec.video for r in v.reframe if r.analysis_id.startswith("beats:")]
+        assert beats
+        off = compile_timeline(portrait, CompilerConfig(camera_beat=0.0), meta=f.meta()).spec
+        assert all(v.reframe == () for v in off.video)

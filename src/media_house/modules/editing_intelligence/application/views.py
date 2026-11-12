@@ -28,6 +28,7 @@ from media_house.modules.content_intelligence.application.contracts import (
     ScoreName,
     SemanticSegment,
     TimeBasis,
+    commerce_facts,
 )
 from media_house.modules.continuity_intelligence.application.contracts import (
     ContinuityAnalysis,
@@ -497,6 +498,7 @@ def _place(kind: str, ref_id: str, place: dict[str, str]) -> str | None:
 
 def content_facts(analysis: ContentAnalysis, asset_id: str) -> ContentFacts:
     place = {u: s.segment_id for s in analysis.segments for u in s.unit_ids}
+    language = analysis.source.language
     return ContentFacts(
         asset_id=asset_id,
         units=tuple(
@@ -510,6 +512,7 @@ def content_facts(analysis: ContentAnalysis, asset_id: str) -> ContentFacts:
                 words=u.words,
                 starts_clean=u.starts_clean,
                 ends_clean=u.ends_clean,
+                facts=tuple(dict.fromkeys(f.kind.value for f in commerce_facts(u.text, language))),
             )
             for u in analysis.units
         ),
@@ -555,6 +558,9 @@ def audio_facts(timeline: AudioIntelligenceTimeline, asset_id: str) -> AudioFact
                 start=p.start,
                 end=p.end,
                 silence_ratio=p.silence_ratio,
+                speech=_speech_runs(timeline, p.start, p.end)
+                if p.silence_ratio is not None and p.silence_ratio < 0.8 and p.end - p.start >= 0.6
+                else (),
             )
             for p in timeline.pauses
         ),
@@ -564,6 +570,26 @@ def audio_facts(timeline: AudioIntelligenceTimeline, asset_id: str) -> AudioFact
         ),
         identity=audio_identity(timeline),
     )
+
+
+def _speech_runs(
+    timeline: AudioIntelligenceTimeline, start: float, end: float
+) -> tuple[tuple[float, float], ...]:
+    """Measured speech inside a gap between words, as runs of at least 0.2 s."""
+    runs: list[tuple[float, float]] = []
+    run_start: float | None = None
+    last = start
+    for frame in timeline.frames_between(start, end):
+        if frame.speech_activity and run_start is None:
+            run_start = frame.start
+        elif not frame.speech_activity and run_start is not None:
+            if frame.start - run_start >= 0.2:
+                runs.append((round(run_start, 3), round(frame.start, 3)))
+            run_start = None
+        last = frame.start + frame.duration
+    if run_start is not None and last - run_start >= 0.2:
+        runs.append((round(run_start, 3), round(last, 3)))
+    return tuple(runs)
 
 
 # --- video -------------------------------------------------------------------------------------

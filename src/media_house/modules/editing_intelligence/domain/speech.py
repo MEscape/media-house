@@ -35,7 +35,8 @@ FILLER_PHRASE_WORDS: frozenset[str] = FILLERS | {
 }  # fmt: skip
 GREETING = re.compile(
     r"\b(welcome back|hey guys|hi guys|hi everyone|hello everyone|hello and welcome|"
-    r"willkommen zurück|hallo zusammen|hallo und willkommen|servus)\b",
+    r"willkommen zurück|hallo zusammen|hallo und willkommen|servus|was geht ab|"
+    r"hallo leute|moin leute)\b",
     re.IGNORECASE,
 )
 _TOKEN = re.compile(r"[\w']+", re.UNICODE)

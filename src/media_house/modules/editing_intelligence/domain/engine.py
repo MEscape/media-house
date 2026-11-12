@@ -28,6 +28,7 @@ from media_house.modules.editing_intelligence.domain.assemble import (
     assemble,
     build_timeline,
 )
+from media_house.modules.editing_intelligence.domain.condense import condensed_cut, hook_lead_in
 from media_house.modules.editing_intelligence.domain.continuity import assess_cuts
 from media_house.modules.editing_intelligence.domain.coverage import plan_coverage
 from media_house.modules.editing_intelligence.domain.cutpoints import CutContext, cut_in, cut_out
@@ -42,7 +43,9 @@ from media_house.modules.editing_intelligence.domain.facts import (
     StoryFacts,
 )
 from media_house.modules.editing_intelligence.domain.framing import attach_framing
+from media_house.modules.editing_intelligence.domain.highlight import highlight_window
 from media_house.modules.editing_intelligence.domain.hooks import Hooks
+from media_house.modules.editing_intelligence.domain.inserts import Inserts, plan_inserts
 from media_house.modules.editing_intelligence.domain.judge import (
     JudgeContext,
     close_dependencies,
@@ -61,6 +64,7 @@ from media_house.modules.editing_intelligence.domain.model import (
     PacingNote,
     Placement,
     Provenance,
+    ShortPart,
     Signal,
     SourceRecord,
     StageReport,
@@ -72,7 +76,7 @@ from media_house.modules.editing_intelligence.domain.model import (
 from media_house.modules.editing_intelligence.domain.pacing import plan_pacing
 from media_house.modules.editing_intelligence.domain.profile import EditConfig, EditingProfile
 from media_house.modules.editing_intelligence.domain.ranges import make_range
-from media_house.modules.editing_intelligence.domain.speech import AudioIndex
+from media_house.modules.editing_intelligence.domain.speech import AudioIndex, is_greeting
 from media_house.modules.editing_intelligence.domain.tighten import tighten
 from media_house.modules.editing_intelligence.domain.timing import exact, to_rational
 from media_house.modules.editing_intelligence.domain.units import (
@@ -90,6 +94,7 @@ from media_house.modules.editing_intelligence.domain.values import (
     ConstraintState,
     DurationMode,
     EvidenceKind,
+    ExcerptMode,
     Executability,
     IssueKind,
     Origin,
@@ -103,7 +108,7 @@ from media_house.modules.editing_intelligence.domain.values import (
     StructuralKind,
     TrackKind,
 )
-from media_house.modules.editing_intelligence.domain.wishes import place_wishes
+from media_house.modules.editing_intelligence.domain.wishes import place_wishes, seal_covers
 
 _MEASURED = frozenset({Precision.FRAME_EXACT, Precision.WORD_ALIGNED, Precision.SEGMENT_ALIGNED})
 _DEFAULT_RATE = Rational(30, 1)
@@ -209,7 +214,14 @@ def plan_edit(
     timebase = choose_timebase(config, evidence)
     rate = timebase.frame_rate
     target = resolve_target(config, story, profile)
-    opening = _cold_open(story, units, contexts, config)
+    short_parts: tuple[ShortPart, ...] = ()
+    if config.excerpt is not None:
+        condensed: tuple[EditUnit, ...] = ()
+        if config.excerpt_mode is ExcerptMode.CONDENSED:
+            condensed, short_parts = condensed_cut(units, decisions, story, *config.excerpt)
+        chosen = condensed or highlight_window(units, decisions, *config.excerpt)
+        _keep_only(units, decisions, chosen)
+    opening = None if config.excerpt is not None else _cold_open(story, units, contexts, config)
 
     def build() -> _Built:
         kept = [
@@ -218,8 +230,16 @@ def plan_edit(
             if decisions[u.decision_id].action is not Action.CUT and u.extent is not None
         ]
         asm = assemble(kept, contexts, profile)
+        if config.excerpt is not None and asm.pieces:
+            head = asm.pieces[0]
+            asm.pieces[0] = hook_lead_in(head, evidence[head.asset_id].audio)
         pieces = ([opening] if opening is not None else []) + asm.pieces
-        return _Built(asm, pieces, build_timeline(pieces, evidence, rate, profile))
+        pieces = _bookends(pieces, config, {**(cover_evidence or {}), **evidence})
+        return _Built(
+            asm,
+            pieces,
+            build_timeline(pieces, {**(cover_evidence or {}), **evidence}, rate, profile),
+        )
 
     proposals: list[StructuralProposal] = []
     if target is not None and target.high is not None and target.mode is not DurationMode.NONE:
@@ -253,6 +273,30 @@ def plan_edit(
                 "redesign)",
             )
         )
+    for piece in built.pieces:
+        if piece.decision_id and piece.decision_id.startswith("bookend:"):
+            extra.append(
+                Decision(
+                    decision_id=piece.decision_id,
+                    action=Action.KEEP,
+                    origin=Origin.MANUAL,
+                    asset_id=piece.asset_id,
+                    section_id=None,
+                    beat_id=None,
+                    subject=make_range(
+                        {**(cover_evidence or {}), **evidence}[piece.asset_id].source,
+                        piece.start,
+                        piece.end,
+                        piece.start_precision,
+                        piece.end_precision,
+                    ),
+                    unit_ids=(),
+                    signals=(),
+                    executability=Executability.EXECUTABLE,
+                    rationale=(f"the channel's {piece.decision_id[8:]} clip, played whole",),
+                    evidence=(EvidenceRef(kind=EvidenceKind.PROFILE_RULE, ref=piece.decision_id),),
+                )
+            )
     for d in extra:
         final.setdefault(d.decision_id, d)
 
@@ -281,9 +325,38 @@ def plan_edit(
         rate,
         issue_id,
     )
-    for d in [*coverage.decisions, *wishes.decisions]:
+    inserts = Inserts((), ())
+    if config.excerpt is not None:
+        main_sections = [
+            p.units[0].section_id for p in built.pieces if p.role is PlacementRole.MAIN and p.units
+        ]
+        items = [s.section_id for s in short_parts if s.part.startswith("item:")]
+        inserts = plan_inserts(
+            main_sections[0] if main_sections else None,
+            items or list(dict.fromkeys(main_sections[1:])),
+            units,
+            built.pieces,
+            built.timeline,
+            story,
+            config.cover_wishes,
+            broll,
+            everything,
+            [*coverage.placements, *wishes.placements],
+            profile,
+            rate,
+        )
+    for d in [*coverage.decisions, *wishes.decisions, *inserts.decisions]:
         final[d.decision_id] = d
-    placements = [*built.timeline.placements, *coverage.placements, *wishes.placements]
+    placements = seal_covers(
+        [
+            *built.timeline.placements,
+            *coverage.placements,
+            *wishes.placements,
+            *inserts.placements,
+        ],
+        everything,
+        rate,
+    )
     placements, continuity_issues = assess_cuts(
         placements, everything, profile, hooks, issue_id, continuity
     )
@@ -308,7 +381,12 @@ def plan_edit(
 
     issues = [
         *coverage.issues,
-        *wishes.issues,
+        # a wish the short's inserts played over another sentence of its part was placed
+        *(
+            i
+            for i in wishes.issues
+            if f"cover_{i.subject}" not in {e.ref for d in inserts.decisions for e in d.evidence}
+        ),
         *continuity_issues,
         *framing_issues,
         *_evidence_issues(story, evidence, issue_id),
@@ -385,8 +463,11 @@ def plan_edit(
         warnings=meta.warnings,
         limitations=LIMITATIONS,
         overrides=meta.overrides,
+        short_parts=short_parts,
     )
-    validation = validate(draft, story, everything, target, issue_id)
+    validation = validate(
+        draft, story, everything, target, issue_id, excerpt=config.excerpt is not None
+    )
     all_issues = (*issues, *validation.issues)
     unknown_overrides = tuple(
         Issue(
@@ -486,6 +567,24 @@ def choose_timebase(config: EditConfig, evidence: Mapping[str, AssetEvidence]) -
     )
 
 
+def _keep_only(
+    units: Sequence[EditUnit], decisions: dict[str, Decision], chosen: Sequence[EditUnit]
+) -> None:
+    """A short: every sentence outside the chosen stretch is cut (nothing kept if none fits)."""
+    keep = {u.decision_id for u in chosen}
+    for u in units:
+        d = decisions[u.decision_id]
+        if u.decision_id in keep or d.action is Action.CUT:
+            continue
+        decisions[u.decision_id] = replace(
+            d,
+            action=Action.CUT,
+            executability=Executability.EXECUTABLE,
+            rationale=(*d.rationale, "outside the short's highlight"),
+            warnings=(),
+        )
+
+
 def resolve_target(
     config: EditConfig, story: StoryFacts, profile: EditingProfile
 ) -> TargetRecord | None:
@@ -503,6 +602,40 @@ def resolve_target(
 
 
 # --- cold open and reorder -----------------------------------------------------------------
+def _bookends(
+    pieces: list[Piece], config: EditConfig, evidence: Mapping[str, AssetEvidence]
+) -> list[Piece]:
+    """The channel intro before the first greeting (else after the first two passages: the
+    cold open and the hook), the outro last. Each plays whole, with its own sound."""
+
+    def whole(asset_id: str | None, key: str) -> Piece | None:
+        facts = evidence.get(asset_id or "")
+        if facts is None or facts.source.duration is None:
+            return None
+        return Piece(
+            asset_id=facts.source.asset_id,
+            start=Fraction(0),
+            end=exact(facts.source.duration),
+            start_precision=Precision.FRAME_EXACT,
+            end_precision=Precision.FRAME_EXACT,
+            cut_in=None,
+            cut_out=None,
+            units=(),
+            decision_id=f"bookend:{key}",
+        )
+
+    out = list(pieces)
+    if config.excerpt is None and (intro := whole(config.intro_asset_id, "intro")) is not None:
+        at = next(
+            (i for i, p in enumerate(out) if p.units and is_greeting(p.units[0].unit.text)),
+            min(2, len(out)),
+        )
+        out.insert(at, intro)
+    if config.excerpt is None and (outro := whole(config.outro_asset_id, "outro")) is not None:
+        out.append(outro)
+    return out
+
+
 def _cold_open(
     story: StoryFacts,
     units: Sequence[EditUnit],

@@ -10,11 +10,13 @@ from media_house.core.domain import Rational
 SCHEMA_VERSION: Final = 1
 #: Selection, segmentation, emphasis, emoji and layout rules. Bump when the same inputs plan
 #: differently (it changes every cache key, so old plans are not reused for new rules).
-PLANNER_VERSION: Final = 4  # 4: groups render in batches (asset_start_frame); 3: burned-in, end
+# 7: Shorts sticker emoji (wider vocabulary, longest stem wins, denser); 6: no caption over a
+# full-screen card; 5: OCR caption spans must read heard words
+PLANNER_VERSION: Final = 7  # 4: groups render in batches (asset_start_frame); 3: burned-in, end
 #: Vocabularies (modes, reasons, QC codes; additions are additive).
 VOCABULARY_VERSION: Final = 1
 #: Schema of the configurable knobs in ``profile.py``.
-PROFILE_VERSION: Final = 1
+PROFILE_VERSION: Final = 3  # 3: emoji.display, exact emoji rules; 2: Short emoji, SHORT_OF
 DOCUMENT_TYPE: Final = "caption_plan"
 RESULT_OPERATION: Final = "caption_plan"
 

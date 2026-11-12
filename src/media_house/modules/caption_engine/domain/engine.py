@@ -101,6 +101,7 @@ def cache_key(
         },
         "subjects": digest([asdict(s) for s in inputs.subjects]),
         "covered": digest([asdict(c) for c in inputs.covered]),
+        "full_screen": digest([[str(a), str(b)] for a, b in inputs.full_screen]),
         "burned_in": digest([asdict(b) for b in inputs.burned_in]),
         "style": inputs.style.binding.fingerprint,
         "style_layout": digest(asdict(inputs.style)),
@@ -345,7 +346,7 @@ def plan_captions(
                 timeline_end=rat(g.end),
                 start_frame=_frames(g.start, fps),
                 end_frame=_frames(g.end, fps),
-                emojis=_emoji(emojis.get(gid), g, style.calm),
+                emojis=_emoji(emojis.get(gid), g, style.calm, sticker=p.emoji.display == "sticker"),
                 layout=placed.layout,
                 animation=_animation(p, style, emphasis_at, room=g.end - g.tokens[-1].end),
                 render=RenderRef(status=RenderStatus.NOT_REQUESTED),
@@ -441,7 +442,19 @@ def _mode(
             bare(t) for t in b.text.split()
         }
 
-    shown = sum(1 for w in burnable if any(on_screen(w, b) for b in inputs.burned_in))
+    def spoken(b: BurnedInSpan) -> bool:
+        """A caption span is believed only when its text reads some word heard inside it (an
+        OCR misread such as ``9AX`` over a whole take is not a caption)."""
+        shown_words = {bare(t) for t in b.text.split()}
+        return any(
+            b.asset_id == w.clip.asset_id
+            and b.start <= w.source_start <= b.end
+            and bare(w.text) in shown_words
+            for w in burnable
+        )
+
+    believed = [b for b in inputs.burned_in if not b.caption or spoken(b)]
+    shown = sum(1 for w in burnable if any(on_screen(w, b) for b in believed))
     if shown and shown >= profile.selection.already_captioned_share * len(burnable):
         return CaptionMode.DISABLED, (
             f"the picture already shows burned-in captions for {shown} of {len(burnable)} heard"
@@ -450,7 +463,9 @@ def _mode(
     return profile.mode, source
 
 
-def _emoji(pick: EmojiPick | None, g: Group, calm: bool) -> tuple[EmojiDecision, ...]:
+def _emoji(
+    pick: EmojiPick | None, g: Group, calm: bool, *, sticker: bool
+) -> tuple[EmojiDecision, ...]:
     if pick is None:
         return ()
     w = pick.word
@@ -467,7 +482,7 @@ def _emoji(pick: EmojiPick | None, g: Group, calm: bool) -> tuple[EmojiDecision,
             timeline_end=rat(g.end),
             local_start=rat(start - g.start),
             animation="fade_in" if calm else "pop_in",
-            position="after_word",
+            position="above" if sticker else "after_word",
             render=RenderStatus.NOT_REQUESTED,
         ),
     )

@@ -64,7 +64,11 @@ def _timed(segment: CaptionSegment) -> tuple[tuple[TimedWord, ...], tuple[TimedE
             last[w.word_id] = len(out) - 1
     emojis = tuple(
         TimedEmoji(
-            emoji=e.emoji, after_word=last[e.word_id], local_start=e.local_start, entry=e.animation
+            emoji=e.emoji,
+            after_word=last[e.word_id],
+            local_start=e.local_start,
+            entry=e.animation,
+            placement="above" if e.position == "above" else "",
         )
         for e in segment.emojis
         if e.word_id in last

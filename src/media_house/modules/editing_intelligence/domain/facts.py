@@ -220,6 +220,9 @@ class UnitFact:
     words: int
     starts_clean: bool
     ends_clean: bool
+    #: Kinds of commerce fact the sentence states (``price``, ``rank``, ``shots`` ...), read by
+    #: content analysis' own reader.
+    facts: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -271,6 +274,8 @@ class PauseFact:
     end: float
     #: Share of the gap without speech activity, [0, 1]; ``None`` = not measured.
     silence_ratio: float | None
+    #: Runs of measured speech inside the gap the transcript has no words for (start, end).
+    speech: tuple[tuple[float, float], ...] = ()
 
     @property
     def duration(self) -> float:

@@ -14,7 +14,7 @@ Captions are never generated merely because speech exists: every shown run names
 """
 
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from fractions import Fraction
 
 from media_house.modules.caption_engine.domain.cues import KEY_KINDS, WordCues
@@ -196,8 +196,37 @@ def select(
                     reasons=_reasons(unit, cues),
                 )
             )
+    if inputs.full_screen:
+        runs = _off_screens(runs, inputs.full_screen, suppressed)
     runs.sort(key=lambda r: (r.words[0].start, r.words[0].key))
     return Selected(runs=tuple(runs), suppressed=tuple(suppressed))
+
+
+def _off_screens(
+    runs: Sequence[Run],
+    screens: Sequence[tuple[Fraction, Fraction]],
+    suppressed: list[Suppressed],
+) -> list[Run]:
+    """Runs without the words spoken while a full-screen graphic is up (split where cut)."""
+    out: list[Run] = []
+    for run in runs:
+        piece: list[HeardWord] = []
+        hidden: list[HeardWord] = []
+        for w in run.words:
+            if any(a < w.end and w.start < b for a, b in screens):
+                hidden.append(w)
+                if piece:
+                    out.append(replace(run, words=tuple(piece)))
+                    piece = []
+            else:
+                piece.append(w)
+        if piece:
+            out.append(replace(run, words=tuple(piece)))
+        if hidden:
+            suppressed.append(
+                Suppressed(words=tuple(hidden), reason="a full-screen graphic fills the picture")
+            )
+    return out
 
 
 def _covered(

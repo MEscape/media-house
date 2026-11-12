@@ -62,6 +62,10 @@ _DRAMATIC_HOLD = 0.6
 _PAYOFF_FUNCTIONS = frozenset({"payoff", "turning_point"})
 _MIN_REMOVED = Fraction(5, 100)
 _ISOLATED_GAP = 0.12
+#: Speech the transcript missed inside a gap, from this much on, is never cut as a pause.
+_UNHEARD = 0.4
+#: The silence that separates a figure from its restatement.
+_RESTATE_GAP = 0.6
 _FILLER_EMPHASIS = 0.5
 
 
@@ -297,8 +301,28 @@ def _cuts(
             owner_of[word.index] = unit
             words.append(word)
     found: list[_Cut] = []
+    priority: list[_Cut] = []
     for i, word in enumerate(words):
-        if i + 1 < len(words):
+        restated = (
+            _restated_cuts(
+                words[i - 1] if i else None,
+                words[i],
+                words[i + 1],
+                owner_of[word.index],
+                ctx,
+                profile,
+            )
+            if i + 1 < len(words)
+            else []
+        )
+        priority.extend(restated)
+        if i + 1 < len(words) and not restated:
+            around = _silence_around_speech(
+                words[i], words[i + 1], owner_of[word.index], ctx, profile
+            )
+            if around is not None:
+                found.extend(around)
+                continue
             pause = _pause_cut(
                 words[i], words[i + 1], owner_of[words[i + 1].index], ctx, profile, asm
             )
@@ -308,6 +332,12 @@ def _cuts(
             filler = _filler_cut(words[i - 1], word, words[i + 1], owner_of[word.index], ctx, asm)
             if filler is not None:
                 found.append(filler)
+            stumble = _stumble_cut(words, i, owner_of[word.index], ctx)
+            if stumble is not None:
+                found.append(stumble)
+    # a restated figure's cut wins over the pause and filler cuts it overlaps
+    found = [c for c in found if not any(c.out < p.in_ and p.out < c.in_ for p in priority)]
+    found += priority
     found.sort(key=lambda c: c.out)
     cleaned: list[_Cut] = []
     for cut in found:
@@ -348,9 +378,11 @@ def _pause_cut(
         ctx.pacing.pause_at(ctx.source.asset_id, left.end, right.start) if ctx.pacing else None
     )
     threshold, keep = profile.pause_max, profile.pause_keep
+    pause = ctx.audio.pause_between(left.end, right.start)
     # A pause before an emphasis or a payoff is kept as a beat, never in full: a presenter
     # reading the next line leaves seconds of silence that only look like a dramatic pause.
-    hold = max(profile.pause_keep, _DRAMATIC_HOLD)
+    # A fast profile (short pause_max) keeps a short beat too: never longer than its own limit.
+    hold = max(profile.pause_keep, min(_DRAMATIC_HOLD, profile.pause_max))
     dramatic = (
         (advised is not None and advised.verdict == "meaningful")
         or (right.emphasis or 0.0) >= profile.hold_before_emphasis
@@ -375,13 +407,18 @@ def _pause_cut(
         threshold, keep = min(threshold, max(advised.keep * 1.5, 0.4)), advised.keep
     if gap < threshold:
         return None
+    if pause is not None and sum(b - a for a, b in pause.speech) >= _UNHEARD:
+        # the transcript has no words here but someone speaks: never cut through it
+        asm.pacing_notes.append(
+            f"kept the {gap:.2f} s gap at {left.end:.2f} s: it holds speech the transcript missed"
+        )
+        return None
     reaction = ctx.audio.events_between(left.end, right.start, _REACTION_EVENTS)
     if reaction:
         asm.extra.append(
             _reaction_decision(owner, ctx, reaction[0].kind, reaction[0].start, reaction[0].end)
         )
         return None
-    pause = ctx.audio.pause_between(left.end, right.start)
     precision = Precision.WORD_ALIGNED if ctx.audio.audio.word_level else Precision.SEGMENT_ALIGNED
     out_cp, in_cp = cut_pair(ctx, left, right, keep, precision)
     out_t, in_t = to_fraction(out_cp.time), to_fraction(in_cp.time)
@@ -461,6 +498,164 @@ def _filler_cut(
         f"filler word '{word.text}' with room around it",
     )
     return _Cut(out_t, in_t, out_cp, in_cp, trim, owner)
+
+
+def _bare(text: str) -> str:
+    return "".join(ch for ch in text.casefold() if ch.isalnum())
+
+
+def _stumble(words: list[WordFact], i: int) -> int:
+    """How many words starting at ``i`` are a slip that the next words say again: a doubled
+    word ("die die"), a doubled pair ("das ist das ist") or a broken-off start of the next
+    word ("Feu- Feuerwerk"). 0 = no stumble."""
+    one = [_bare(w.text) for w in words[i : i + 4]]
+    if len(one) >= 2 and one[0] and not one[0].isdigit():
+        if one[0] == one[1] and len(one[0]) >= 2:
+            return 1
+        if len(one[0]) >= 2 and len(one[1]) >= len(one[0]) + 2 and one[1].startswith(one[0]):
+            return 1
+    if len(one) == 4 and one[0] and one[:2] == one[2:] and not one[0].isdigit():
+        return 2
+    return 0
+
+
+def _stumble_cut(words: list[WordFact], i: int, owner: EditUnit, ctx: CutContext) -> _Cut | None:
+    """Cut a slip the speaker repeats right away, keeping the clean second attempt."""
+    count = _stumble(words, i)
+    if not count or i + count >= len(words):
+        return None
+    before, slip, after = words[i - 1], words[i : i + count], words[i + count]
+    precision = Precision.WORD_ALIGNED if ctx.audio.audio.word_level else Precision.SEGMENT_ALIGNED
+    out_cp, in_cp = cut_pair(ctx, before, after, 0.08, precision)
+    out_t, in_t = to_fraction(out_cp.time), to_fraction(in_cp.time)
+    if not out_t <= exact(slip[0].start) or not in_t >= exact(slip[-1].end):
+        return None
+    said = " ".join(w.text for w in slip)
+    trim = _trim(
+        ctx,
+        owner,
+        TrimKind.FILLER,
+        float(out_t),
+        float(in_t),
+        slip,
+        ctx.audio.audio.word_level and all((c.confidence or 0) >= 0.6 for c in (out_cp, in_cp)),
+        f"slip '{said}' said again right after",
+    )
+    return _Cut(out_t, in_t, out_cp, in_cp, trim, owner)
+
+
+def _silence_around_speech(
+    left: WordFact, right: WordFact, owner: EditUnit, ctx: CutContext, profile: EditingProfile
+) -> list[_Cut] | None:
+    """A gap that holds speech the transcript missed: that speech stays, only the silence
+    before and after it is shortened. ``None`` = a plain pause (no missed speech)."""
+    pause = ctx.audio.pause_between(left.end, right.start)
+    if pause is None or sum(b - a for a, b in pause.speech) < _UNHEARD:
+        return None
+    half = exact(profile.pause_keep) / 2
+    out: list[_Cut] = []
+    edges = [
+        (exact(left.end), exact(pause.speech[0][0])),
+        (exact(pause.speech[-1][1]), exact(right.start)),
+    ]
+    for a, b in edges:
+        if b - a > exact(profile.pause_max) and b - a - 2 * half >= _MIN_REMOVED:
+            out.append(
+                _Cut(
+                    a + half,
+                    b - half,
+                    None,
+                    None,
+                    _trim(
+                        ctx,
+                        owner,
+                        TrimKind.PAUSE,
+                        float(a + half),
+                        float(b - half),
+                        [],
+                        ctx.audio.audio.word_level,
+                        f"{float(b - a):.2f} s pause next to speech the transcript missed",
+                    ),
+                    owner,
+                )
+            )
+    return out
+
+
+def _restated_cuts(
+    before: WordFact | None,
+    word: WordFact,
+    after: WordFact,
+    owner: EditUnit,
+    ctx: CutContext,
+    profile: EditingProfile,
+) -> list[_Cut]:
+    """A figure said, then said again in speech the transcript missed ("694,95 ... 694 Euro
+    70 Cent"): the first attempt goes, the restatement and what follows stay."""
+    if not any(ch.isdigit() for ch in word.text):
+        return []
+    pause = ctx.audio.pause_between(word.end, after.start)
+    # a restatement is a second, separate run of speech: one run right after the figure is
+    # the rest of the same figure (the aligner gives a long number one short word time)
+    if (
+        pause is None
+        or len(pause.speech) < 2
+        or sum(b - a for a, b in pause.speech[1:]) < _UNHEARD
+        or pause.speech[-1][0] - pause.speech[-2][1] < _RESTATE_GAP
+    ):
+        return []
+    last = pause.speech[-1]
+    # from just after the word before (the pause before the first attempt goes with it)
+    out = (
+        exact(before.end) + exact(profile.pause_keep) / 2
+        if before is not None
+        else exact(word.start)
+    )
+    resume = exact(last[0]) - Fraction(5, 100)
+    if resume - out < _MIN_REMOVED:
+        return []
+    cuts = [
+        _Cut(
+            out,
+            resume,
+            None,
+            None,
+            _trim(
+                ctx,
+                owner,
+                TrimKind.FILLER,
+                float(out),
+                float(resume),
+                [word],
+                ctx.audio.audio.word_level,
+                f"figure '{word.text}' said again right after: the first attempt goes",
+            ),
+            owner,
+        )
+    ]
+    tail = exact(after.start) - exact(last[1])
+    if tail > exact(profile.pause_max):
+        half = exact(profile.pause_keep) / 2
+        cuts.append(
+            _Cut(
+                exact(last[1]) + half,
+                exact(after.start) - half,
+                None,
+                None,
+                _trim(
+                    ctx,
+                    owner,
+                    TrimKind.PAUSE,
+                    float(exact(last[1]) + half),
+                    float(exact(after.start) - half),
+                    [],
+                    ctx.audio.audio.word_level,
+                    f"{float(tail):.2f} s pause after the restated figure",
+                ),
+                owner,
+            )
+        )
+    return cuts
 
 
 def _word_executable(ctx: CutContext, words: list[WordFact]) -> bool:

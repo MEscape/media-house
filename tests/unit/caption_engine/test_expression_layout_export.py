@@ -78,7 +78,7 @@ def test_a_person_can_switch_emphasis_off_for_one_caption() -> None:
     assert _emphasised(p) == []
 
 
-def test_emoji_are_off_for_serious_formats_and_rare_in_shorts() -> None:
+def test_emoji_are_off_for_serious_formats_and_spaced_in_shorts() -> None:
     text = "Das ist krass. Wirklich krass. Total krass. Echt krass. Mega krass."
     calm = plan(
         inputs(transcript(text), vertical=False), "generic", {"selection.mode": "full_captions"}
@@ -87,8 +87,35 @@ def test_emoji_are_off_for_serious_formats_and_rare_in_shorts() -> None:
 
     assert all(not s.emojis for s in calm.segments)
     emojis = [e for s in haul.segments for e in s.emojis]
-    assert len(emojis) == 1  # spacing and never the same emoji twice in a row
-    assert emojis[0].emoji == "🤯" and emojis[0].render is RenderStatus.NOT_REQUESTED
+    # 2 s apart, the same emoji not again within 20 s: "krass" once, then "Mega"
+    assert [e.emoji for e in emojis] == ["🤯", "🔥"]
+    assert all(e.render is RenderStatus.NOT_REQUESTED for e in emojis)
+    assert {e.position for e in emojis} == {"above"}  # Shorts: big sticker emoji
+
+
+def test_shorts_emoji_are_denser_stickers() -> None:
+    for name in ("shorts_haul", "shorts_product_test", "shorts_versus"):
+        e = PROFILES[name].emoji
+        assert e.display == "sticker" and 12 <= e.max_per_minute <= 15 and e.min_spacing == 2
+    assert PROFILES["shorts_meme"].emoji.display == "inline"  # the static meme line
+
+
+def test_emoji_stems_longest_wins_and_short_words_match_whole_only() -> None:
+    said = (
+        "Das Feuerwerk ist groß. Die Topf ist neu. Ein Topseller Paket. Platz eins top."
+        " Der Wecker klingelt. Wir schauen jetzt."
+    )
+    p = plan(inputs(transcript(said)), "shorts_haul", {"emoji.min_spacing": 2.0})
+    found = {
+        w.text: e.emoji
+        for s in p.segments
+        for e in s.emojis
+        for w in s.words
+        if w.word_id == e.word_id
+    }
+    assert found.get("Feuerwerk") == "🎆"  # not the 🔥 of "feuer"
+    assert "Topf" not in found and "Topseller" not in found  # "top" is a whole word only
+    assert set(found.values()) <= {"🎆", "💯", "📦", "🏆", "👍", "⏰", "👀"}
 
 
 def test_a_negated_word_gets_no_emoji() -> None:
@@ -274,3 +301,9 @@ def test_back_to_back_captions_cut_out_and_the_last_one_animates_out() -> None:
     assert last.animation.exit == "pop_out"
     spoken_end = frac(last.words[-1].timeline_end)
     assert frac(last.timeline_end) - spoken_end >= Fraction(35, 100)
+
+
+def test_every_emoji_stem_is_unique_and_case_folded() -> None:
+    triggers = [r.trigger for r in PROFILES["shorts_haul"].emoji.vocabulary]
+    assert len(triggers) == len(set(triggers))
+    assert all(t == t.casefold() for t in triggers)

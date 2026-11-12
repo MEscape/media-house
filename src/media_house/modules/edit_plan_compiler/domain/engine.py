@@ -14,6 +14,7 @@ from typing import Any
 
 from media_house.modules.edit_plan_compiler.domain.digest import canon, digest
 from media_house.modules.edit_plan_compiler.domain.facts import CompileInputs
+from media_house.modules.edit_plan_compiler.domain.focus import backgrounds, focus_blur
 from media_house.modules.edit_plan_compiler.domain.global_units import (
     captions_unit,
     graphics_unit,
@@ -44,13 +45,19 @@ from media_house.modules.edit_plan_compiler.domain.model import (
     ZoneRef,
 )
 from media_house.modules.edit_plan_compiler.domain.profile import CompilerConfig
-from media_house.modules.edit_plan_compiler.domain.punch import punch_in_jump_cuts
+from media_house.modules.edit_plan_compiler.domain.punch import (
+    SHORT_BEAT,
+    camera_beats,
+    camera_moves,
+    frame_screens,
+)
 from media_house.modules.edit_plan_compiler.domain.timing import fr, rat
 from media_house.modules.edit_plan_compiler.domain.tracks import TrackPlanner, track_id
 from media_house.modules.edit_plan_compiler.domain.units import Context, Unit, clip_unit
 from media_house.modules.edit_plan_compiler.domain.validation import check_timeline
 from media_house.modules.edit_plan_compiler.domain.values import (
     COMPILER_VERSION,
+    FULL_FRAME_ZONE,
     SCHEMA_VERSION,
     VOCABULARY_VERSION,
     AssetRelation,
@@ -160,7 +167,20 @@ def compile_timeline(
         if unit is not None:
             units.append(unit)
 
-    video = punch_in_jump_cuts([v for u in units for v in u.video], config.jump_cut_zoom)
+    framed = frame_screens(
+        [v for u in units for v in u.video],
+        {a: (x, y, w, h) for a, x, y, w, h in config.screen_windows},
+        config.screen_style,
+        fps,
+    )
+    beat = config.camera_beat
+    if beat is None:  # by the output format: a portrait Short keeps moving
+        beat = SHORT_BEAT if inputs.style.height > inputs.style.width else 0.0
+    video = (
+        camera_beats(framed, config.beat_zoom, Fraction(str(beat)), fps)
+        if beat > 0
+        else camera_moves(framed, config.jump_cut_zoom, fps)
+    )
     overlays = tuple(o for u in units for o in u.overlays)
     audio = tuple(a for u in units for a in u.audio)
     effects = tuple(e for u in units for e in u.effects)
@@ -170,6 +190,11 @@ def compile_timeline(
 
     overlays, dropped = _drop_violations(inputs, config, overlays)
     issues += dropped
+    video = focus_blur(video, overlays, config.focus_blur, fps)
+    if config.background_footage:
+        # a reused graphics unit brings the plates of the previous compile: they are made anew
+        video = tuple(v for v in video if not v.clip_id.startswith("background:"))
+        video += backgrounds(overlays, inputs.assets.get(config.background_footage))
 
     duration = _duration(inputs, video, fps)
     timebase = Timebase(
@@ -181,7 +206,8 @@ def compile_timeline(
         width=inputs.style.width,
         height=inputs.style.height,
         duration=rat(duration),
-        duration_frames=round(duration * fps),
+        # whole frames that hold the last exact end (a rounded-down length cuts sound off)
+        duration_frames=-(-(duration * fps) // 1),
         color=ColorManagement.of(config.color_profile),
     )
     issues += check_timeline(inputs, config, timebase, video, overlays, audio)
@@ -331,20 +357,27 @@ def _place(
         return TrackRole.PRIMARY if v.layer == 0 else TrackRole.COVER
 
     def role_of_overlay(o: OverlayItem) -> TrackRole:
+        if o.zone == FULL_FRAME_ZONE:
+            # a full-screen card replaces the picture: it sits under the other graphics (the
+            # sponsor label stays on top of it)
+            return TrackRole.COVER
         return {
             ItemOrigin.GRAPHICS: TrackRole.GRAPHICS,
             ItemOrigin.CAPTIONS: TrackRole.CAPTIONS,
         }.get(o.origin, TrackRole.EFFECTS)
 
-    entries: list[tuple[TrackRole, Fraction, Fraction, str]] = []
+    # (role, start, end, rank, id): at the same time a picture takes its lane before a graphic,
+    # so a full-frame card's background sits under the card
+    entries: list[tuple[TrackRole, Fraction, Fraction, int, str]] = []
     entries += [
-        (role_of_video(v), fr(v.timeline_start), fr(v.timeline_end), v.item_id) for v in video
+        (role_of_video(v), fr(v.timeline_start), fr(v.timeline_end), 0, v.item_id) for v in video
     ]
     entries += [
-        (role_of_overlay(o), fr(o.timeline_start), fr(o.timeline_end), o.item_id) for o in overlays
+        (role_of_overlay(o), fr(o.timeline_start), fr(o.timeline_end), 1, o.item_id)
+        for o in overlays
     ]
-    entries += [(a.role, fr(a.timeline_start), fr(a.timeline_end), a.item_id) for a in audio]
-    for role, start, end, item_id in sorted(entries, key=lambda e: (e[1], e[2], e[3])):
+    entries += [(a.role, fr(a.timeline_start), fr(a.timeline_end), 2, a.item_id) for a in audio]
+    for role, start, end, _, item_id in sorted(entries, key=lambda e: (e[1], e[2], e[3], e[4])):
         lanes[item_id] = (role, planner.lane_for(role, start, end))
     tracks = planner.tracks()
 

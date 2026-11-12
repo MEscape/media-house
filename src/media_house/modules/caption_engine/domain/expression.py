@@ -8,18 +8,25 @@ Emoji come from the profile's small controlled vocabulary only, never on a negat
 ("nicht krass"), only warning emojis inside a caveat sentence, at most ``max_per_minute``,
 ``min_spacing`` apart, the same emoji not again within ``repeat_spacing`` and never twice in a
 row. Formats where emoji would be wrong (serious, technical, sponsored tests) switch them off.
+A sticker emoji (``display = sticker``) is only earned by a word at least ``STICKER_ROOM``
+before its caption ends, so it can fly in, hold and fly out.
 """
 
 import math
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from fractions import Fraction
+from typing import Final
 
 from media_house.modules.caption_engine.domain.cues import WordCues
 from media_house.modules.caption_engine.domain.hearing import HeardWord
 from media_house.modules.caption_engine.domain.profile import CaptionProfile, EmojiRule
 from media_house.modules.caption_engine.domain.text import NEGATIONS, STOPWORDS, bare
 from media_house.modules.caption_engine.domain.values import LEVEL_RANK, EmphasisLevel, FactKind
+
+#: A sticker emoji needs this long from its word to the caption end (plus its 0.1 s lead):
+#: fly in, a short hold, fly out.
+STICKER_ROOM: Final = Fraction(2, 5)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -94,13 +101,18 @@ def _rule_for(word: HeardWord, cue: WordCues, vocabulary: Sequence[EmojiRule]) -
         triggers.append("fact:price")
     if cue.fact is not None and cue.fact.kind is FactKind.RANK and cue.fact.rank == 1:
         triggers.append("fact:rank1")
-    stem = bare(word.text)
     for rule in vocabulary:
-        if rule.trigger in triggers or (
-            not rule.trigger.startswith("fact:") and stem.startswith(rule.trigger)
-        ):
+        if rule.trigger in triggers:
             return rule
-    return None
+    stem = bare(word.text)
+    matches = [
+        r
+        for r in vocabulary
+        if not r.trigger.startswith("fact:")
+        and (stem == r.trigger.casefold() if r.exact else stem.startswith(r.trigger.casefold()))
+    ]
+    # the most specific stem wins ("feuerwerk" before "feuer"); ties keep vocabulary order
+    return max(matches, key=lambda r: len(r.trigger), default=None)
 
 
 def choose_emojis(
@@ -130,6 +142,8 @@ def choose_emojis(
             if caveat(w) and rule.meaning != "warning":
                 continue
             at = w.start
+            if rules.display == "sticker" and g.end - at < STICKER_ROOM:
+                continue  # too late in the group: a sticker would flash in and out
             if last_at is not None and at - last_at < Fraction(rules.min_spacing):
                 continue
             seen = last_seen.get(rule.emoji)

@@ -17,7 +17,7 @@ from types import MappingProxyType
 
 from media_house.core.domain import Rational
 from media_house.modules.editing_intelligence.domain.errors import InvalidEditConfig
-from media_house.modules.editing_intelligence.domain.values import DurationMode
+from media_house.modules.editing_intelligence.domain.values import DurationMode, ExcerptMode
 
 DEFAULT_PROFILE = "generic"
 
@@ -254,8 +254,10 @@ _PROFILES: tuple[EditingProfile, ...] = (
         "Fast creator ranking to camera (16:9): a cut or punch-in every 1.5-3 s, dead air gone, "
         "entries in order, each reveal and the payoff kept.",
         protected_functions=frozenset({"hook", "payoff", "caveat", "turning_point", "claim"}),
-        pause_max=0.35,
-        pause_keep=0.15,
+        pause_max=0.3,
+        pause_keep=0.12,
+        lead_in=0.08,
+        tail_out=0.15,
         cut_threshold=0.6,
         cover_appetite=0.8,
         static_seconds=2.5,
@@ -336,6 +338,17 @@ class EditConfig:
     timeline_frame_rate: Rational | None = None
     #: Footage a person or the script asked for: placed as asked, never judged or replaced.
     cover_wishes: tuple[CoverWish, ...] = ()
+    #: A short cut from the long edit: only the best self-contained stretch of ``(low, high)``
+    #: spoken seconds is kept (no cold open; the long video carries the story's essentials).
+    excerpt: tuple[float, float] | None = None
+    #: How the short is cut: ``condensed`` (the hook, every item's strongest phrases and the
+    #: verdict, from the whole story) or ``contiguous`` (the best single stretch). A story without
+    #: items gets the contiguous stretch either way.
+    excerpt_mode: ExcerptMode = ExcerptMode.CONDENSED
+    #: The channel's own intro and outro clips (played whole, with their sound): the intro
+    #: right before the greeting (else after the hook), the outro as the last clip.
+    intro_asset_id: str | None = None
+    outro_asset_id: str | None = None
 
     def resolve(self, story_format: str) -> EditingProfile:
         if isinstance(self.profile, EditingProfile):
@@ -375,4 +388,7 @@ class EditConfig:
                 ]
                 for w in self.cover_wishes
             ],
+            "excerpt": None if self.excerpt is None else list(self.excerpt),
+            "excerpt_mode": self.excerpt_mode.value,
+            "bookends": [self.intro_asset_id, self.outro_asset_id],
         }

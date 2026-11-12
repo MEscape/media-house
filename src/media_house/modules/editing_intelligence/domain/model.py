@@ -454,6 +454,18 @@ class Provenance:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class ShortPart:
+    """A story part a condensed short must carry, and whether the cut does."""
+
+    #: ``hook``, ``premise``, ``item:<section id>``, ``verdict`` or ``cta``.
+    part: str
+    section_id: str
+    #: The story's label of the section.
+    label: str
+    present: bool
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class EditPlan:
     """What to keep, cut, shorten, move and cover, as a plan a timeline compiler can validate."""
 
@@ -492,6 +504,8 @@ class EditPlan:
     overrides: tuple[ManualOverride, ...] = ()
     schema_version: int = SCHEMA_VERSION
     metadata: tuple[tuple[str, str], ...] = field(default=())
+    #: A condensed short only: the story parts it must carry and whether it does.
+    short_parts: tuple[ShortPart, ...] = ()
 
     # --- lookups ---------------------------------------------------------------------------
     def decision(self, decision_id: str) -> Decision | None:

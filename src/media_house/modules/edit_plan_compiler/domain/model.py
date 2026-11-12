@@ -203,6 +203,15 @@ class CropKey:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class BlurKey:
+    """A key of a picture blur (``size`` 0 = sharp); ``interpolation`` is the curve INTO it."""
+
+    source_time: Rational
+    size: float
+    interpolation: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class Reframe:
     target: str
     recommendation_id: str
@@ -248,6 +257,8 @@ class VideoItem:
     #: those are positions inside that file.
     original_start: Rational | None = None
     original_end: Rational | None = None
+    #: The picture blurs while a focus graphic is on screen over it (keys on the source clock).
+    blur: tuple[BlurKey, ...] = ()
 
     @property
     def frames(self) -> int:

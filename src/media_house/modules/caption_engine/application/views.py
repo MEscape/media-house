@@ -241,6 +241,21 @@ def _rational(value: Fraction) -> Rational:
     return Rational(value.numerator, value.denominator)
 
 
+def full_screen_spans(plan: GraphicsPlan) -> list[tuple[Fraction, Fraction]]:
+    """When a planned full-screen card fills the picture (timeline seconds)."""
+    out: list[tuple[Fraction, Fraction]] = []
+    for g in plan.graphics:
+        frames = g.frames
+        if g.composition is None or not g.composition.full_frame or frames is None:
+            continue
+        if frames.timeline_start is None:
+            continue
+        start = Fraction(frames.timeline_start.numerator, frames.timeline_start.denominator)
+        length = Fraction(frames.duration.numerator, frames.duration.denominator)
+        out.append((start, start + length))
+    return out
+
+
 def covered_spans(plan: GraphicsPlan) -> list[CoveredSpan]:
     """Facts planned graphics already show (prices, ranks, specs) and when."""
     out: list[CoveredSpan] = []

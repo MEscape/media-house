@@ -201,43 +201,93 @@ class Emphasis:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class EmojiRule:
-    """A lower-case stem (or ``fact:<kind>``) -> one emoji with its meaning."""
+    """A case-folded stem (or ``fact:<kind>``) -> one emoji with its meaning. A stem matches
+    every spoken word starting with it (the longest matching stem wins); an ``exact`` rule
+    matches the whole word only (short words: "top" must not light up "topf")."""
 
     trigger: str
     emoji: str
     meaning: str
+    exact: bool = False
 
 
+#: (stems, emoji, meaning): stems are case-folded ("groß" is spelled "gross"); a stem ending
+#: in "=" matches the whole word only. Common German video topics, no filler particles
+#: ("ja", "genau" and "halt" are heard in almost every sentence and would mean nothing).
+_VOCABULARY: Final = (
+    ("fact:price", "💶", "price"),
+    ("fact:rank1", "🏆", "first place"),
+    ("euro= preis kost", "💶", "price"),
+    ("geld bezahl", "💰", "money"),
+    ("cent=", "🪙", "small money"),
+    ("teuer", "💸", "expensive"),
+    ("günstig billig spar schnäppchen", "🤑", "cheap"),
+    ("deal sale= rabatt angebot aktion reduziert prozent", "🏷️", "deal"),
+    ("feuer brenn heiss flamm", "🔥", "fire"),
+    ("heftig mega", "🔥", "intensity"),
+    ("feuerwerk batterie silvester jahreswechsel", "🎆", "fireworks"),
+    ("böller knaller", "🧨", "firecracker"),
+    ("schuss", "🎇", "shots"),
+    ("rakete flieg", "🚀", "rocket"),
+    ("explod explos knall bumm boom", "💥", "explosion"),
+    ("uhr= uhrzeit wecker countdown", "⏰", "time"),
+    ("zeit= sekunde minute stunde dauer", "⏱️", "duration"),
+    ("nacht= nachts= abend dunkel", "🌙", "night"),
+    ("mitternacht", "🕛", "midnight"),
+    ("stern star= beste= bester= besten= bestes=", "⭐", "best"),
+    ("gewinn sieg champion platz=", "🏆", "winner"),
+    ("top= gut= gute= guter= gutes= super= empfehl lohn", "👍", "recommendation"),
+    ("perfekt", "👌", "perfect"),
+    ("einkauf kauf shop warenkorb bestell", "🛒", "shopping"),
+    ("paket karton box unbox auspack", "📦", "unboxing"),
+    ("liefer", "🚚", "delivery"),
+    ("geschenk gratis kostenlos", "🎁", "gift"),
+    ("schau guck sieh seht= look ausseh", "👀", "look"),
+    ("wow omg=", "😮", "surprise"),
+    ("krass unglaublich wahnsinn irre= hammer=", "🤯", "amazement"),
+    ("verrückt", "🤪", "crazy"),
+    ("lach lustig witzig haha", "😂", "laugh"),
+    ("liebe= lieben= liebt= verliebt lieblings herz love=", "❤️", "love"),
+    ("achtung vorsicht warn gefahr gefähr", "⚠️", "warning"),
+    ("richtig stimmt= geschafft funktionier klappt=", "✅", "check"),
+    ("nein= falsch fehler kaputt", "❌", "mistake"),
+    ("frag warum= wieso= weshalb=", "❓", "question"),
+    ("licht hell", "💡", "light"),
+    ("leucht glitzer funkel strahl", "✨", "sparkle"),
+    ("bunt farb", "🌈", "colourful"),
+    ("laut sound krach lärm", "🔊", "loudness"),
+    ("schnell rasant blitz tempo speed", "⚡", "speed"),
+    ("gross riesig gigant maximal max=", "💯", "big"),
+    ("klein mini winzig", "🤏", "small"),
+    ("vergleich gewicht gramm kilo", "⚖️", "compare / weight"),
+    ("versus= vs=", "🆚", "versus"),
+    ("meter zentimeter höhe", "📏", "height"),
+    ("himmel", "🌌", "sky"),
+    ("party feier", "🎉", "party"),
+    ("neujahr prost", "🥂", "new year"),
+    ("stark", "💪", "strong"),
+)
 _EMOJIS: Final = tuple(
-    EmojiRule(trigger=t, emoji=e, meaning=m)
-    for t, e, m in (
-        ("fact:price", "💶", "price"),
-        ("fact:rank1", "🏆", "first place"),
-        ("krass", "🤯", "amazement"),
-        ("unglaublich", "🤯", "amazement"),
-        ("wahnsinn", "🤯", "amazement"),
-        ("explod", "💥", "explosion"),
-        ("knall", "💥", "bang"),
-        ("feuer", "🔥", "fire"),
-        ("heftig", "🔥", "intensity"),
-        ("schnell", "⚡", "speed"),
-        ("laut", "🔊", "loudness"),
-        ("teuer", "💸", "expensive"),
-        ("achtung", "⚠️", "warning"),
-        ("vorsicht", "⚠️", "warning"),
-        ("fehler", "❌", "mistake"),
-        ("liebe", "❤️", "love"),
-    )
+    EmojiRule(trigger=s.removesuffix("="), emoji=e, meaning=m, exact=s.endswith("="))
+    for stems, e, m in _VOCABULARY
+    for s in stems.split()
 )
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class Emoji:
     enabled: bool = _k(False, "Emojis", help="Off for serious and technical formats.")
-    max_per_minute: float = _num(2.0, "Emojis per minute", 0.0, 6.0, 0.5, "per minute")
+    max_per_minute: float = _num(2.0, "Emojis per minute", 0.0, 20.0, 0.5, "per minute")
     min_spacing: float = _num(8.0, "Emoji spacing", 2.0, 60.0, 1.0, "seconds")
     repeat_spacing: float = _num(
         45.0, "Same emoji again after", 5.0, 300.0, 5.0, "seconds", advanced=True
+    )
+    display: str = _k(
+        "inline",
+        "Emoji display",
+        choices=("inline", "sticker"),
+        help="inline = a small emoji after its word; sticker = a big emoji above the line that"
+        " flies in when the word is spoken and out before the caption leaves.",
     )
     #: The controlled vocabulary (never free emoji: meaning must not drift).
     vocabulary: tuple[EmojiRule, ...] = _EMOJIS
@@ -365,6 +415,11 @@ _SHORT_SEGMENTS: Final = Segmentation(
 )
 _FULL: Final = replace(_BASE.selection, mode=CaptionMode.FULL_CAPTIONS.value)
 _DYNAMIC: Final = Animation(reveal="word_by_word", active_word=True, intensity=3)
+#: Shorts (owner 2026-11-11 "max attention"): a big matching emoji flies in on its word about
+#: every 4-5 s, still only where a spoken word matches the vocabulary.
+_STICKERS: Final = Emoji(
+    enabled=True, max_per_minute=12.0, min_spacing=2.0, repeat_spacing=20.0, display="sticker"
+)
 
 PROFILES: Final[dict[str, CaptionProfile]] = {
     p.name: p
@@ -421,17 +476,19 @@ PROFILES: Final[dict[str, CaptionProfile]] = {
             " punchlines are a recurring pattern",
             selection=_FULL,
             segmentation=_SHORT_SEGMENTS,
-            emoji=Emoji(enabled=True, max_per_minute=4.0, min_spacing=5.0),
+            emoji=_STICKERS,
             animation=_DYNAMIC,
         ),
         replace(
             _BASE,
             name="shorts_product_test",
-            description="Sponsored product test Short: full word groups, no emoji.",
-            evidence="xCoOYkqzgDo, y1q4lpEEFcI: factual sponsored tests (80 ref px captions)",
+            description="Sponsored product test Short: full word groups with matching emoji.",
+            evidence="xCoOYkqzgDo, y1q4lpEEFcI: factual sponsored tests (80 ref px captions); "
+            "owner 2026-11-11: Shorts need emoji that fly in and maximum motion",
             selection=_FULL,
             segmentation=_SHORT_SEGMENTS,
-            animation=replace(_DYNAMIC, intensity=2),
+            emoji=replace(_STICKERS, max_per_minute=14.0),
+            animation=replace(_DYNAMIC, intensity=4),
         ),
         replace(
             _BASE,
@@ -440,7 +497,7 @@ PROFILES: Final[dict[str, CaptionProfile]] = {
             evidence="r8A57tnbyKA: mostly graphic; NEfxufh6YLw caps captions with yellow keyword",
             selection=_FULL,
             segmentation=_SHORT_SEGMENTS,
-            emoji=Emoji(enabled=True, max_per_minute=3.0, min_spacing=5.0),
+            emoji=_STICKERS,
             animation=_DYNAMIC,
         ),
         replace(
@@ -471,6 +528,9 @@ STORY_FORMAT_PROFILE: Final[dict[str, str]] = {
 }
 #: Without a story format (the no-speech path) a 9:16 output gets the meme profile.
 ASPECT_PROFILE: Final[dict[str, str]] = {"9:16": "shorts_meme"}
+#: A Short cut from a long video of this style profile: the long video's captions are not Short
+#: captions (a ranking long video has none at all).
+SHORT_OF: Final[dict[str, str]] = {"ranking": "shorts_product_test", "compilation": "shorts_haul"}
 
 
 # --- configuration -----------------------------------------------------------------------------
@@ -508,6 +568,8 @@ class CaptionConfig:
                 or STORY_FORMAT_PROFILE.get(story_format or "")
                 or ASPECT_PROFILE.get(aspect or "", DEFAULT_PROFILE)
             )
+            if self.profile is None and aspect == "9:16" and not name.startswith("shorts_"):
+                name = SHORT_OF.get(name, "shorts_haul")
             if name not in PROFILES:
                 raise InvalidCaptionConfig(
                     f"unknown profile {name!r}; choose one of {', '.join(sorted(PROFILES))}"

@@ -33,6 +33,7 @@ from media_house.modules.edit_plan_compiler.domain.facts import (
     VfxFacts,
     ZoneFact,
 )
+from media_house.modules.edit_plan_compiler.domain.values import FULL_FRAME_ZONE
 from media_house.modules.motion_graphics_engine.application.contracts import GraphicsPlan
 from media_house.modules.music_and_sound_design.application.contracts import SoundDesignPlan
 from media_house.modules.transition_engine.application.contracts import TransitionPlan
@@ -219,7 +220,9 @@ def graphics_facts(plan: GraphicsPlan, document_id: str | None = None) -> Graphi
                 has_alpha=render.alpha_min < 255 if render else True,
                 width=render.width if render else None,
                 height=render.height if render else None,
-                zone=(
+                zone=FULL_FRAME_ZONE
+                if g.composition and g.composition.full_frame
+                else (
                     g.composition.zone
                     if g.composition and g.composition.zone
                     else req.placement.zone

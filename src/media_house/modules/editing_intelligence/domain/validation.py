@@ -65,8 +65,10 @@ def validate(
     evidence: Mapping[str, AssetEvidence],
     target: TargetRecord | None,
     issue_id: Callable[[], str],
+    *,
+    excerpt: bool = False,
 ) -> Validation:
-    v = _Validator(plan, story, evidence, target, issue_id)
+    v = _Validator(plan, story, evidence, target, issue_id, excerpt=excerpt)
     return v.run()
 
 
@@ -78,7 +80,10 @@ class _Validator:
         evidence: Mapping[str, AssetEvidence],
         target: TargetRecord | None,
         issue_id: Callable[[], str],
+        *,
+        excerpt: bool = False,
     ) -> None:
+        self.excerpt = excerpt
         self.plan = plan
         self.story = story
         self.evidence = evidence
@@ -345,6 +350,11 @@ class _Validator:
         )
 
     def _essential(self) -> None:
+        if self.excerpt:
+            self._check(
+                "essential_content", 0, "a short keeps one highlight; the long video has the rest"
+            )
+            return
         mark = len(self.issues)
         by_unit = {
             (d.asset_id, uid): d

@@ -8,7 +8,7 @@ and footage never plays past its end or over cover that is already placed.
 """
 
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from fractions import Fraction
 
 from media_house.core.domain import Rational
@@ -43,6 +43,9 @@ from media_house.modules.editing_intelligence.domain.values import (
 
 #: Shorter cover than this flickers; it is left out.
 _MIN_SECONDS = Fraction(1, 2)
+#: A glimpse of the speaker shorter than this between cover and a cut (or two covers) is a
+#: flash frame, not a shot: the cover is stretched over it.
+_SEAL = Fraction(4, 5)
 
 
 @dataclass(slots=True)
@@ -154,6 +157,67 @@ def place_wishes(
             )
         )
     return out
+
+
+def seal_covers(
+    placements: Sequence[Placement], evidence: Mapping[str, AssetEvidence], rate: Rational
+) -> list[Placement]:
+    """Close every short glimpse of the main picture next to cover footage: a cover that starts
+    just after a cut (or after another cover) starts there, one that ends just before a cut (or
+    before the next cover) runs on to it, as far as its footage reaches."""
+    covers = sorted(
+        (p for p in placements if p.track is TrackKind.VIDEO and p.layer > 0),
+        key=lambda p: (to_fraction(p.timeline_start), p.placement_id),
+    )
+    cuts = sorted(
+        {Fraction(0)}
+        | {
+            to_fraction(p.timeline_start)
+            for p in placements
+            if p.track is TrackKind.VIDEO and p.layer == 0
+        }
+    )
+    sealed: dict[str, Placement] = {}
+    for i, cover in enumerate(covers):
+        start, end = to_fraction(cover.timeline_start), _end(cover)
+        src_start, src_end = to_fraction(cover.source.start), to_fraction(cover.source.end)
+        before = [_end(sealed[c.placement_id]) for c in covers[:i]] + [
+            b for b in cuts if b <= start
+        ]
+        gap = start - max(before)
+        if 0 < gap <= _SEAL and src_start - gap >= 0:
+            start, src_start = start - gap, src_start - gap
+        after = [to_fraction(c.timeline_start) for c in covers[i + 1 :]] + [
+            b for b in cuts if b >= end
+        ]
+        footage = evidence.get(cover.source.asset_id)
+        room = (
+            exact(footage.source.duration) - src_end
+            if footage is not None and footage.source.duration is not None
+            else Fraction(0)
+        )
+        gap = min(after) - end if after else Fraction(0)
+        if 0 < gap <= min(_SEAL, room):
+            end, src_end = end + gap, src_end + gap
+        if (start, end) == (to_fraction(cover.timeline_start), _end(cover)) or footage is None:
+            sealed[cover.placement_id] = cover
+            continue
+        first = frame_round(start, rate)
+        sealed[cover.placement_id] = replace(
+            cover,
+            source=make_range(
+                footage.source,
+                src_start,
+                src_end,
+                cover.source.start_precision,
+                cover.source.end_precision,
+            ),
+            timeline_start=to_rational(start),
+            timeline_duration=to_rational(end - start),
+            start_frame=first,
+            duration_frames=max(1, frame_round(end, rate) - first),
+        )
+    return [sealed.get(p.placement_id, p) for p in placements]
 
 
 def _end(p: Placement) -> Fraction:
