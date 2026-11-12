@@ -133,6 +133,7 @@ def _merge(
         b = base.get(name) if base is not None else None
         if b is None and base is not None and name.startswith("prop:"):
             b = _default(name)  # a property nobody set is at Resolve's default
+        t = next((ref for ref in (m, b) if ref is not None and _close(name, t, ref)), t)
         if m == t:
             _put(final, name, t)
             continue
@@ -181,6 +182,26 @@ def _merge(
         resolution=resolution,
         origin=origin,
     )
+
+
+#: Frame fields Resolve may round by one frame (a clip of another frame rate is conformed).
+_FRAME_FIELDS = frozenset({"start", "duration", "src_start"})
+
+
+def _close(name: str, live: str | None, wanted: str) -> bool:
+    """``live`` reads back what was written: equal, a frame field one frame off, or a property
+    within Resolve's own rounding."""
+    if live is None or live == wanted:
+        return live is not None
+    try:
+        a, b = float(live), float(wanted)
+    except ValueError:
+        return False
+    if name in _FRAME_FIELDS:
+        return abs(a - b) <= 1
+    if name.startswith("prop:"):
+        return abs(a - b) <= 1e-3 * max(1.0, abs(b))
+    return False
 
 
 def _missing(
@@ -239,7 +260,8 @@ def _removed(
     if base is None:
         return Decision(element_id, Action.LEAVE, note="not managed here")
     theirs = live_fields(live, asset_of_media.get(live.media_item_id or ""), frozenset(base))
-    if all(theirs.get(k, v) == v for k, v in base.items()):
+    # Resolve's own rounding (a frame, a property's last digits) is not a person's change
+    if all(k not in theirs or _close(k, theirs[k], v) for k, v in base.items()):
         return Decision(element_id, Action.DELETE)
     conflict = FieldConflict("element", "present", "removed", "changed")
     if policy is ExecutionPolicy.UPDATE_MANAGED_ELEMENTS:

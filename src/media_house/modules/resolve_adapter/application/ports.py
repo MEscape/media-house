@@ -17,6 +17,8 @@ from media_house.modules.resolve_adapter.domain.environment import (
     ConnectionStatus,
     ResolveEnvironment,
 )
+from media_house.modules.resolve_adapter.domain.facts import BlurKey, ZoomKey
+from media_house.modules.resolve_adapter.domain.grade import Cdl
 from media_house.modules.resolve_adapter.domain.live import (
     Placed,
     PlaceRequest,
@@ -91,6 +93,8 @@ class ResolveBackend(Protocol):
 
     def rename_timeline(self, name: str, new_name: str) -> None: ...
 
+    def delete_timeline(self, name: str) -> bool: ...
+
     def ensure_tracks(self, video: int, audio: int, audio_layout: str) -> None: ...
 
     def name_track(self, kind: str, index: int, name: str) -> bool: ...
@@ -104,6 +108,22 @@ class ResolveBackend(Protocol):
     def delete_items(self, item_ids: Sequence[str]) -> None: ...
 
     def link_items(self, item_ids: Sequence[str]) -> bool: ...
+
+    def grade_item(self, item_id: str, grade: Cdl) -> bool:
+        """Set ``grade`` as the CDL of the clip's first colour node."""
+        ...
+
+    def animate_item(
+        self,
+        item_id: str,
+        keys: Sequence[ZoomKey],
+        blur: Sequence[BlurKey] = (),
+        card: tuple[float, float, float, float] | None = None,
+    ) -> bool:
+        """Build the clip's Fusion composition: the framing (zoom ``keys``, or the page ``card``
+        floated over a dark ground and scaled by ``keys``), then the ``blur``; ``True`` when
+        every keyframed input reads back."""
+        ...
 
     def add_marker(
         self,
@@ -132,3 +152,9 @@ class ResolveBackend(Protocol):
     def render_status(self, job_id: str) -> RenderStatus: ...
 
     def stop_render(self) -> None: ...
+
+
+class PictureMeter(Protocol):
+    """The average colour of a recording's picture (normalised RGB), ``None`` when unknown."""
+
+    def mean_rgb(self, path: Path) -> tuple[float, float, float] | None: ...

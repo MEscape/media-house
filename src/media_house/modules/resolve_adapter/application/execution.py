@@ -13,7 +13,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from media_house.modules.resolve_adapter.application.ledger import Ledger
-from media_house.modules.resolve_adapter.application.ports import ResolveBackend
+from media_house.modules.resolve_adapter.application.ports import PictureMeter, ResolveBackend
 from media_house.modules.resolve_adapter.application.sources import SourceFile
 from media_house.modules.resolve_adapter.domain.binding import (
     ConflictRecord,
@@ -32,6 +32,7 @@ from media_house.modules.resolve_adapter.domain.errors import (
     ResolveCallFailed,
 )
 from media_house.modules.resolve_adapter.domain.facts import MediaFact, TimelineFacts
+from media_house.modules.resolve_adapter.domain.grade import Cdl, auto_grade
 from media_house.modules.resolve_adapter.domain.live import (
     LiveItem,
     PlaceRequest,
@@ -86,6 +87,8 @@ from media_house.shared.errors import InvariantViolation
 _DEFAULT_TRACK_NAME = re.compile(r"(Video|Audio) \d+")
 _UNSAFE = re.compile(r'[\\/:*?"<>|]+')
 _DEFAULT_PROJECT = "Untitled Project"
+#: The clip property that carries the mix's static level of a sound clip.
+_VOLUME = "AudioVolume"
 
 
 def norm(path: str) -> str:
@@ -133,6 +136,9 @@ class Execution:
     untagged: set[str] = field(default_factory=set)
     #: Called with the state worth keeping if the run is interrupted from here on.
     on_checkpoint: Callable[[SyncState], None] | None = None
+    #: Measures a recording's average colour for the auto grade (``None``: no grading).
+    meter: PictureMeter | None = None
+    grades: dict[str, Cdl | None] = field(default_factory=dict)
 
     # --- helpers --------------------------------------------------------------------------------
     @property
@@ -178,6 +184,13 @@ class Execution:
         self.ledger.enter(ExecutionState.CONFIGURING_PROJECT)
         self.refresh_capabilities()
         bound = self.previous.project if self.previous else None
+        if (
+            bound is not None
+            and self.config.project_name
+            and (project_name_for(self.config, self.facts) != bound.project_name)
+        ):
+            # an explicitly named other project: a new target, the old binding is left alone
+            self.previous, bound = None, None
         name = bound.project_name if bound else project_name_for(self.config, self.facts)
         projects = self.backend.list_projects()
         current = self.backend.current_project()
@@ -406,6 +419,21 @@ class Execution:
         )
 
     # --- phase: timeline ------------------------------------------------------------------------
+    def _replace_old(self, old: str, new: str) -> str:
+        """Delete the timeline Media House made before and give the new one its name."""
+        gone = self.backend.delete_timeline(old)
+        self.ledger.op(
+            "timeline",
+            Area.PROJECT,
+            "delete the earlier timeline",
+            OperationStatus.EXECUTED if gone else OperationStatus.FAILED,
+            detail=f"{old!r} replaced by this attempt" if gone else f"{old!r} could not be deleted",
+        )
+        if not gone:
+            return new
+        self.backend.rename_timeline(new, old)
+        return old
+
     def open_timeline(self, expected: Expected) -> None:
         self.ledger.enter(ExecutionState.BUILDING_TIMELINE)
         bound = self.previous.project if self.previous else None
@@ -414,6 +442,7 @@ class Execution:
         self.fresh = bound is None or self.policy in {
             ExecutionPolicy.CREATE_NEW,
             ExecutionPolicy.FULL_REBUILD_WITH_BACKUP,
+            ExecutionPolicy.REGENERATE,
         }
         if bound is not None and bound.timeline_name not in existing and not self.fresh:
             self.ledger.warn(
@@ -457,6 +486,13 @@ class Execution:
                 raise ResolveCallFailed("create the timeline", name)
             self.ledger.confirm("timeline.create")
             self.timeline_resolve_id = info.unique_id or ""
+            if (
+                self.policy is ExecutionPolicy.REGENERATE
+                and bound is not None
+                and bound.timeline_name in existing
+                and bound.timeline_name != name
+            ):
+                name = self._replace_old(bound.timeline_name, name)
         elif bound is not None:
             info = self.backend.open_timeline(bound.timeline_name)
             name = bound.timeline_name
@@ -680,6 +716,8 @@ class Execution:
                 continue
             self._properties(wanted[e], self.decisions[e], item_id)
             if e in place:
+                self._animate(wanted[e], item_id)
+                self._grade(wanted[e], item_id)
                 self._tag(wanted[e], item_id)
         for e in sorted(self.untagged):
             item_id = self.element_item.get(e)
@@ -746,6 +784,54 @@ class Execution:
             end_frame=src_start + frames - tail,
         )
 
+    def _grade(self, item: ExpectedItem, item_id: str) -> None:
+        """The recording's auto grade (measured once per recording and run)."""
+        if (
+            not self.config.auto_grade
+            or self.meter is None
+            or not item.gradable
+            or not self.capabilities().usable("clip.grade_cdl")
+        ):
+            return
+        if item.asset_id not in self.grades:
+            source = self.files.get(item.asset_id)
+            mean = self.meter.mean_rgb(source.path) if source and source.path else None
+            self.grades[item.asset_id] = auto_grade(mean) if mean else None
+        grade = self.grades[item.asset_id]
+        if grade is None:
+            return
+        ok = self.backend.grade_item(item_id, grade)
+        self.ledger.op(
+            item.element_id,
+            Area.CLIP,
+            "auto grade",
+            OperationStatus.EXECUTED if ok else OperationStatus.PARTIAL,
+            verification=Verification.NOT_VERIFIABLE,
+            detail="slope " + " ".join(f"{v:.3f}" for v in grade.slope),
+            ref=item_id,
+        )
+        if ok:
+            self.ledger.confirm("clip.grade_cdl")
+
+    def _animate(self, item: ExpectedItem, item_id: str) -> None:
+        """A moving window, a floated page and a focus blur: keyframes on the clip's own Fusion
+        composition."""
+        if not item.motion and not item.blur:
+            return
+        ok = self.backend.animate_item(item_id, item.motion, item.blur, item.card)
+        what = [f"{len(item.motion)} {'card' if item.card else 'zoom'} keys"] if item.motion else []
+        what += [f"{len(item.blur)} blur keys"] if item.blur else []
+        self.ledger.op(
+            item.element_id,
+            Area.CLIP,
+            "animate the framing",
+            OperationStatus.EXECUTED if ok else OperationStatus.PARTIAL,
+            detail=", ".join(what) + ("" if ok else ": the keyframes could not be read back"),
+            ref=item_id,
+        )
+        if ok:
+            self.ledger.confirm("clip.crop_fusion")
+
     def _properties(self, item: ExpectedItem, decision: Decision, item_id: str) -> None:
         final = dict(decision.final)
         written = dict(decision.write) if decision.action is Action.UPDATE else final
@@ -757,6 +843,14 @@ class Execution:
             return
         area = Area.CLIP if item.kind == "video" else Area.AUDIO
         result = self.backend.set_item(item_id, props, enabled)
+        if result.get(_VOLUME) is False:
+            # a Resolve that refuses the clip volume plays it at 0 dB: a gap, not a failure
+            self._volume_refused(item, decision)
+            del result[_VOLUME], props[_VOLUME]
+            if not result:
+                return
+        elif _VOLUME in props:
+            self.ledger.confirm("audio.clip_volume")
         failed = sorted(k for k, ok in result.items() if not ok)
         self.ledger.op(
             item.element_id,
@@ -766,12 +860,31 @@ class Execution:
             detail=("not accepted: " + ", ".join(failed)) if failed else ", ".join(sorted(props)),
             ref=item_id,
         )
-        if props and not failed:
+        if set(props) - {_VOLUME} and not failed:
             self.ledger.confirm("clip.transform")
             if "Opacity" in props:
                 self.ledger.confirm("clip.opacity")
         if enabled is not None and "enabled" not in failed:
             self.ledger.confirm("clip.enable")
+
+    def _volume_refused(self, item: ExpectedItem, decision: Decision) -> None:
+        """Reported as a gap; the volume leaves the state that is verified and remembered."""
+        field_name = f"prop:{_VOLUME}"
+        self.decisions[item.element_id] = replace(
+            decision,
+            final=tuple(f for f in decision.final if f[0] != field_name),
+            write=tuple(f for f in decision.write if f[0] != field_name),
+        )
+        self.ledger.op(
+            item.element_id,
+            Area.AUDIO,
+            "audio.clip_volume",
+            OperationStatus.UNSUPPORTED,
+            strategy=Strategy.NOT_APPLIED,
+            verification=Verification.NOT_VERIFIABLE,
+            detail="Resolve did not accept the clip volume: it plays at 0 dB (the final mix "
+            "carries the level)",
+        )
 
     def _link(self, wanted: Mapping[str, ExpectedItem], created: set[str]) -> None:
         done: set[frozenset[str]] = set()

@@ -53,14 +53,18 @@ class ResolveStore:
 
     # --- binding ----------------------------------------------------------------------------
     def latest_binding(
-        self, anchor_asset_id: str, timeline_id: str
+        self, anchor_asset_id: str, timeline_id: str, *, project: str | None = None
     ) -> Result[tuple[SyncState, MediaAssetDto] | None, MediaError]:
-        stored = [
+        """The newest binding of the timeline; with ``project``, else the newest of any timeline
+        of this video in that project (a new edit carried into the project Media House made)."""
+        bindings = [
             a
             for a in self._library.list_derived(anchor_asset_id)
             if a.metadata.get("processing_type") == BINDING_OPERATION
-            and a.metadata.get("timeline_id") == timeline_id
         ]
+        stored = [a for a in bindings if a.metadata.get("timeline_id") == timeline_id]
+        if not stored and project is not None:
+            stored = [a for a in bindings if a.metadata.get("project") == project]
         for asset in sorted(stored, key=lambda a: (_sequence(a), a.created_at), reverse=True):
             path = self._library.local_path(asset.id)
             if isinstance(path, Err):

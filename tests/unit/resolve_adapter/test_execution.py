@@ -603,6 +603,20 @@ class TestTimelinePolicies:
         for t in fake.projects[PROJECT].timelines:  # every timeline still has its clips
             assert sum(len(lane) for lanes in t.tracks.values() for lane in lanes) == 10
 
+    def test_regenerate_replaces_the_earlier_timeline_instead_of_keeping_it(
+        self, tmp_path: Path
+    ) -> None:
+        # owner 2026-11-11: attempts left timelines and projects behind; only the final one stays
+        first, fake = f.execution(tmp_path)
+        state = f.run(first)
+
+        _, new = f.rerun(tmp_path, fake, state, config=ResolveAdapterConfig(policy=P.REGENERATE))
+
+        timelines = fake.projects[PROJECT].timelines
+        assert [t.name for t in timelines] == [PROJECT]
+        assert new.project.timeline_name == PROJECT
+        assert sum(len(lane) for lanes in timelines[0].tracks.values() for lane in lanes) == 10
+
     def test_a_timeline_deleted_in_resolve_is_built_again_with_a_warning(
         self, tmp_path: Path
     ) -> None:

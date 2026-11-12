@@ -97,6 +97,9 @@ class ExecutionPolicy(StrEnum):
     REQUIRE_CONFLICT_REVIEW = "require_conflict_review"
     #: Back up, keep the old timeline under a new name, then build a fresh one.
     FULL_REBUILD_WITH_BACKUP = "full_rebuild_with_backup"
+    #: Build a fresh timeline and delete the one Media House made before (the pipeline's own
+    #: project: earlier attempts are not left behind; a person's project never gets this).
+    REGENERATE = "regenerate"
 
 
 class OperationStatus(StrEnum):

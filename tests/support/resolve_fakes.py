@@ -287,6 +287,13 @@ class FakePool:
             c.offline = not c.path.is_file()
         return True
 
+    def DeleteTimelines(self, timelines: list[FakeTimeline]) -> bool:  # noqa: N802
+        before = len(self.project.timelines)
+        self.project.timelines = [t for t in self.project.timelines if t not in timelines]
+        if self.project.current_timeline in timelines:
+            self.project.current_timeline = None
+        return len(self.project.timelines) < before
+
     def CreateEmptyTimeline(self, name: str) -> FakeTimeline | None:  # noqa: N802
         if any(t.name == name for t in self.project.timelines):
             return None

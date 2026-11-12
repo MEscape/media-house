@@ -30,6 +30,8 @@ from media_house.modules.resolve_adapter.domain.errors import (
     ResolveCallFailed,
     ResolveConnectionLost,
 )
+from media_house.modules.resolve_adapter.domain.facts import BlurKey, ZoomKey
+from media_house.modules.resolve_adapter.domain.grade import Cdl
 from media_house.modules.resolve_adapter.domain.live import (
     LiveItem,
     LiveMarker,
@@ -76,6 +78,7 @@ _PROPERTIES = (
     "CropRight",
     "CropTop",
     "CropBottom",
+    "AudioVolume",
 )
 
 _TAG = f"{TAG_PREFIX}clip:"
@@ -257,8 +260,7 @@ class ScriptingResolveBackend:
                 f"{name}.{attr}"
                 for name in probed
                 for attr in dir(objects[name])
-                if not attr.startswith("_")
-                and callable(inspect.getattr_static(objects[name], attr, None))
+                if not attr.startswith("_") and _is_method(objects[name], attr)
             )
         )
         databases: tuple[str, ...] = ()
@@ -427,6 +429,11 @@ class ScriptingResolveBackend:
             raise ResolveCallFailed("rename the timeline", name)
 
     @_guarded
+    def delete_timeline(self, name: str) -> bool:
+        timeline = self._find_timeline(name)
+        return bool(self._call("delete the timeline", self._pool().DeleteTimelines, [timeline]))
+
+    @_guarded
     def ensure_tracks(self, video: int, audio: int, audio_layout: str) -> None:
         timeline = self._timeline()
         for kind, wanted in (("video", video), ("audio", audio)):
@@ -486,6 +493,44 @@ class ScriptingResolveBackend:
     def link_items(self, item_ids: Sequence[str]) -> bool:
         items = [self._find_item(i) for i in item_ids]
         return bool(self._call("link clips", self._timeline().SetClipsLinked, items, True))
+
+    @_guarded
+    def animate_item(
+        self,
+        item_id: str,
+        keys: Sequence[ZoomKey],
+        blur: Sequence[BlurKey] = (),
+        card: tuple[float, float, float, float] | None = None,
+    ) -> bool:
+        item = self._find_item(item_id)
+        comp = self._call("add a Fusion composition", item.AddFusionComp)
+        if not comp:
+            return False
+        media_in, media_out = comp.FindTool("MediaIn1"), comp.FindTool("MediaOut1")
+        if media_in is None or media_out is None:
+            return False
+        last, ok = media_in, True
+        if card is not None:
+            last, ok = _float_card(comp, media_in, card, keys)
+        elif keys:
+            last, ok = _zoom(comp, media_in, keys)
+        if blur:
+            last, blurred = _blur(comp, last, blur)
+            ok = ok and blurred
+        media_out.Input = last.Output
+        return ok
+
+    @_guarded
+    def grade_item(self, item_id: str, grade: Cdl) -> bool:
+        item = self._find_item(item_id)
+        cdl = {
+            "NodeIndex": 1,
+            "Slope": " ".join(f"{v:.4f}" for v in grade.slope),
+            "Offset": " ".join(f"{v:.4f}" for v in grade.offset),
+            "Power": " ".join(f"{v:.4f}" for v in grade.power),
+            "Saturation": grade.saturation,
+        }
+        return bool(self._call("grade the clip", item.SetCDL, cdl))
 
     @_guarded
     def add_marker(
@@ -802,3 +847,129 @@ def _resolution(text: str) -> tuple[int | None, int | None]:
     if len(parts) != 2:
         return None, None
     return _int(parts[0]), _int(parts[1])
+
+
+def fusion_keys(points: Sequence[tuple[int, float, str]]) -> dict[float, dict[Any, Any]]:
+    """(frame, value, curve INTO it) -> a Fusion BezierSpline table with relative handles.
+
+    The handles are the CSS cubic-bezier control points of the curve: ``ease_out`` fast then
+    settling (0.16, 1, 0.3, 1), ``ease_in`` the reverse (0.7, 0, 0.84, 0), ``ease_in_out``
+    (0.45, 0, 0.55, 1); ``hold`` keeps the value until the frame before the key."""
+    out: dict[float, dict[Any, Any]] = {}
+    previous: tuple[int, float] | None = None
+    for frame, value, curve in points:
+        if previous is not None and frame <= previous[0]:
+            continue
+        if previous is not None and curve == "hold":
+            if frame - 1 > previous[0]:
+                out[float(frame - 1)] = {1: previous[1]}
+            out[float(frame)] = {1: value}
+            previous = (frame, value)
+            continue
+        key: dict[Any, Any] = {1: value}
+        if previous is not None:
+            start, before = previous
+            dt, dv = frame - start, value - before
+            (x1, y1), (x2, y2) = _BEZIER.get(curve, _BEZIER["linear"])
+            out[float(start)]["RH"] = {1: x1 * dt, 2: y1 * dv}
+            key["LH"] = {1: (x2 - 1.0) * dt, 2: (y2 - 1.0) * dv}
+        out[float(frame)] = key
+        previous = (frame, value)
+    return out
+
+
+_BEZIER: dict[str, tuple[tuple[float, float], tuple[float, float]]] = {
+    "linear": ((1 / 3, 1 / 3), (2 / 3, 2 / 3)),
+    "ease_out": ((0.16, 1.0), (0.3, 1.0)),
+    "ease_in": ((0.7, 0.0), (0.84, 0.0)),
+    "ease_in_out": ((0.45, 0.0), (0.55, 1.0)),
+}
+
+
+def _is_method(obj: Raw, attr: str) -> bool:
+    """Resolve's remote objects resolve their methods dynamically (a static lookup finds none):
+    a name ``dir`` lists counts when either lookup gives something callable."""
+    if callable(inspect.getattr_static(obj, attr, None)):
+        return True
+    try:
+        return callable(getattr(obj, attr, None))
+    except Exception:  # noqa: BLE001 - a dead proxy has no methods
+        return False
+
+
+def _keyed(tool: Raw, name: str, points: Sequence[tuple[int, float, str]]) -> bool:
+    """Animate ``tool``'s input ``name`` through ``points``; a single point is a plain value."""
+    table = fusion_keys(points)
+    # the spline is seeded with the input's value at frame 0: make that the first key's value
+    tool.SetInput(name, points[0][1])
+    if len(table) == 1:
+        return abs(float(tool.GetInput(name)) - points[0][1]) < 1e-4
+    tool.AddModifier(name, "BezierSpline")
+    spline = getattr(tool, name).GetConnectedOutput().GetTool()
+    spline.SetKeyFrames(table, True)
+    return set(table) <= set(spline.GetKeyFrames() or {})
+
+
+def _zoom(comp: Raw, source: Raw, keys: Sequence[ZoomKey]) -> tuple[Raw, bool]:
+    transform = comp.AddTool("Transform", -32768, -32768)
+    transform.SetAttrs({"TOOLS_Name": "MH_Zoom"})
+    transform.Input = source.Output
+    pivot = keys[0]
+    transform.SetInput("Pivot", [pivot.pivot_x, 1.0 - pivot.pivot_y])  # Fusion's y is up
+    ok = _keyed(transform, "Size", [(k.frame, k.size, k.curve) for k in keys])
+    if any((k.pivot_x, k.pivot_y) != (pivot.pivot_x, pivot.pivot_y) for k in keys):
+        transform.AddModifier("Pivot", "XYPath")
+        for k in keys:
+            transform.SetInput("Pivot", [k.pivot_x, 1.0 - k.pivot_y], k.frame)
+    return transform, ok
+
+
+#: How much of the frame a floated page may fill, and the ground it floats on (linear RGB).
+_CARD_FILL = 0.88
+_CARD_GROUND = (0.03, 0.03, 0.04)
+
+
+def _float_card(
+    comp: Raw, source: Raw, window: tuple[float, float, float, float], keys: Sequence[ZoomKey]
+) -> tuple[Raw, bool]:
+    """The page window cut out whole (source pixels), with a soft shadow, merged centred over
+    a dark ground and fitted to ``_CARD_FILL`` of the frame; ``keys`` scale the fitted card."""
+    image = source.Output.GetValue(0)
+    width, height = int(image.Width), int(image.Height)
+    frame_w = float(comp.GetPrefs("Comp.FrameFormat.Width") or width)
+    frame_h = float(comp.GetPrefs("Comp.FrameFormat.Height") or height)
+    x, y, w, h = window
+    crop = comp.AddTool("Crop", -32768, -32768)
+    crop.SetAttrs({"TOOLS_Name": "MH_Card"})
+    crop.Input = source.Output
+    crop.SetInput("XOffset", round(x * width))
+    crop.SetInput("YOffset", round((1.0 - y - h) * height))  # Fusion counts from the bottom
+    crop.SetInput("XSize", round(w * width))
+    crop.SetInput("YSize", round(h * height))
+    shadow = comp.AddTool("Shadow", -32768, -32768)
+    card = crop
+    if shadow is not None:
+        shadow.Input = crop.Output
+        card = shadow
+    ground = comp.AddTool("Background", -32768, -32768)
+    ground.SetInput("Width", int(frame_w))
+    ground.SetInput("Height", int(frame_h))
+    for channel, value in zip(("Red", "Green", "Blue"), _CARD_GROUND, strict=True):
+        ground.SetInput(f"TopLeft{channel}", value)
+    merge = comp.AddTool("Merge", -32768, -32768)
+    merge.Background = ground.Output
+    merge.Foreground = card.Output
+    # Merge sizes the foreground relative to the comp: fit the card's width or height
+    picture = min(frame_w / width, frame_h / height)
+    fit = min(
+        _CARD_FILL * frame_w / (w * width * picture), _CARD_FILL * frame_h / (h * height * picture)
+    )
+    ok = _keyed(merge, "Size", [(k.frame, fit * k.size, k.curve) for k in keys])
+    return merge, ok
+
+
+def _blur(comp: Raw, source: Raw, keys: Sequence[BlurKey]) -> tuple[Raw, bool]:
+    blur = comp.AddTool("Blur", -32768, -32768)
+    blur.SetAttrs({"TOOLS_Name": "MH_Focus"})
+    blur.Input = source.Output
+    return blur, _keyed(blur, "XBlurSize", [(k.frame, k.size, k.curve) for k in keys])

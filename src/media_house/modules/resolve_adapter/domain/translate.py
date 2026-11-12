@@ -15,6 +15,7 @@ from media_house.modules.resolve_adapter.domain.capabilities import CapabilityMa
 from media_house.modules.resolve_adapter.domain.config import ResolveAdapterConfig
 from media_house.modules.resolve_adapter.domain.errors import TimelineNotExecutable
 from media_house.modules.resolve_adapter.domain.facts import (
+    BlurKey,
     ClipFact,
     MarkerFact,
     MediaFact,
@@ -22,6 +23,7 @@ from media_house.modules.resolve_adapter.domain.facts import (
     SubtitleFact,
     TimelineFacts,
     TransitionFact,
+    ZoomKey,
 )
 from media_house.modules.resolve_adapter.domain.values import (
     TAG_PREFIX,
@@ -37,6 +39,9 @@ _NTSC = {
     (60000, 1001): "59.94",
     (120000, 1001): "119.88",
 }
+
+#: The range Resolve accepts for a clip's ``AudioVolume``.
+_VOLUME_DB = (-100.0, 30.0)
 
 CRITICAL_SETTINGS = ("timelineFrameRate", "timelineResolutionWidth", "timelineResolutionHeight")
 
@@ -82,6 +87,14 @@ class ExpectedItem:
     props: tuple[tuple[str, float], ...]
     link: str | None
     digest: str
+    #: A moving window, carried out as a keyframed Fusion transform (not part of ``fields``:
+    #: Resolve cannot read it back as a clip property).
+    motion: tuple[ZoomKey, ...] = ()
+    #: A keyframed blur after the framing, and a screen recording floated as a card (window).
+    blur: tuple[BlurKey, ...] = ()
+    card: tuple[float, float, float, float] | None = None
+    #: A recording of the main picture or the cover footage (an auto grade applies to it).
+    gradable: bool = False
 
     @property
     def fields(self) -> tuple[tuple[str, str], ...]:
@@ -248,6 +261,9 @@ def _item(
     media = facts.media_of(clip.asset_id)
     src_frames = clip.source_frames
     props: dict[str, float] = {}
+    motion: tuple[ZoomKey, ...] = ()
+    blur: tuple[BlurKey, ...] = ()
+    card: tuple[float, float, float, float] | None = None
 
     if clip.retime is not None and clip.retime.applied_by_application:
         placed = config.retime_placement is RetimePlacement.PLACE_WITH_MARKER
@@ -267,7 +283,22 @@ def _item(
 
     if clip.kind == "video":
         if clip.crop is not None and media is not None:
-            if clip.crop.moves:
+            if (
+                clip.crop.card is None
+                and _reshapes(media, facts.settings)
+                and matrix.usable("clip.crop_static")
+            ):
+                # shortcut: a window that changes the aspect (16:9 into 9:16) is held still (at the
+                # clip's middle); a Fusion zoom keeps the source aspect, so following a moving one
+                # needs a crop-to-frame node first. Upgrade when a reframe drifts visibly.
+                props.update(_crop_props(clip, media, facts.settings))
+                if matrix.usable("clip.crop_fusion") and any(
+                    abs(k.size - 1.0) > 1e-6 for k in clip.crop.motion
+                ):
+                    motion = clip.crop.motion  # a camera move inside the held window
+            elif clip.crop.moves and clip.crop.motion and matrix.usable("clip.crop_fusion"):
+                motion, card = clip.crop.motion, clip.crop.card
+            elif clip.crop.moves:
                 gap = _gap(
                     clip,
                     "clip.crop_keyframed",
@@ -285,6 +316,8 @@ def _item(
                 )
         elif media is not None:
             props.update(_fit_props(clip.fit, media, facts.settings))
+        if clip.blur and matrix.usable("clip.crop_fusion"):
+            blur = clip.blur
         if clip.opacity != 1.0:
             props["Opacity"] = clip.opacity * 100.0
         if clip.native_effects:
@@ -296,17 +329,32 @@ def _item(
             )
             gaps.append(gap)
             _instruct(clip, gap, config, markers)
-    elif clip.mix_work:
-        gaps.append(
-            Gap(
-                clip.clip_id,
-                "audio.gain_fades",
-                Strategy.NOT_APPLIED,
-                "gain and fades are mix instructions for audio_mix_engine",
-                alternatives=matrix.get("audio.gain_fades").alternatives,
-                owner="audio_mix_engine",
+    else:
+        volume = clip.gain_db is not None and matrix.usable("audio.clip_volume")
+        if clip.gain_db is not None and volume:
+            props["AudioVolume"] = round(max(_VOLUME_DB[0], min(_VOLUME_DB[1], clip.gain_db)), 1)
+        elif clip.gain_db is not None:
+            gaps.append(
+                Gap(
+                    clip.clip_id,
+                    "audio.clip_volume",
+                    Strategy.NOT_APPLIED,
+                    "the clip plays at 0 dB, not at its mix level",
+                    alternatives=matrix.get("audio.clip_volume").alternatives,
+                )
             )
-        )
+        if clip.mix_work:
+            gaps.append(
+                Gap(
+                    clip.clip_id,
+                    "audio.gain_fades",
+                    Strategy.NOT_APPLIED,
+                    "fades and ducking are mix instructions for audio_mix_engine"
+                    + (" (the clip's level is set)" if volume else ""),
+                    alternatives=matrix.get("audio.gain_fades").alternatives,
+                    owner="audio_mix_engine",
+                )
+            )
     return ExpectedItem(
         element_id=clip.clip_id,
         kind=clip.kind,
@@ -321,6 +369,10 @@ def _item(
         props=tuple(sorted(props.items())),
         link=clip.link,
         digest=clip.digest,
+        motion=motion,
+        blur=blur,
+        card=card,
+        gradable=clip.kind == "video" and clip.clip_kind in {"primary", "cover"} and card is None,
     )
 
 
@@ -439,6 +491,13 @@ def _fit_props(fit: str, media: MediaFact, settings: SettingsFact) -> dict[str, 
         return {} if abs(zx - 1.0) + abs(zy - 1.0) < 1e-6 else {"ZoomX": zx, "ZoomY": zy}
     zoom = 1.0 / contain  # none: pixels 1:1
     return {} if abs(zoom - 1.0) < 1e-6 else {"ZoomX": zoom, "ZoomY": zoom}
+
+
+def _reshapes(media: MediaFact, settings: SettingsFact) -> bool:
+    """The source picture has another aspect than the timeline (a reframed format)."""
+    if not media.width or not media.height:
+        return False
+    return abs(media.width / media.height - settings.width / settings.height) >= 0.01
 
 
 def _crop_props(clip: ClipFact, media: MediaFact, settings: SettingsFact) -> dict[str, float]:

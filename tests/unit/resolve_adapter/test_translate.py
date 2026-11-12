@@ -231,6 +231,18 @@ class TestPictureGeometry:
         assert props["Pan"] > 0  # the window is left of centre: the picture moves right
         assert "Tilt" not in props  # the window spans the full height
 
+    def test_a_moving_window_into_another_aspect_is_held_at_its_first_key(self) -> None:
+        # E2E regression: a 9:16 Short of 16:9 footage rendered letterboxed (Fusion zoom of 1.0)
+        facts = f.facts_of()
+        facts = replace(facts, settings=replace(facts.settings, width=1080, height=1920))
+        facts = f.with_clip(facts, "v:pA", crop=CropFact(0.2, 0.0, 0.3164, 1.0, True, 3))
+
+        expected = go(facts)
+
+        item = expected.item("v:pA")
+        assert item is not None and dict(item.props)["ZoomX"] > 3
+        assert ("v:pA", "clip.crop_keyframed") not in gap_ops(expected)
+
     def test_opacity_is_a_percentage(self) -> None:
         item = go(f.with_clip(f.facts_of(), "o:graphic:g1", opacity=0.5)).item("o:graphic:g1")
 

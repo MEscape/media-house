@@ -71,6 +71,9 @@ class ResolveAdapterConfig:
     proxy_profile: str = "edit"
     #: Save the project after the timeline is built.
     save: bool = True
+    #: A gentle auto grade (CDL on the first node) per recording of the main picture and the
+    #: cover footage, from its measured average colour.
+    auto_grade: bool = field(default=False, metadata={"label": "Auto grade", "group": "look"})
     #: Block when a source file is missing or changed since the timeline was built.
     require_media: bool = True
     minimum_version: tuple[int, ...] = MIN_RESOLVE_VERSION

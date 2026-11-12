@@ -22,7 +22,7 @@ from media_house.modules.resolve_adapter.application.execution import (
     project_name_for,
 )
 from media_house.modules.resolve_adapter.application.ledger import Ledger
-from media_house.modules.resolve_adapter.application.ports import ResolveBackend
+from media_house.modules.resolve_adapter.application.ports import PictureMeter, ResolveBackend
 from media_house.modules.resolve_adapter.application.reporting import make_report
 from media_house.modules.resolve_adapter.application.sources import SourceFile, SourceFiles
 from media_house.modules.resolve_adapter.application.store import ResolveStore
@@ -69,6 +69,9 @@ class ExecuteTimelineCommand:
     config: ResolveAdapterConfig = field(default_factory=ResolveAdapterConfig)
     #: Name of the timeline in Resolve; empty = from the recording's name.
     name: str = ""
+    #: The static volume (dB) the final mix gives each sound clip, by clip id (empty: none known,
+    #: every clip plays at 0 dB).
+    audio_gains: Mapping[str, float] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,8 +92,10 @@ class ExecuteTimeline:
         store: ResolveStore,
         paths: AppPaths,
         clock: Clock,
+        meter: PictureMeter | None = None,
     ) -> None:
         self._backend = backend
+        self._meter = meter
         self._library = library
         self._catalog = catalog
         self._sources = sources
@@ -111,7 +116,11 @@ class ExecuteTimeline:
                     [f"the built timeline's schema {timeline.schema_version} is not readable"]
                 )
             )
-        facts = to_facts(timeline, name=command.name or f"{anchor.display_name} · edit")
+        facts = to_facts(
+            timeline,
+            name=command.name or f"{anchor.display_name} · edit",
+            audio_gains=command.audio_gains,
+        )
         config = command.config
         files = self._sources.resolve(
             facts.media, proxy_profile=config.proxy_profile, with_proxies=config.link_proxies
@@ -119,7 +128,9 @@ class ExecuteTimeline:
         problems = _media_problems(facts, files) if config.require_media else []
         if problems:
             return Err(TimelineNotExecutable(problems))
-        previous = self._store.latest_binding(anchor.id, facts.timeline_id)
+        previous = self._store.latest_binding(
+            anchor.id, facts.timeline_id, project=project_name_for(config, facts)
+        )
         if isinstance(previous, Err):
             return previous
         status = self._backend.connect()
@@ -138,6 +149,7 @@ class ExecuteTimeline:
             ledger=ledger,
             export_dir=self._paths.data_dir / "resolve" / anchor.id,
             on_checkpoint=lambda state: self._checkpoint(anchor, state),
+            meter=self._meter,
         )
         execution_id = new_id()
         state_after: SyncState | None = None

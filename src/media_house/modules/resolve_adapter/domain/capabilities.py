@@ -1,12 +1,12 @@
 """What the installed Resolve can do, operation by operation.
 
 Resolve's scripting API does not cover everything a timeline needs (no scripted transitions, no
-retime, no native effects, no keyframed crops, no clip gain). This registry states, for every
-operation the adapter uses, how it is carried out, what limits it has, what could replace it and
-how it is verified. A method that exists is not a capability that works: a capability is
-``SUPPORTED`` only after a read-back confirmed the whole operation on THIS Resolve (version and
-edition); until then it is ``NOT_VERIFIED``. A known gap stays ``UNSUPPORTED`` and is reported
-wherever a timeline element needs it, never silently replaced.
+retime, no native effects, no keyframed crops, no audio fades or volume keyframes). This registry
+states, for every operation the adapter uses, how it is carried out, what limits it has, what
+could replace it and how it is verified. A method that exists is not a capability that works: a
+capability is ``SUPPORTED`` only after a read-back confirmed the whole operation on THIS Resolve
+(version and edition); until then it is ``NOT_VERIFIED``. A known gap stays ``UNSUPPORTED`` and is
+reported wherever a timeline element needs it, never silently replaced.
 
 The registry is written from the published scripting documentation. It could not be checked
 against an installed Resolve while this was written; the matrix says so by never claiming more
@@ -195,6 +195,22 @@ REGISTRY: tuple[CapabilitySpec, ...] = (
         verification="the zoom and pan properties are read back",
     ),
     CapabilitySpec(
+        "clip.crop_fusion",
+        "A moving reframing window as a keyframed Fusion transform on the clip",
+        methods=("TimelineItem.AddFusionComp",),
+        parameters="Transform Size and Pivot keyframes with eased Bezier handles",
+        limits=("the window must stay inside the picture (zoom 1 or more)",),
+        partial=True,
+        verification="the keyframes are read back from the composition",
+    ),
+    CapabilitySpec(
+        "clip.grade_cdl",
+        "A gentle auto grade as a CDL on the clip's first colour node",
+        methods=("TimelineItem.SetCDL",),
+        parameters="Slope, Offset, Power, Saturation",
+        verification="the call reports success; the grade cannot be read back",
+    ),
+    CapabilitySpec(
         "clip.crop_keyframed",
         "A reframing window that moves over the clip",
         mechanism="none",
@@ -245,13 +261,25 @@ REGISTRY: tuple[CapabilitySpec, ...] = (
     ),
     CapabilitySpec(
         "audio.gain_fades",
-        "Clip gain and audio fades",
+        "Audio fades, ducking and volume changes over a clip",
         mechanism="none",
         known_gap=True,
         owner="audio_mix_engine",
         alternatives=("the final mix is carried out by audio_mix_engine, not by this adapter",),
-        limits=("the scripting API has no clip volume or fades",),
+        limits=("the scripting API has no audio fades and no volume keyframes",),
         verification="not applicable",
+    ),
+    CapabilitySpec(
+        "audio.clip_volume",
+        "A static volume per audio clip (the mix's level of the clip)",
+        methods=("TimelineItem.SetProperty", "TimelineItem.GetProperty"),
+        parameters="AudioVolume -100.0 to 30.0 dB",
+        limits=(
+            "one level for the whole clip: no ducking, fades or bus processing",
+            "a Resolve that refuses the property plays the clip at 0 dB (reported, not a failure)",
+        ),
+        alternatives=("the final mix of audio_mix_engine",),
+        verification="the volume is read back",
     ),
     CapabilitySpec(
         "caption.subtitle_import",

@@ -10,6 +10,7 @@ from fractions import Fraction
 
 from media_house.core.domain import Rational
 from media_house.modules.resolve_adapter.domain.facts import (
+    BlurKey,
     ClipFact,
     CropFact,
     CueFact,
@@ -23,11 +24,13 @@ from media_house.modules.resolve_adapter.domain.facts import (
     TimelineFacts,
     TrackFact,
     TransitionFact,
+    ZoomKey,
 )
 from media_house.modules.timeline_builder.application.contracts import (
     AudioClip,
     BuiltTimeline,
     ClipState,
+    CropPlan,
     Execution,
     SourceMedia,
     TimeMap,
@@ -39,8 +42,12 @@ def _fr(value: Rational) -> Fraction:
     return Fraction(value.numerator, value.denominator)
 
 
-def to_facts(timeline: BuiltTimeline, *, name: str) -> TimelineFacts:
+def to_facts(
+    timeline: BuiltTimeline, *, name: str, audio_gains: Mapping[str, float] | None = None
+) -> TimelineFacts:
+    """``audio_gains``: the static volume (dB) the mix gives each sound clip, by clip id."""
     s = timeline.settings
+    gains = audio_gains or {}
     fps = _fr(s.frame_rate)
     sources = {m.source_id: m for m in timeline.sources}
     roles: dict[str, set[str]] = {}
@@ -51,7 +58,7 @@ def to_facts(timeline: BuiltTimeline, *, name: str) -> TimelineFacts:
             if v.source is not None:
                 roles.setdefault(v.source.source_id, set()).add(track.role.value)
         for a in track.audio:
-            clips.append(_audio(a, fps, sources))
+            clips.append(_audio(a, fps, sources, gains.get(a.clip_id)))
             if a.source is not None:
                 roles.setdefault(a.source.source_id, set()).add(track.role.value)
     identity = timeline.identity
@@ -176,6 +183,10 @@ def _video(v: VideoClip, fps: Fraction, sources: Mapping[str, SourceMedia]) -> C
         played = max(
             1, round(_fr(source.source_out) * file_fps) - round(_fr(source.source_in) * file_fps)
         )
+        if v.speed == Rational(1, 1) and v.time_map is None:
+            # at normal speed the clip fills its slot: in and out rounded apart can leave the
+            # slot one frame short, which plays as a black frame
+            played = max(1, round(Fraction(v.end_frame - v.start_frame) * file_fps / fps))
     crop = _crop(v)
     return ClipFact(
         clip_id=v.clip_id,
@@ -193,6 +204,7 @@ def _video(v: VideoClip, fps: Fraction, sources: Mapping[str, SourceMedia]) -> C
         fit=v.transform.fit.value if v.transform else "contain",
         crop=crop,
         retime=_retime(v.time_map, v.speed),
+        blur=_blur(v),
         native_effects=tuple(
             e.effect_type for e in v.effects if e.applied and e.execution is Execution.NATIVE
         ),
@@ -204,7 +216,9 @@ def _video(v: VideoClip, fps: Fraction, sources: Mapping[str, SourceMedia]) -> C
     )
 
 
-def _audio(a: AudioClip, fps: Fraction, sources: Mapping[str, SourceMedia]) -> ClipFact:
+def _audio(
+    a: AudioClip, fps: Fraction, sources: Mapping[str, SourceMedia], gain_db: float | None = None
+) -> ClipFact:
     source = a.source
     asset = source.source_id if source else None
     start = round(_fr(a.timeline_start) * fps)
@@ -240,16 +254,102 @@ def _audio(a: AudioClip, fps: Fraction, sources: Mapping[str, SourceMedia]) -> C
         provenance=a.provenance.value,
         digest=a.source_digest,
         resolved=a.state is ClipState.RESOLVED,
+        gain_db=gain_db,
     )
 
 
 def _crop(v: VideoClip) -> CropFact | None:
-    plan = v.crops[0] if v.crops else None
-    if plan is None or not plan.keys:
+    plans = [p for p in v.crops if p.keys]
+    # a camera move works on the source picture (punch-ins, beats); a window reshapes it
+    camera = next((p for p in plans if p.target == "source"), None)
+    window = next((p for p in plans if p is not camera), None)
+    plan = window or camera
+    if plan is None:
         return None
+    if plan.strategy == "screen_card":
+        return _card(v, plan)
+    middle = (v.start_frame + v.end_frame) // 2
+    if camera is not None and window is not None:
+        # a reframed format: the window is held, the camera move zooms inside it
+        return CropFact(*_window_at(window, middle), True, len(camera.keys), _motion(v, camera))
     first = plan.keys[0]
     moves = any((k.x, k.y, k.w, k.h) != (first.x, first.y, first.w, first.h) for k in plan.keys[1:])
-    return CropFact(first.x, first.y, first.w, first.h, moves, len(plan.keys))
+    held = _window_at(plan, middle)
+    return CropFact(*held, moves, len(plan.keys), _motion(v, plan) if moves else ())
+
+
+def _motion(v: VideoClip, plan: CropPlan) -> tuple[ZoomKey, ...]:
+    return tuple(
+        ZoomKey(
+            frame=max(0, k.timeline_frame - v.start_frame),
+            size=1.0 / max(k.w, k.h),
+            pivot_x=_pivot(k.x, k.w),
+            pivot_y=_pivot(k.y, k.h),
+            curve=k.interpolation or "linear",
+        )
+        for k in plan.keys
+        if k.timeline_frame is not None
+    )
+
+
+def _window_at(plan: CropPlan, frame: int) -> tuple[float, float, float, float]:
+    """The window at a timeline frame (linear between keys): the analysis keys the whole take,
+    so the first key may lie long before this clip."""
+    timed = sorted(
+        ((k.timeline_frame, k) for k in plan.keys if k.timeline_frame is not None),
+        key=lambda pair: pair[0],
+    )
+    if not timed:
+        k = plan.keys[0]
+        return k.x, k.y, k.w, k.h
+    before = [(f, k) for f, k in timed if f <= frame]
+    after = [(f, k) for f, k in timed if f > frame]
+    if not before or not after:
+        k = (before or after)[-1 if before else 0][1]
+        return k.x, k.y, k.w, k.h
+    (fa, a), (fb, b) = before[-1], after[0]
+    t = (frame - fa) / (fb - fa)
+    return tuple(  # type: ignore[return-value]
+        p + (q - p) * t for p, q in zip((a.x, a.y, a.w, a.h), (b.x, b.y, b.w, b.h), strict=True)
+    )
+
+
+def _card(v: VideoClip, plan: CropPlan) -> CropFact:
+    """A floating page: the window stays, the card grows by the push named in the analysis
+    (``screen_card:<push>``) from the first key to the last."""
+    first, last = plan.keys[0], plan.keys[-1]
+    try:
+        push = float(plan.analysis_id.rpartition(":")[2])
+    except ValueError:
+        push = 1.0
+    frames = [
+        max(0, k.timeline_frame - v.start_frame)
+        for k in (first, last)
+        if k.timeline_frame is not None
+    ]
+    motion = (
+        (
+            ZoomKey(frame=frames[0], size=1.0, pivot_x=0.5, pivot_y=0.5, curve="hold"),
+            ZoomKey(frame=frames[1], size=push, pivot_x=0.5, pivot_y=0.5, curve=last.interpolation),
+        )
+        if len(frames) == 2 and frames[1] > frames[0]
+        else (ZoomKey(frame=0, size=1.0, pivot_x=0.5, pivot_y=0.5, curve="hold"),)
+    )
+    window = (first.x, first.y, first.w, first.h)
+    return CropFact(*window, True, len(plan.keys), motion, window)
+
+
+def _blur(v: VideoClip) -> tuple[BlurKey, ...]:
+    return tuple(
+        BlurKey(frame=max(0, k.timeline_frame - v.start_frame), size=k.size, curve=k.interpolation)
+        for k in v.blur
+        if k.timeline_frame is not None
+    )
+
+
+def _pivot(start: float, side: float) -> float:
+    """The point a window of ``side`` starting at ``start`` grows from (zoom about it)."""
+    return 0.5 if side >= 1.0 else min(max(start / (1.0 - side), 0.0), 1.0)
 
 
 def _retime(time_map: TimeMap | None, speed: Rational) -> RetimeFact | None:

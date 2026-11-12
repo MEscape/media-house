@@ -178,6 +178,12 @@ class TestDeletedAndRemoved:
 
         assert d.action is Action.DELETE and not d.conflicts
 
+    def test_resolve_rounding_a_dropped_clip_by_a_frame_is_not_a_persons_change(self) -> None:
+        # E2E regression: a caption the Short no longer wanted blocked the update as a "conflict"
+        d = decision(None, bound(), live(duration=101))
+
+        assert d.action is Action.DELETE and not d.conflicts
+
     def test_a_clip_media_house_dropped_but_the_person_changed_is_kept(self) -> None:
         d = decision(None, bound(), live(start=30), P.PRESERVE_MANUAL_EDITS)
 

@@ -139,7 +139,7 @@ class ResolveCatalog(Protocol):
     """Stored links and reports; Resolve is not contacted."""
 
     def latest_binding(
-        self, anchor_asset_id: str, timeline_id: str
+        self, anchor_asset_id: str, timeline_id: str, *, project: str | None = None
     ) -> Result[tuple[SyncState, MediaAssetDto] | None, MediaError]: ...
 
     def reports(self, anchor_asset_id: str) -> list[MediaAssetDto]: ...

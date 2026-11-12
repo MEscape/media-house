@@ -36,6 +36,7 @@ from media_house.modules.resolve_adapter.infrastructure.install import (
     ResolveLoader,
     load_resolve,
 )
+from media_house.modules.resolve_adapter.infrastructure.picture_meter import FfmpegPictureMeter
 from media_house.modules.resolve_adapter.infrastructure.scripting import ScriptingResolveBackend
 from media_house.modules.timeline_builder.application.contracts import (
     BuiltTimelineCatalog,
@@ -78,6 +79,7 @@ class ResolveAdapterModule:
                 c.resolve(ResolveStore),
                 c.resolve(AppPaths),
                 c.resolve(Clock),
+                FfmpegPictureMeter(c.resolve(ProcessRunner)),
             ),
         )
         container.register_factory(
