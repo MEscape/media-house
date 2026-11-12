@@ -17,6 +17,7 @@ from media_house.modules.audio_mix_engine.domain.facts import (
     InstructionFact,
     MixFacts,
 )
+from media_house.modules.audio_mix_engine.domain.levels import LevelTargets
 from media_house.modules.audio_mix_engine.domain.profile import (
     DeliveryProfile,
     Limiter,
@@ -99,7 +100,10 @@ def build_spec(
     created_at: str,
     overrides: MixOverrides | None = None,
     speech_spans: tuple[tuple[int, int], ...] | None = None,
+    levels: LevelTargets | None = None,
 ) -> BuiltSpec:
+    """``levels``: music and effects are placed against the dialogue at render time; the speech
+    duck is then the step between the music's gap level and its under-speech level."""
     overrides = overrides or MixOverrides()
     issues: list[SpecIssue] = []
     deps: list[Dependency] = []
@@ -142,6 +146,10 @@ def build_spec(
         _master(profile, delivery, bus_gain),
     )
     ducks = _ducks(facts, clips, tracks, profile, rate, speech_spans)
+    if levels is not None:
+        ducks = [
+            replace(d, depth_db=levels.duck_depth_db) if d.key == "speech" else d for d in ducks
+        ]
     for ins in facts.instructions:
         if ins.kind == "duck" and ins.depth_db < 0:
             issues.append(
@@ -185,7 +193,12 @@ def build_spec(
         ),
         stems=tuple(StemSpec(f"stem:{b}", b, "post_bus") for b in bus_ids),
         validation=ValidationRequirements(
-            CHECKS, profile.min_dialogue_over_music_lu, -60.0, 1.0, -60.0
+            CHECKS,
+            profile.min_dialogue_over_music_lu,
+            -60.0,
+            1.0,
+            -60.0,
+            levels.max_music_gap_lu if levels is not None else None,
         ),
         dependencies=tuple(sorted(deps, key=lambda d: (d.kind, d.reference))),
         warnings=(),

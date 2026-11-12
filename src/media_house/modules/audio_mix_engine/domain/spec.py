@@ -168,6 +168,8 @@ class ValidationRequirements:
     silence_threshold_db: float
     silence_min_seconds: float
     recombination_tolerance_db: float
+    #: Music further below the dialogue than this is inaudible (LU).
+    max_dialogue_over_music_lu: float | None = None
 
 
 @dataclass(frozen=True, slots=True)

@@ -5,13 +5,16 @@ original recording is never touched; the file used is the one the timeline point
 original, or the improved derivative the compiler chose).
 """
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
 from media_house.modules.audio_mix_engine.domain.spec import SourceRef
 from media_house.modules.media_library.application.contracts import MediaLibrary
 from media_house.shared.errors import Err
+
+#: The metadata key under which the sound library import describes a library file.
+_LIBRARY_KEY = "sound_library"
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,6 +25,8 @@ class SoundFile:
     #: Its content is not what the timeline was built from.
     changed: bool
     checksum: str | None
+    #: The sound library's categories of the file (``impact``, ``whoosh``, ``pop`` ...), if any.
+    categories: tuple[str, ...] = ()
 
 
 class SoundFiles:
@@ -38,6 +43,14 @@ class SoundFiles:
                 continue
             changed = ref.checksum is not None and asset.value.checksum != ref.checksum
             found[ref.source_id] = SoundFile(
-                ref.source_id, path.value, True, changed, asset.value.checksum
-            )
+                ref.source_id, path.value, True, changed, asset.value.checksum,
+                _categories(asset.value.metadata),
+            )  # fmt: skip
         return found
+
+
+def _categories(metadata: Mapping[str, object]) -> tuple[str, ...]:
+    """The categories the sound library import recorded on the asset (metadata, not a guess)."""
+    entry = metadata.get(_LIBRARY_KEY)
+    found = entry.get("categories") if isinstance(entry, Mapping) else None
+    return tuple(c for c in found if isinstance(c, str)) if isinstance(found, list) else ()

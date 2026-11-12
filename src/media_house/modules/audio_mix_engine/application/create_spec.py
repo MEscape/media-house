@@ -17,7 +17,11 @@ from media_house.modules.audio_mix_engine.domain.errors import (
     SpecificationInvalid,
     TimelineNotMixable,
 )
-from media_house.modules.audio_mix_engine.domain.profile import choose_delivery, choose_profile
+from media_house.modules.audio_mix_engine.domain.profile import (
+    choose_delivery,
+    choose_profile,
+    level_targets,
+)
 from media_house.modules.audio_mix_engine.domain.spec import AudioMixSpecification
 from media_house.modules.audio_mix_engine.domain.values import SUPPORTED_BUILT_SCHEMAS, Severity
 from media_house.modules.media_library.application.contracts import (
@@ -50,6 +54,8 @@ class MixConfig:
     speech_spans: tuple[tuple[int, int], ...] | None = None
     #: Bring dialogue clips gently toward the profile's dialogue loudness.
     level_dialogue: bool = True
+    #: Measure music and effects and place them against the dialogue (the profile's targets).
+    level_mix: bool = True
     #: Check the stems by recombining them through the master and comparing with the mix.
     verify_recombination: bool = True
     #: How many times the master may be re-rendered to reach the loudness target.
@@ -118,6 +124,7 @@ class CreateMixSpecification:
             created_at=self._clock.now().isoformat(),
             overrides=config.overrides,
             speech_spans=config.speech_spans,
+            levels=level_targets(profile, delivery) if config.level_mix else None,
         )  # fmt: skip
         if built.spec is None:
             return Err(NothingToMix())

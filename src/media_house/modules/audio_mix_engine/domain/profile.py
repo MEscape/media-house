@@ -11,6 +11,7 @@ single constant for every video.
 from dataclasses import dataclass, field
 
 from media_house.modules.audio_mix_engine.domain.errors import InvalidMixConfig
+from media_house.modules.audio_mix_engine.domain.levels import LevelTargets
 from media_house.modules.audio_mix_engine.domain.values import PROFILE_VERSION, BusRole
 
 
@@ -76,6 +77,8 @@ class MixProfile:
     master_limiter: Limiter = field(default_factory=lambda: Limiter(-1.5))
     #: Validation: the dialogue should sit at least this far above the music (LU).
     min_dialogue_over_music_lu: float = 8.0
+    #: Where music and effects sit against the levelled dialogue (``levels.py``).
+    levels: LevelTargets = field(default_factory=LevelTargets)
     version: int = PROFILE_VERSION
 
     def bus(self, role: BusRole) -> BusProfile:
@@ -94,6 +97,8 @@ class DeliveryProfile:
     bit_depth: int
     channels: int
     container: str = "wav"
+    #: A delivery heard on a phone speaker needs its own balance; ``None``: the mix profile's.
+    levels: LevelTargets | None = None
     version: int = PROFILE_VERSION
 
     @property
@@ -107,7 +112,12 @@ _MUSIC_MAKE_ROOM = EqBand("peaking", 2500.0, -2.5, 0.9)
 _MUSIC_LOW = EqBand("highpass", 40.0)
 _SFX_HP = EqBand("highpass", 60.0)
 
-_GENTLE_VOICE = Compressor(-20.0, 2.0, 15.0, 150.0, 1.0)
+# The make-up gain gives back what the compressor takes at the dialogue target (measured on
+# levelled speech at -18 LUFS: about 3 dB and 8 dB), so the dialogue bus stays at the level the
+# music and effects are placed against.
+_GENTLE_VOICE = Compressor(-20.0, 2.0, 15.0, 150.0, 3.0)
+#: One voice carries the video: louder and softer words are held closer together.
+_CREATOR_VOICE = Compressor(-26.0, 3.0, 8.0, 120.0, 8.0)
 
 
 def _profile(
@@ -120,6 +130,9 @@ def _profile(
     duck_db: float,
     voice_comp: Compressor | None = _GENTLE_VOICE,
     min_gap: float = 8.0,
+    levelling: float = 0.7,
+    max_trim: float = 6.0,
+    levels: LevelTargets | None = None,
 ) -> MixProfile:
     return MixProfile(
         key=key,
@@ -132,13 +145,37 @@ def _profile(
             BusProfile(BusRole.AMBIENCE, ambience_db, (_MUSIC_LOW,), None),
         ),
         ducking=DuckingProfile(depth_db=duck_db),
+        dialogue_levelling=levelling,
+        max_dialogue_trim_db=max_trim,
         min_dialogue_over_music_lu=min_gap,
+        levels=levels or LevelTargets(),
     )
+
+
+def _levels(under: float, gaps: float, impact: float, whoosh: float, ui: float) -> LevelTargets:
+    return LevelTargets(
+        music_under_speech_lu=under,
+        music_in_gaps_lu=gaps,
+        sfx_impact_lu=impact,
+        sfx_whoosh_lu=whoosh,
+        sfx_ui_lu=ui,
+        sfx_other_lu=whoosh,
+    )
+
+
+#: A phone speaker in a busy feed: music closer under the voice, effects up front.
+SHORTS_LEVELS = _levels(15.0, 7.0, 4.0, 8.0, 10.0)
 
 
 PROFILES: tuple[MixProfile, ...] = (
     _profile(
-        "generic", "balanced default", music_db=-6.0, sfx_db=-4.0, ambience_db=-10.0, duck_db=9.0
+        "generic",
+        "balanced default",
+        music_db=-6.0,
+        sfx_db=-4.0,
+        ambience_db=-10.0,
+        duck_db=9.0,
+        levels=_levels(16.0, 7.0, 5.0, 9.0, 11.0),
     ),
     _profile(
         "talking_head",
@@ -147,7 +184,12 @@ PROFILES: tuple[MixProfile, ...] = (
         sfx_db=-6.0,
         ambience_db=-12.0,
         duck_db=10.0,
-        min_gap=10.0,
+        voice_comp=_CREATOR_VOICE,
+        min_gap=12.0,
+        # every take at the same level: a cut between two recordings must not jump in volume
+        levelling=1.0,
+        max_trim=10.0,
+        levels=_levels(18.0, 8.0, 6.0, 10.0, 12.0),
     ),
     _profile(
         "tutorial",
@@ -157,6 +199,7 @@ PROFILES: tuple[MixProfile, ...] = (
         ambience_db=-14.0,
         duck_db=10.0,
         min_gap=11.0,
+        levels=_levels(18.0, 9.0, 6.0, 10.0, 12.0),
     ),
     _profile(
         "product_demo",
@@ -165,6 +208,7 @@ PROFILES: tuple[MixProfile, ...] = (
         sfx_db=-5.0,
         ambience_db=-9.0,
         duck_db=8.0,
+        levels=_levels(16.0, 7.0, 5.0, 9.0, 11.0),
     ),
     _profile(
         "cinematic",
@@ -175,13 +219,14 @@ PROFILES: tuple[MixProfile, ...] = (
         duck_db=7.0,
         voice_comp=None,
         min_gap=6.0,
+        levels=_levels(12.0, 5.0, 3.0, 7.0, 10.0),
     ),
 )
 
 DELIVERIES: tuple[DeliveryProfile, ...] = (
     DeliveryProfile("youtube", -14.0, 1.0, None, -1.0, 48000, 24, 2),
-    DeliveryProfile("shorts", -14.0, 1.0, 12.0, -1.0, 48000, 24, 2),
-    DeliveryProfile("social", -14.0, 1.0, 12.0, -1.0, 48000, 16, 2),
+    DeliveryProfile("shorts", -14.0, 1.0, 12.0, -1.0, 48000, 24, 2, levels=SHORTS_LEVELS),
+    DeliveryProfile("social", -14.0, 1.0, 12.0, -1.0, 48000, 16, 2, levels=SHORTS_LEVELS),
     DeliveryProfile("broadcast_r128", -23.0, 0.5, 15.0, -1.0, 48000, 24, 2),
 )
 
@@ -198,6 +243,11 @@ _FORMAT_TO_PROFILE = {
     "product_demo": "product_demo",
     "cinematic": "cinematic",
 }
+
+
+def level_targets(profile: MixProfile, delivery: DeliveryProfile) -> LevelTargets:
+    """The delivery's own balance where it has one (Shorts), else the mix profile's."""
+    return delivery.levels or profile.levels
 
 
 def mix_profile(key: str) -> MixProfile:

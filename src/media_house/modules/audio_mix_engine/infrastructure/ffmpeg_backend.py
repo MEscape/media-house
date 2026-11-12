@@ -65,6 +65,7 @@ _TRUE_PEAK = re.compile(r"True peak:\s+Peak:\s+(-?\d+(?:\.\d+)?|-inf)\s+dBFS", r
 _SAMPLE_PEAK = re.compile(r"Peak level dB:\s+(-?inf|-?\d+(?:\.\d+)?)")
 _SAMPLES = re.compile(r"Number of samples:\s+(\d+)")
 _STREAM = re.compile(r"Audio: (\w+)[^,\n]*, (\d+) Hz, ([\w.()]+)")
+_MOMENTARY = re.compile(r"\bM:\s*(-?\d+(?:\.\d+)?)")
 _SILENCE_START = re.compile(r"silence_start:\s+(-?\d+(?:\.\d+)?)")
 _SILENCE_END = re.compile(r"silence_end:\s+(-?\d+(?:\.\d+)?)")
 _CHANNELS = {"mono": 1, "stereo": 2, "2.1": 3, "quad": 4, "5.1": 6, "7.1": 8}
@@ -171,6 +172,19 @@ class FfmpegAudioBackend:
         # Seek on the input: a range of a long camera file decodes only that range.
         span = ["-ss", f"{start_seconds:.6f}", "-t", f"{max(0.0, end_seconds - start_seconds):.6f}"]
         return self._integrated(path, "ebur128=framelog=quiet", cancellation, span)
+
+    def peak_loudness(
+        self, path: Path, start_seconds: float, end_seconds: float, cancellation: CancellationToken
+    ) -> float | None:
+        span = ["-ss", f"{start_seconds:.6f}", "-t", f"{max(0.0, end_seconds - start_seconds):.6f}"]
+        # padded to one full 400 ms window, so an effect shorter than that is still measured
+        log = self._run(
+            ["-nostats", "-hide_banner", *span, "-i", str(path), "-vn", "-af",
+             "apad=whole_dur=0.5,ebur128=framelog=info", "-f", "null", "-"],
+            cancellation, "measure an effect",
+        ).stderr  # fmt: skip
+        peak = max((float(v) for v in _MOMENTARY.findall(log)), default=None)
+        return peak if peak is not None and peak > _GATED else None
 
     def loudness_over(
         self, path: Path, ranges: Sequence[tuple[float, float]], cancellation: CancellationToken

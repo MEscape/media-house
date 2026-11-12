@@ -81,6 +81,13 @@ class AudioBackend(Protocol):
         """Integrated loudness of one part of a file, ``None`` if it is too short or silent."""
         ...
 
+    def peak_loudness(
+        self, path: Path, start_seconds: float, end_seconds: float, cancellation: CancellationToken
+    ) -> float | None:
+        """The loudest MOMENTARY loudness (400 ms) of one part of a file: how loud a short effect
+        is heard, not averaged over the silence around it. ``None``: silent."""
+        ...
+
     def loudness_over(
         self, path: Path, ranges: Sequence[tuple[float, float]], cancellation: CancellationToken
     ) -> float | None:

@@ -427,3 +427,27 @@ class TestMeasuring:
             a.stem(
                 tmp_path, (a.clip("c", "v", 0.0, 1.0),), {"v": tmp_path / "gone.wav"}, seconds=2.0
             )
+
+
+class TestEffectLoudness:
+    def test_a_short_effect_is_measured_by_its_loudest_moment_not_integrated_away(
+        self, tmp_path: Path
+    ) -> None:
+        pop = a.tone(tmp_path / "pop.wav", 0.15, volume=0.5)
+
+        assert be.peak_loudness(pop, 0.0, 0.15, a.CANCEL) is not None
+
+    def test_the_loudest_moment_follows_the_level_of_the_effect(self, tmp_path: Path) -> None:
+        loud = a.tone(tmp_path / "loud.wav", 1.0, volume=0.5)
+        soft = a.tone(tmp_path / "soft.wav", 1.0, volume=0.05)
+
+        louder = be.peak_loudness(loud, 0.0, 1.0, a.CANCEL)
+        softer = be.peak_loudness(soft, 0.0, 1.0, a.CANCEL)
+
+        assert louder is not None and softer is not None
+        assert louder - softer == pytest.approx(20.0, abs=0.5)
+
+    def test_silence_has_no_loudness(self, tmp_path: Path) -> None:
+        quiet = a.tone(tmp_path / "quiet.wav", 0.5, volume=0.0)
+
+        assert be.peak_loudness(quiet, 0.0, 0.5, a.CANCEL) is None

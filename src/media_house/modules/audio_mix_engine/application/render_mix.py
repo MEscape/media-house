@@ -34,6 +34,12 @@ from media_house.modules.audio_mix_engine.domain.errors import (
     SpecificationInvalid,
     TimelineNotMixable,
 )
+from media_house.modules.audio_mix_engine.domain.levels import (
+    Placement,
+    level_issues,
+    place,
+    sfx_class,
+)
 from media_house.modules.audio_mix_engine.domain.output import OutputFacts, validate_output
 from media_house.modules.audio_mix_engine.domain.plan import (
     dialogue_trims,
@@ -41,8 +47,13 @@ from media_house.modules.audio_mix_engine.domain.plan import (
     mix_hash,
     stem_hash,
 )
-from media_house.modules.audio_mix_engine.domain.profile import mix_profile
+from media_house.modules.audio_mix_engine.domain.profile import (
+    delivery_profile,
+    level_targets,
+    mix_profile,
+)
 from media_house.modules.audio_mix_engine.domain.result import (
+    ClipLevel,
     CorrectionStep,
     DialogueLevel,
     Measurement,
@@ -52,7 +63,7 @@ from media_house.modules.audio_mix_engine.domain.result import (
     ProcessingRecord,
     StemOutput,
 )
-from media_house.modules.audio_mix_engine.domain.spec import AudioMixSpecification
+from media_house.modules.audio_mix_engine.domain.spec import AudioMixSpecification, MixClip
 from media_house.modules.audio_mix_engine.domain.timebase import fr
 from media_house.modules.audio_mix_engine.domain.validate import check_capabilities
 from media_house.modules.audio_mix_engine.domain.values import (
@@ -185,6 +196,7 @@ class _Job:
     trim: float = 0.0
     corrections: list[CorrectionStep] = field(default_factory=list)
     levels: list[DialogueLevel] = field(default_factory=list)
+    clip_levels: list[ClipLevel] = field(default_factory=list)
     issues: list[OutputIssue] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     log: list[ProcessingRecord] = field(default_factory=list)
@@ -193,7 +205,7 @@ class _Job:
     # --- the run -------------------------------------------------------------------------
     def run(self) -> None:
         self.log.append(ProcessingRecord("backend", self.backend_id))
-        trims = self._level_dialogue()
+        trims = self._level()
         buses = [s.bus_id for s in self.spec.stems]
         total = len(buses) + 3
         self.state = JobState.RENDERING_STEMS
@@ -215,32 +227,117 @@ class _Job:
         self.state = JobState.PARTIAL if bad else JobState.COMPLETED
         self.ctx.progress.report(total, total, "done")
 
-    def _level_dialogue(self) -> dict[str, float]:
-        if not self.config.level_dialogue:
+    def _level(self) -> dict[str, float]:
+        """Trims by clip id: the dialogue toward the profile's target, music and effects onto
+        their targets against it (``levels.py``). Every clip's level is recorded."""
+        spec, config = self.spec, self.config
+        profile = mix_profile(spec.provenance.profile)
+        targets = level_targets(profile, delivery_profile(spec.provenance.delivery))
+        reference = profile.dialogue_target_lufs
+        dialogue = spec.clips_of(BusRole.DIALOGUE.value)
+        music = spec.clips_of(BusRole.MUSIC.value)
+        sfx = spec.clips_of(BusRole.SFX.value)
+        wanted: list[tuple[MixClip, str]] = []
+        if config.level_dialogue:
+            wanted += [(c, "integrated") for c in dialogue]
+        if config.level_mix:
+            wanted += [(c, "integrated") for c in music] + [(c, "momentary") for c in sfx]
+        if not wanted:
             return {}
         self.state = JobState.LEVELLING
-        profile = mix_profile(self.spec.provenance.profile)
-        rate = self.spec.timebase.sample_rate
-        measured: dict[str, float | None] = {}
-        for clip in self.spec.clips_of(BusRole.DIALOGUE.value):
-            self.ctx.raise_if_cancelled()
-            measured[clip.clip_id] = self.owner._backend.measure_range(
-                self._path(clip.source_id), float(fr(clip.source_in)), float(fr(clip.source_out)),
-                self.ctx.cancellation,
-            )  # fmt: skip
-        trims = dialogue_trims(
-            measured,
-            target_lufs=profile.dialogue_target_lufs,
-            levelling=profile.dialogue_levelling,
-            max_trim_db=profile.max_dialogue_trim_db,
-        )
-        self.levels = [DialogueLevel(c, measured[c], trims.get(c, 0.0)) for c in sorted(measured)]
+        measured = self._measure(wanted)
+        trims: dict[str, float] = {}
+        if config.level_dialogue:
+            found = {c.clip_id: measured[c.clip_id] for c in dialogue}
+            trims = dialogue_trims(
+                found,
+                target_lufs=reference,
+                levelling=profile.dialogue_levelling,
+                max_trim_db=profile.max_dialogue_trim_db,
+            )
+            self.levels = [DialogueLevel(c, found[c], trims.get(c, 0.0)) for c in sorted(found)]
+        extra = dict(config.overrides.clip_gain_db)
+        speech = [(c.start_sample, c.end_sample) for c in dialogue]
+        placed: dict[str, ClipLevel] = {}
+        if config.level_mix:
+            for clip in music + sfx:
+                role = BusRole.MUSIC if clip in music else BusRole.SFX
+                ducks = [d.depth_db for d in spec.ducking
+                         if d.key == "speech" and clip.clip_id in d.clip_ids]  # fmt: skip
+                added = extra.get(clip.clip_id, 0.0)
+                placement = Placement(
+                    clip_id=clip.clip_id,
+                    role=role.value,
+                    measured_lufs=measured.get(clip.clip_id),
+                    gain_db=clip.gain_db - added,
+                    extra_db=added,
+                    bus_gain_db=profile.bus(role).gain_db,
+                    level_class=sfx_class(self.files[clip.source_id].categories),
+                    duck_db=max(ducks) if ducks else None,
+                    under_speech=any(
+                        a < clip.end_sample and clip.start_sample < b for a, b in speech
+                    ),
+                )
+                placed[clip.clip_id] = place(placement, reference_lufs=reference, targets=targets)
+                if placed[clip.clip_id].trim_db:
+                    trims[clip.clip_id] = placed[clip.clip_id].trim_db
+        for clip in spec.clips:
+            if clip.clip_id in placed:
+                continue
+            role = next(t.role for t in spec.tracks if t.track_id == clip.track_id)
+            gain = clip.gain_db + trims.get(clip.clip_id, 0.0)
+            if role is BusRole.DIALOGUE:
+                target = reference if clip.clip_id in trims else None
+                placed[clip.clip_id] = ClipLevel(
+                    clip.clip_id, role.value, "dialogue", measured.get(clip.clip_id), target,
+                    trims.get(clip.clip_id, 0.0), round(gain, 1),
+                )  # fmt: skip
+            else:
+                placed[clip.clip_id] = ClipLevel(
+                    clip.clip_id, role.value, "unlevelled", None, None, 0.0,
+                    round(gain + profile.bus(role).gain_db, 1),
+                )  # fmt: skip
+        self.clip_levels = [placed[c] for c in sorted(placed)]
+        self.issues.extend(level_issues(self.clip_levels, targets))
+        moved = sum(1 for c in music + sfx if c.clip_id in trims)
         self.log.append(
             ProcessingRecord(
-                "dialogue levelling", f"{len(trims)} of {len(measured)} clips trimmed (rate {rate})"
+                "levelling",
+                f"dialogue {len(self.levels)} clips toward {reference:g} LUFS; "
+                f"music and effects {moved} of {len(music) + len(sfx)} placed against it",
             )
         )
         return trims
+
+    def _measure(self, wanted: list[tuple[MixClip, str]]) -> dict[str, float | None]:
+        """Loudness of each clip's part of its file, found again when it was measured before."""
+        owner = self.owner
+
+        def key(clip: MixClip, method: str) -> str:
+            f = self.files[clip.source_id]
+            return f"{method}|{f.checksum or clip.source_id}|{clip.source_in}|{clip.source_out}"
+
+        keys = {clip.clip_id: key(clip, method) for clip, method in wanted}
+        stored = owner._store.load_levels(self.anchor.id, sorted(set(keys.values())))
+        values: dict[str, float | None] = dict(stored or {})
+        for clip, method in wanted:
+            k = keys[clip.clip_id]
+            if k in values:
+                continue
+            self.ctx.raise_if_cancelled()
+            measure = (
+                owner._backend.peak_loudness if method == "momentary"
+                else owner._backend.measure_range
+            )  # fmt: skip
+            values[k] = measure(
+                self._path(clip.source_id), float(fr(clip.source_in)), float(fr(clip.source_out)),
+                self.ctx.cancellation,
+            )  # fmt: skip
+        if stored is None:
+            saved = owner._store.save_levels(self.anchor, values)
+            if isinstance(saved, Err):
+                _log.warning("Measured levels not stored", reason=str(saved.error))
+        return {clip_id: values[k] for clip_id, k in keys.items()}
 
     def _stem(self, bus_id: str, trims: dict[str, float], checksums: dict[str, str | None]) -> str:
         spec, owner = self.spec, self.owner
@@ -449,7 +546,7 @@ class _Job:
             music_lufs=music_lufs,
             recombination_db=recombination,
         )
-        self.issues = list(validate_output(spec, facts))
+        self.issues = [*self.issues, *validate_output(spec, facts)]
 
     def result(self, created_at: str) -> MixResult:
         spec = self.spec
@@ -471,6 +568,7 @@ class _Job:
             master_trim_db=self.trim,
             corrections=tuple(self.corrections),
             dialogue_levels=tuple(self.levels),
+            clip_levels=tuple(self.clip_levels),
             issues=tuple(self.issues),
             warnings=warnings,
             errors=tuple(self.errors),

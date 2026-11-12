@@ -79,6 +79,23 @@ class DialogueLevel:
 
 
 @dataclass(frozen=True, slots=True)
+class ClipLevel:
+    """Where one clip was placed against the levelled dialogue (``levels.py``)."""
+
+    clip_id: str
+    role: str
+    #: dialogue | music | impact | whoosh | ui | other | unlevelled
+    level_class: str
+    #: Integrated (dialogue, music) or loudest momentary (effects) loudness of the part it plays.
+    measured_lufs: float | None
+    target_lufs: float | None
+    #: Added in the mix on top of the clip's gain.
+    trim_db: float
+    #: The whole gain an application without buses or ducking plays the clip at.
+    static_gain_db: float
+
+
+@dataclass(frozen=True, slots=True)
 class ProcessingRecord:
     """One thing the backend did, in order, with its settings (for reproducibility)."""
 
@@ -110,10 +127,16 @@ class MixResult:
     processing: tuple[ProcessingRecord, ...]
     created_at: str
     schema_version: int = SCHEMA_VERSION
+    #: Every clip's level (added after schema 1 was published: older results have none).
+    clip_levels: tuple[ClipLevel, ...] = ()
 
     @property
     def ok(self) -> bool:
         return self.state is JobState.COMPLETED
+
+    def static_gains(self) -> dict[str, float]:
+        """Clip id -> the gain an editing application without buses or ducking plays it at."""
+        return {lv.clip_id: lv.static_gain_db for lv in self.clip_levels}
 
     def issues_of(self, severity: Severity) -> tuple[OutputIssue, ...]:
         return tuple(i for i in self.issues if i.severity is severity)

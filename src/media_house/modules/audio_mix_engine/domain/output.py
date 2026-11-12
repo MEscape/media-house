@@ -106,6 +106,16 @@ def validate_output(spec: AudioMixSpecification, facts: OutputFacts) -> tuple[Ou
                     f"dialogue {facts.dialogue_lufs:.1f} LUFS, music {facts.music_lufs:.1f} LUFS"
                 ),
             )  # fmt: skip
+        most = spec.validation.max_dialogue_over_music_lu
+        if most is not None and gap > most:
+            add(
+                "music_inaudible", Severity.WARNING, L,
+                f"under speech the music is {gap:.1f} LU below the dialogue: too far to be heard "
+                f"(at most {most:g})",
+                evidence=(
+                    f"dialogue {facts.dialogue_lufs:.1f} LUFS, music {facts.music_lufs:.1f} LUFS"
+                ),
+            )  # fmt: skip
     for start, end in facts.silences:
         a, b = round(start * rate), round(end * rate)
         scale = rate / spec.timebase.sample_rate

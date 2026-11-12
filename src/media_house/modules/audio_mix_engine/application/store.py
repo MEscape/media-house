@@ -18,6 +18,7 @@ from media_house.modules.audio_mix_engine.domain.spec import (
 )
 from media_house.modules.audio_mix_engine.domain.values import (
     ENGINE_VERSION,
+    LEVELS_OPERATION,
     RESULT_OPERATION,
     SPEC_OPERATION,
 )
@@ -91,6 +92,30 @@ class MixStore:
                 _log.warning("Stored mix specification unusable", reason=str(exc))
         return Ok(None)
 
+    # --- measured levels ------------------------------------------------------------------------
+    def load_levels(self, anchor_id: str, keys: list[str]) -> dict[str, float | None] | None:
+        """Loudness measured before for exactly these parts of files (``method|checksum|in|out``),
+        or ``None``: nothing stored (the files are measured again)."""
+        spec = _spec(LEVELS_OPERATION, {"keys": keys})
+        fingerprint = self._documents.fingerprint(anchor_id, spec)
+        if isinstance(fingerprint, Err):
+            return None
+        found = self._documents.load(anchor_id, fingerprint.value, _levels_from_json)
+        return None if found is None or set(found[0]) != set(keys) else found[0]
+
+    def save_levels(
+        self, anchor: MediaAssetDto, values: Mapping[str, float | None]
+    ) -> Result[MediaAssetDto, MediaError]:
+        keys = sorted(values)
+        return self._documents.store(
+            anchor,
+            json.dumps({k: values[k] for k in keys}, sort_keys=True),
+            filename="audio_mix_levels.json",
+            spec=_spec(LEVELS_OPERATION, {"keys": keys}),
+            display_name=f"{anchor.display_name} (measured sound levels)",
+            metadata={"parts": len(keys)},
+        )
+
     # --- result -------------------------------------------------------------------------------
     def save_result(
         self, anchor: MediaAssetDto, result: MixResult
@@ -133,3 +158,12 @@ class MixStore:
             and (timeline_id is None or a.metadata.get("timeline_id") == timeline_id)
         ]
         return sorted(found, key=lambda a: (a.created_at, a.id), reverse=True)
+
+
+def _levels_from_json(text: str) -> dict[str, float | None]:
+    raw = json.loads(text)
+    if not isinstance(raw, dict) or not all(
+        v is None or isinstance(v, int | float) for v in raw.values()
+    ):
+        raise InvalidMixDocument("not a set of measured levels")
+    return {str(k): None if v is None else float(v) for k, v in raw.items()}

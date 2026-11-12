@@ -6,10 +6,11 @@ A vocabulary addition bumps ``VOCABULARY_VERSION`` and is additive; a change of 
 
 from enum import StrEnum
 
-ENGINE_VERSION = 1
+#: 2: music and effects are levelled against the dialogue; the voice make-up is calibrated.
+ENGINE_VERSION = 2
 SCHEMA_VERSION = 1
 VOCABULARY_VERSION = 1
-PROFILE_VERSION = 1
+PROFILE_VERSION = 2
 
 SPEC_DOCUMENT_TYPE = "audio_mix_specification"
 SPEC_OPERATION = "audio_mix_specification"
@@ -17,6 +18,7 @@ RESULT_DOCUMENT_TYPE = "audio_mix_result"
 RESULT_OPERATION = "audio_mix_result"
 STEM_OPERATION = "audio_mix_stem"
 MIX_OPERATION = "audio_mix_render"
+LEVELS_OPERATION = "audio_mix_levels"
 
 #: The built-timeline schema versions this engine reads.
 SUPPORTED_BUILT_SCHEMAS = frozenset({1})
