@@ -172,3 +172,23 @@ dead air cut to beats, music bed about 13 LU under the voice, -14 LUFS / -1.1 dB
 * Mixkit SFX were fetched by script, which Mixkit's terms forbid (see LICENSES.md); delete
   `sfx/mixkit/` to remove doubt.
 * Resolve integration is the least proven part; first real run may surface API differences.
+
+### Done 2026-11-10 (owner review of v4)
+
+- Camera moves (`edit_plan_compiler/domain/punch.py`): a calm cycle of eased moves (slow push,
+  fast punch-in with a slow release, pull, reverse snap, hard punch) instead of a wide/tight flip
+  on every cut; carried out in Resolve as a keyframed Fusion Transform per clip
+  (`resolve_adapter`: `ZoomKey`, `animate_item`, capability `clip.crop_fusion`). Screen recordings
+  get a page window (no browser bar or task bar) with a slow push (`CompilerConfig.screen_windows`).
+- Resolve capability probe: remote objects resolve methods dynamically; `inspect.getattr_static`
+  found none, so any probed class looked method-less (zoom and crops were silently dropped).
+- Edit: dramatic beats are capped by the profile's own pause limit; `creator_ranking` is tighter;
+  immediate repeats / broken-off word starts are cut (WhisperX large-v3 rarely transcribes them).
+- Mix: `talking_head` levels every take fully (max 10 dB) with a firmer voice compressor; music
+  20 LU under speech while talking.
+- SFX: prices pop (no till/casino chips), risers only lead into full-screen cards, typing for
+  typed addresses (start-aligned sounds are cut to the rule length), ordered graphics count by
+  their priority; the sound library importer removes category tags the manifest no longer lists.
+- Graphics: brief orders (`GraphicsBrief.orders`, `GraphicWish` over spoken phrases), spoken
+  URLs typed in (`Prop.TYPE`), full-screen `spec_card` `showcase` variant on the grid plate
+  (opaque, placed under the small graphics so the sponsor label stays on top).

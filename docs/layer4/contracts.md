@@ -24,6 +24,7 @@ be recomputed later.
 | Shot-level footage effects: blur/DoF, background blur/replace, glow/bloom, vignette, grain, lens/chromatic, speed/ramps/freeze/reverse/interpolation, punch-in zoom, privacy blur on tracked regions, masks/tracking use, compositing of footage layers; rendering those derived clips | `vfx_engine` | denoise/sharpen/grade/stabilise (video_improvement), graphics (motion), transitions (transition), still-image cutouts (visual_asset_generation) |
 | Music + SFX: library inventory (import, licence metadata, analysis: BPM/beats/energy/sections), music selection/arrangement per section, SFX selection/placement with restraint, silence, ambience preservation, ducking INTENT, sync to graphic/transition events, sound identity, missing-asset recommendations, music/SFX stem render | `music_and_sound_design` | EQ/compression/loudness/mastering/final mix (audio_improvement), transcription (audio_intelligence) |
 | Still-image preparation: existing-image selection, background removal, clean + enhanced cutouts (glow/shadow/outline/edge light), frame grabs from video for cutouts, format conversion/optimisation, image QC, limited generation (port only; no model here) | `visual_asset_generation` (= `image_adjustment` renamed in place) | video mattes (vfx), graphics (motion) |
+| YouTube thumbnails: the owner's brief (headline, reaction, products, logo, shop phone, story badge) composed into A/B/C variants for Test & Compare, feed-size QC, the 1280x720 upload copy, reaction candidates from stored face cues | `thumbnail_design` | cut-outs and frames (visual_asset_generation), in-video graphics (motion) |
 
 A module that needs something another module owns CALLS that owner's contract (or reads its
 stored result). It never re-implements it.
@@ -34,6 +35,7 @@ stored result). It never re-implements it.
 visual_style_engine            (no Layer 4 deps)
 visual_asset_generation   ->   visual_style_engine
 motion_graphics_engine    ->   visual_style_engine, visual_asset_generation
+thumbnail_design          ->   visual_style_engine, visual_asset_generation, video_intelligence (stored analyses)
 caption_engine            ->   visual_style_engine, motion_graphics_engine
 transition_engine         ->   visual_style_engine, motion_graphics_engine
 vfx_engine                ->   visual_style_engine

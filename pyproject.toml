@@ -41,6 +41,12 @@ vision = [
     "transformers>=4.57,<5",
 ]
 
+# Brief documents: read PDF briefs (Word and text need nothing). Without it a simple built-in
+# reader handles plain text PDFs and says so when it cannot.
+documents = [
+    "pypdf>=5,<7",
+]
+
 [project.scripts]
 media-house = "media_house.bootstrap.cli:main"
 

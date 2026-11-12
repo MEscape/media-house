@@ -33,6 +33,7 @@ Layer 3  editorial    story_architecture  pacing  broll  continuity  reframing  
 Layer 4  finishing    visual_style_engine
                         |-> visual_asset_generation
                         |-> motion_graphics_engine  (-> visual_asset_generation)
+                        |-> thumbnail_design        (-> visual_asset_generation)
                         |     |-> caption_engine
                         |     |-> transition_engine
                         |-> vfx_engine
@@ -53,6 +54,7 @@ read-only catalogs or handed in memory by the pipeline. Boundary tests
 | --- | --- | --- | --- | --- |
 | `visual_style_engine` | channel identity: palette, fonts, type scale, zones per 16:9/9:16/1:1, caption/title looks, motion tokens, logo rules, format profiles, drift validation | rendering (motion), grading (video_improvement), sound (music) | `visual_style` | - |
 | `visual_asset_generation` | still images: selection, frame grabs, cut-outs, stickers/silhouettes/glow/shadow/outline, export, image QC; generation port only | video mattes (vfx), graphics (motion) | `visual_asset_set` | `frame_grab`, `image_adjustment`, `image_enhancement`, `image_export` |
+| `thumbnail_design` | YouTube thumbnails: A/B/C variants from the owner's brief, reaction pictures (upload, `reaction` collection, footage moments), feed QC, upload copy | cut-outs/frames (visual_asset_generation), in-video graphics (motion) | none (derived pictures) | `thumbnail_design` |
 | `motion_graphics_engine` | building, animating, rendering graphics; executor of caption groups and transition overlays | what/when a caption says (captions), where graphics are needed (editing), identity (style) | `graphics_plan` | `motion_graphic_render` (ProRes 4444, alpha) |
 | `caption_engine` | caption mode, selection, segmentation, timing, layout intent, emphasis, emoji, animation requests, SRT/VTT | transcription (audio_intelligence), drawing (motion) | `caption_plan` (+ subtitles inside) | through motion |
 | `transition_engine` | transition per boundary (kind, intensity, duration, alignment, handles, fallback) and the audio transition of every cut | cut placement (editing), audio processing (audio_improvement), drawing (motion) | `transition_plan` | overlays through motion |

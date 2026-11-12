@@ -42,7 +42,7 @@ modules import only `visual_asset_generation.application.contracts`.
 | `application` | `AdjustImage` (unchanged), `PrepareVisualAssets`, `GrabFrame`, `SelectImages`, `GenerateImage`, `VisualAssetResults`, `derive.py` (render -> measure -> QC -> register), `style.py` (style tokens -> knobs), ports |
 | `infrastructure` | `RembgSegmenter`, `PillowImageRenderer`, `PillowCutoutEnhancer`, `PillowImageMeasurer`, `PillowImageExporter`, `FfmpegFrameExtractor`, `UnavailableImageGenerator` |
 
-Consumers (boundary test): `motion_graphics_engine`, `media_pipeline`, `bootstrap`. Reads:
+Consumers (boundary test): `motion_graphics_engine`, `thumbnail_design`, `media_pipeline`, `bootstrap`. Reads:
 `media_library`, `media_inspection` (`InspectionCatalog`), `broll_intelligence` (`BrollCatalog`),
 `visual_style_engine` (`ResolvedStyle`, `VisualStyleCatalog`), all through their contracts only.
 

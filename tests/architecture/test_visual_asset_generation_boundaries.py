@@ -7,7 +7,7 @@
   scipy, rembg) and processes (FFmpeg through ``ProcessRunner``) live in infrastructure only.
 * It never runs another module's producer: it READS stored results through their catalogs.
 * It names no timeline backend and knows no edit plan.
-* Only motion graphics, the pipeline and the composition root depend on it.
+* Only motion graphics, thumbnail design, the pipeline and the composition root depend on it.
 * Stored cutouts stay cache hits: the operation name survives the rename.
 """
 
@@ -128,6 +128,7 @@ def test_only_motion_graphics_the_pipeline_and_the_composition_root_depend_on_it
     allowed = (
         "media_house.modules.motion_graphics_engine",
         "media_house.modules.media_pipeline",
+        "media_house.modules.thumbnail_design",  # reaction/product cut-outs and frames
         "media_house.bootstrap",
     )
     offenders = [
