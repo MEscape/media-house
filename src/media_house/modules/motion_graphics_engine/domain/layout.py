@@ -88,12 +88,18 @@ KIND_LAYOUT: dict[GraphicKind, tuple[str, str, str, Anchor]] = {
 ALTERNATE_ZONE: dict[str, str] = {"callout_left": "callout_right", "callout_right": "callout_left"}
 #: Emoji presentation selectors and the joiner: part of an emoji, no width of their own.
 _JOINERS = frozenset("︎️‍")
+#: A caption sticker emoji's font size, in caption sizes (about 2.2 x the caption cap height).
+_STICKER_EM = 1.6
 #: Chart series colours (semantic meanings of the style), used in order.
 _SERIES = ("chart_a", "chart_b", "chart_c", "chart_d")
 #: Refusals a smaller emphasis can cure (the graphic is too big for its zone).
 _SHRINKABLE = frozenset({"zone.outside", "text.overflow"})
 #: Compact charts (a number, a bar) sit beside the subject, not over the whole frame.
 _COMPACT_CHARTS = frozenset({ChartKind.COUNTER, ChartKind.PROGRESS})
+#: Full-screen cards: how much of the picture under the card stays visible through its ground.
+_GROUND_OPACITY = 0.72
+#: Turn of each picture of a gallery (degrees): a casual, never uniform spread.
+_GALLERY_TILT = (-4.0, 3.0, -2.0, 4.0, -3.0)
 #: Card text parts: (type role, ``Design`` size attribute).
 _PARTS: dict[str, tuple[str, str]] = {
     "eyebrow": ("label", "eyebrow_px"),
@@ -692,7 +698,36 @@ class _Builder:
             top += t.height + gap
 
     def _title(self) -> None:
+        if self.variant == "hook":
+            self._hook()
+            return
         self._headline_and_body(panel=None)
+
+    def _hook(self) -> None:
+        """A Short's opening hook: the title look at twice its size (one line), the subline
+        under it; straight over the picture, centred in the card zone."""
+        c, look, d = self.request.content, self.look, self.d
+        width = self.zone.width
+        head = self.look_text(f"{self.id}.head", c.headline, look, width, size_px=look.size_px * 2,
+                              max_lines=1)  # fmt: skip
+        sub = (
+            self.look_text(
+                f"{self.id}.body", c.body[0], look, width, fill=self.style.hex("white"), max_lines=1
+            )
+            if c.body
+            else None
+        )
+        height = head.height + (d.sm + sub.height if sub else 0)
+        rect = self.place(max(head.width, sub.width if sub else 0), height)
+        extra: dict[str, object] = {}
+        if look.glow:
+            extra = {"glow": self.style.hex("glow"), "glow_px": self.g.title_glow_px,
+                     "glow_opacity": self.g.title_glow_opacity}  # fmt: skip
+        self.add_text(f"{self.id}.head", head, rect.left + (rect.width - head.width) // 2,
+                      rect.top, 2, **extra)  # fmt: skip
+        if sub:
+            self.add_text(f"{self.id}.body", sub, rect.left + (rect.width - sub.width) // 2,
+                          rect.top + head.height + d.sm, 2)  # fmt: skip
 
     def _intro(self) -> None:
         self._headline_and_body(panel=None)
@@ -744,6 +779,9 @@ class _Builder:
         self.stack(rows, panel)
 
     def _callout(self) -> None:
+        if self.variant == "punch":
+            self._punch()
+            return
         self._statement()
 
     def _text_panel(self) -> None:
@@ -793,6 +831,9 @@ class _Builder:
         self.add_text(f"{self.id}.head", t, rect.left + d.sm, rect.top + d.xs, 2)
 
     def _rank_card(self) -> None:
+        if self.variant == "intro":
+            self._intro_card()
+            return
         rank = self.request.content.rank
         if rank is None or rank < 1:
             self.fail("rank.missing", "a rank card needs a rank >= 1", fix="supply the rank")
@@ -894,6 +935,9 @@ class _Builder:
         if self.variant == "rows":
             self._spec_rows(rows)
             return
+        if self.variant == "showcase":
+            self._showcase(rows)
+            return
         d = self.d
         image = self.optional_image(0)
         rows = rows[:4]
@@ -963,6 +1007,296 @@ class _Builder:
                     opacity=0.6,
                 )
             x += cols[i] + d.xl
+
+    @property
+    def portrait(self) -> bool:
+        return self.style.height > self.style.width
+
+    def _ground(self, opacity: float | None = None) -> Rect:
+        """Base of every full-screen card: a dark ground and the grid plate over whatever plays
+        under the graphic; returns the content area inside the safe margins. Landscape: moving
+        footage shows through. Portrait (a Short): the card is its own full-bleed opaque frame
+        (the talking picture never ghosts through)."""
+        self.full_frame = True  # it fills the frame: no zone holds it
+        width, height = self.style.width, self.style.height
+        if opacity is None:
+            opacity = 1.0 if self.portrait else _GROUND_OPACITY
+        frame = Rect(left=0, top=0, width=width, height=height)
+        self.panel(f"{self.id}.ground", frame, "black", 0, radius_px=0, opacity=opacity)
+        self._plate("charcoal_grid")
+        return Rect(left=width * 7 // 100, top=height * 13 // 100, width=width * 86 // 100,
+                    height=height * 74 // 100)  # fmt: skip
+
+    def _portrait_image(self, z: Rect, image: tuple[str, int, int] | None) -> Rect:
+        """A portrait card's cut-out across the top 42 % of the content area; returns the area
+        left for the text under it (all of it without a picture)."""
+        if not image:
+            return z
+        d = self.d
+        high = z.height * 48 // 100
+        # the picture may use the frame's whole width (a cut-out carries its own margin)
+        box = Rect(left=0, top=z.top, width=self.style.width, height=high)
+        self._image(f"{self.id}.image", image, box, 2, rotation=self.tilt() / 3, sticker=True)
+        return Rect(left=z.left, top=z.top + high + d.lg, width=z.width,
+                    height=z.height - high - d.lg)  # fmt: skip
+
+    def _eyebrow(self, text: str, width: int) -> _Text | None:
+        if not text:
+            return None
+        return self.part(f"{self.id}.brow", text, "eyebrow", width, "highlight", lines=1,
+                         size_px=self.d.eyebrow_px * 3 // 2)  # fmt: skip
+
+    def _showcase(self, rows: list[tuple[str, str]]) -> None:
+        """Full-screen product card: the glowing cut-out fills the left half, the eyebrow, the
+        name and up to six facts (big value over its label, two columns on one grid) the right."""
+        c, d = self.request.content, self.d
+        z = self._ground()
+        image = self.optional_image(0)
+        if z.height > z.width:  # portrait (a Short): the cut-out on top, the facts under it
+            z = self._portrait_image(z, image)
+            split, left, right = z.left, z.left, z.width
+        else:
+            split = z.left + (z.width * 52 // 100 if image else 0)
+            if image:
+                box = Rect(left=z.left - d.xl, top=z.top - d.lg, width=split - z.left,
+                           height=z.height + 2 * d.lg)  # fmt: skip
+                self._image(
+                    f"{self.id}.image", image, box, 2, rotation=self.tilt() / 3, sticker=True
+                )
+            left = split + (d.xl if image else 0)
+            right = z.left + z.width - left
+        col_w = (right - d.xl) // 2
+        values = [
+            self.part(
+                f"{self.id}.v{i}",
+                value,
+                "value",
+                col_w,
+                "highlight" if label == "Kosten" else "white",
+                lines=1,
+                size_px=d.value_px * 3 // 2,
+            )
+            for i, (label, value) in enumerate(rows[:6])
+        ]
+        labels = [
+            self.part(f"{self.id}.l{i}", label, "eyebrow", col_w, "silver_mid", lines=1)
+            for i, (label, _) in enumerate(rows[:6])
+        ]
+        brow = self._eyebrow(c.eyebrow, right)
+        head = (
+            self.part(
+                f"{self.id}.head",
+                c.headline,
+                "title",
+                right,
+                "white",
+                lines=2,
+                size_px=d.title_px * 3 // 2,
+            )
+            if c.headline
+            else None
+        )
+        cell_h = max(v.height for v in values) + d.xs + max(lb.height for lb in labels)
+        grid_rows = (len(values) + 1) // 2
+        grid_h = cell_h * grid_rows + d.xl * (grid_rows - 1)
+        head_h = (brow.height + d.xs if brow else 0) + (
+            head.height + d.md + d.rule + d.xl if head else 0
+        )
+        top = z.top + max(0, (z.height - head_h - grid_h) // 2)
+        if brow:
+            self.add_text(f"{self.id}.brow", brow, left, top, 3)
+            top += brow.height + d.xs
+        if head:
+            self.add_text(f"{self.id}.head", head, left, top, 3)
+            top += head.height + d.md
+            self.panel(
+                f"{self.id}.rule",
+                Rect(left=left, top=top, width=right, height=d.rule),
+                "accent",
+                3,
+                radius_px=0,
+                reveal_from="left",
+            )
+            top += d.rule + d.xl
+        # a Short's figures count up into place (``.count``: the animation counts the number)
+        count = ".count" if self.portrait else ""
+        for i, (v, lb) in enumerate(zip(values, labels, strict=True)):
+            x = left + (i % 2) * (col_w + d.xl)
+            y = top + (i // 2) * (cell_h + d.xl)
+            self.add_text(f"{self.id}.v{i}{count}", v, x, y, 3)
+            self.add_text(f"{self.id}.l{i}", lb, x, y + cell_h - lb.height, 3)
+
+    def _rank_badge(self, rank: int, left: int, top: int) -> None:
+        """A Short's big ranking badge ("#4") in the channel's highlight, over the cut-out's
+        corner: the place reads at a glance."""
+        d = self.d
+        t = self.part(f"{self.id}.rank", f"#{rank}", "hero", self.style.width // 2, "black",
+                      lines=1, align="center", size_px=d.hero_px * 3 // 2)  # fmt: skip
+        box = Rect(left=left, top=top, width=t.width + 2 * d.md, height=t.height + 2 * d.xs)
+        g = self.g
+        self.panel(f"{self.id}.badge", box, "highlight", 5, rotation=-g.tilt_min,
+                   shadow_px=g.hard_shadow_px, shadow_opacity=g.hard_shadow_opacity)  # fmt: skip
+        self.add_text(f"{self.id}.rank", t, box.left + d.md, box.top + d.xs, 6,
+                      rotation=-self.g.tilt_min)  # fmt: skip
+
+    def _punch(self) -> None:
+        """A Short's full-screen fact punch: one spoken figure huge (it counts up), what it is
+        under it, the product's name above and its cut-out behind; the format's background
+        footage plays through the half-transparent ground (a B-roll beat)."""
+        c, d = self.request.content, self.d
+        if not c.headline:
+            self.fail("text.empty", "a fact punch needs its figure", fix="supply the text")
+        z = self._ground(opacity=0.55)
+        image = self.optional_image(0)
+        if image:
+            box = Rect(left=z.left, top=z.top, width=z.width, height=z.height * 45 // 100)
+            self._image(f"{self.id}.image", image, box, 2, rotation=self.tilt() / 2, sticker=True)
+        hero = self.part(f"{self.id}.value", c.headline, "hero", z.width, "highlight", lines=1,
+                         align="center", size_px=d.hero_px * 3)  # fmt: skip
+        label = (
+            self.part(
+                f"{self.id}.label",
+                c.eyebrow,
+                "title",
+                z.width,
+                "white",
+                lines=1,
+                align="center",
+                size_px=d.title_px * 3 // 2,
+            )
+            if c.eyebrow
+            else None
+        )
+        name = (
+            self.part(
+                f"{self.id}.name",
+                c.body[0],
+                "eyebrow",
+                z.width,
+                "silver_mid",
+                lines=1,
+                align="center",
+                size_px=d.eyebrow_px * 3 // 2,
+            )
+            if c.body
+            else None
+        )
+        rows = [t for t in (name, hero, label) if t is not None]
+        block = sum(t.height for t in rows) + d.sm * (len(rows) - 1)
+        top = z.top + (z.height * 45 // 100 if image else 0)
+        top += max(0, (z.top + z.height - top - block) // 2)
+        for eid, t in ((".name", name), (".value.count", hero), (".label", label)):
+            if t is None:
+                continue
+            self.add_text(f"{self.id}{eid}", t, z.left + (z.width - t.width) // 2, top, 4,
+                          shadow_px=self.g.hard_shadow_px,
+                          shadow_opacity=self.g.hard_shadow_opacity)  # fmt: skip
+            top += t.height + d.sm
+
+    def _intro_card(self) -> None:
+        """Full-screen product introduction: eyebrow ("BATTERIE 1/5"), the huge name and the
+        price chip left, the glowing cut-out right; the showcase's visual language."""
+        c, d = self.request.content, self.d
+        if not c.headline:
+            self.fail("text.empty", "an intro card needs the product name", fix="supply 'product'")
+        z = self._ground()
+        image = self.optional_image(0)
+        portrait = z.height > z.width  # a Short: the cut-out on top, the text under it
+        rank = c.rank
+        if portrait:
+            if rank:
+                self._rank_badge(rank, z.left, z.top)
+            z = self._portrait_image(z, image)
+        text_w = z.width * 50 // 100 if image and not portrait else z.width
+        brow = self._eyebrow(
+            c.eyebrow or (f"{self.inputs.rank_label} {rank}" if rank else ""), text_w
+        )
+        head = self.part(f"{self.id}.head", c.headline, "title", text_w, "white", lines=2,
+                         size_px=d.title_px * 2)  # fmt: skip
+        price = (
+            self.part(f"{self.id}.price", c.price_text, "value", text_w, "black", lines=1)
+            if c.price_text
+            else None
+        )
+        chip_h = price.height + 2 * d.sm if price else 0
+        block = (brow.height + d.sm if brow else 0) + head.height + (d.lg + chip_h if price else 0)
+        top = z.top + max(0, (z.height - block) // 2)
+        left = z.left
+        if brow:
+            self.add_text(f"{self.id}.brow", brow, left, top, 3)
+            top += brow.height + d.sm
+        self.add_text(f"{self.id}.head", head, left, top, 3)
+        top += head.height + d.lg
+        if price:
+            self.panel(
+                f"{self.id}.chip",
+                Rect(left=left, top=top, width=price.width + 2 * d.md, height=chip_h),
+                "highlight",
+                3,
+            )
+            self.add_text(f"{self.id}.price", price, left + d.md, top + d.sm, 4)
+        if image and not portrait:
+            box = Rect(left=z.left + text_w + d.lg, top=z.top - d.lg,
+                       width=z.width - text_w - d.lg, height=z.height + 2 * d.lg)  # fmt: skip
+            self._image(f"{self.id}.image", image, box, 2, rotation=self.tilt() / 3, sticker=True)
+
+    def _gallery(self) -> None:
+        """Full-screen picture row (old brochures): 1-5 pictures side by side, slightly turned,
+        with a shadow; an optional title above and a caption under each (``body``)."""
+        c, d = self.request.content, self.d
+        ids = c.image_asset_ids
+        if not 1 <= len(ids) <= 5:
+            self.fail("image.missing", "a gallery needs 1-5 pictures", fix="supply 'images'")
+        z = self._ground()
+        head = (
+            self.part(
+                f"{self.id}.head",
+                c.headline,
+                "title",
+                z.width,
+                "white",
+                lines=1,
+                align="center",
+                size_px=d.title_px * 3 // 2,
+            )
+            if c.headline
+            else None
+        )
+        top = z.top
+        if head:
+            self.add_text(f"{self.id}.head", head, z.left + (z.width - head.width) // 2, top, 3)
+            top += head.height + d.xl
+        captions = [
+            self.part(
+                f"{self.id}.cap{i}",
+                text,
+                "eyebrow",
+                z.width // len(ids),
+                "white",
+                lines=1,
+                align="center",
+                size_px=d.eyebrow_px * 3 // 2,
+            )
+            for i, text in enumerate(c.body[: len(ids)])
+        ]
+        cap_h = max((t.height for t in captions), default=0)
+        n = len(ids)
+        # the pages overlap like a fanned stack: each is wider than its share of the row
+        cell_w = min(z.width, z.width * 100 // (n * 78)) if n > 1 else z.width // 2
+        step = (z.width - cell_w) // (n - 1) if n > 1 else 0
+        cell_h = z.top + z.height - top - (cap_h + d.md if captions else 0)
+        for i in range(n):
+            image = self.optional_image(i)
+            if image is None:
+                continue
+            left = z.left + i * step if n > 1 else z.left + (z.width - cell_w) // 2
+            box = Rect(left=left, top=top + (d.sm if i % 2 else 0), width=cell_w, height=cell_h)
+            rect = self._image(f"{self.id}.image{i}", image, box, 2 + i,
+                               rotation=_GALLERY_TILT[i], sticker=True, glow=False)  # fmt: skip
+            if i < len(captions):
+                t = captions[i]
+                self.add_text(f"{self.id}.cap{i}", t, box.left + (box.width - t.width) // 2,
+                              rect.top + rect.height + d.md, 8)  # fmt: skip
 
     def _spec_rows(self, rows: list[tuple[str, str]]) -> None:
         """The data card as label/value rows (many or long facts)."""
@@ -1197,6 +1531,9 @@ class _Builder:
         return rect
 
     def _product_sticker(self) -> None:
+        if self.variant == "gallery":
+            self._gallery()
+            return
         image = self.image(0)
         share = (0.7, 0.85, 1.0)[self.emphasis]
         margin = self.g.sticker_glow_px + self.d.shadow_blur
@@ -2127,18 +2464,32 @@ class _Builder:
             )
             emojis = ()
         # (word index, None) or (None, emoji index), in reading order: an emoji follows its word
+        # (a sticker emoji is its own element over or beside the line, never also inline)
         tokens: list[tuple[int | None, int | None]] = []
         for i in range(len(c.words)):
             tokens.append((i, None))
-            tokens += [(None, k) for k, e in enumerate(emojis) if e.after_word == i]
+            tokens += [
+                (None, k)
+                for k, e in enumerate(emojis)
+                if e.after_word == i and e.placement != "above"
+            ]
         texts = [c.words[w].text if w is not None else emojis[e or 0].emoji for w, e in tokens]
         text = " ".join(texts)
         shown = apply_case(text, look.case)
         if len(shown.split()) != len(tokens):
             self.fail("caption.words", "every timed word must be one word (no spaces inside)")
-        t = self.look_text(
-            f"{self.id}.text", text, look, self.zone.width, max_height=self.zone.height
-        )
+        stickers = [(k, e.emoji) for k, e in enumerate(emojis) if e.placement == "above"]
+        size = round(look.size_px * _STICKER_EM)
+        sw, sh = self._sticker_size(stickers[0][1], size) if stickers else (0, 0)
+        gap = self.g.spacing_px
+        zone = self.zone
+        t = self.look_text(f"{self.id}.text", text, look, zone.width, max_height=zone.height)
+        # a sticker sits over the line when the band has room, else beside it (in the band)
+        beside = bool(stickers) and t.height + gap + sh > zone.height
+        if beside:
+            t = self.look_text(
+                f"{self.id}.text", text, look, zone.width - sw - gap, max_height=zone.height
+            )
         order = iter(tokens)
         lines = tuple(
             TextLine(
@@ -2148,13 +2499,77 @@ class _Builder:
             for line in t.block.lines
         )
         block = replace(t.block, lines=lines)
-        rect = self.place(t.width, t.height)
+        if not stickers:
+            rect = self.place(t.width, t.height)
+        elif beside:
+            whole = self.place(t.width + gap + sw, max(t.height, sh))
+            rect = Rect(
+                left=whole.left,
+                top=whole.top + (whole.height - t.height) // 2,
+                width=t.width,
+                height=t.height,
+            )
+            spot = Rect(
+                left=rect.right + gap,
+                top=whole.top + (whole.height - sh) // 2,
+                width=sw,
+                height=sh,
+            )
+        else:
+            whole = self.place(max(t.width, sw), sh + gap + t.height)
+            rect = Rect(
+                left=whole.left + (whole.width - t.width) // 2,
+                top=whole.bottom - t.height,
+                width=t.width,
+                height=t.height,
+            )
+            spot = Rect(
+                left=whole.left + (whole.width - sw) // 2, top=whole.top, width=sw, height=sh
+            )
         self.add(
             Element(
                 id=f"{self.id}.text",
                 type=ElementType.TEXT,
                 rect=rect,
                 z=2,
+                text=block,
+                shadow_blur_px=self.g.soft_shadow_px // 2,
+                shadow_opacity=self.g.soft_shadow_opacity,
+            )
+        )
+        for k, emoji in stickers:
+            self._sticker(k, emoji, block, size, spot)
+
+    def _sticker_size(self, emoji: str, size: int) -> tuple[int, int]:
+        """(width, height) of a sticker emoji at ``size`` px, outline padding included."""
+        face = self.inputs.metrics[self.style.emoji_face]
+        drawn = [ch for ch in emoji if ch not in _JOINERS]
+        width = max(size, round(sum(face.advance(ch) for ch in drawn) * size / face.units_per_em))
+        pad = 2 * self.look.stroke_px
+        return width + pad, round(size * 1.25) + pad
+
+    def _sticker(self, k: int, emoji: str, caption: TextBlock, size: int, spot: Rect) -> None:
+        """A big emoji (``_STICKER_EM`` x the caption size, about 2.2 x its cap height) as its
+        own element: it keeps the caption's outline (the style's legibility rule; colour glyphs
+        are drawn without it) so it reads like the line it belongs to."""
+        eid = f"{self.id}.emoji{k}"
+        width = spot.width - 2 * caption.stroke_px
+        block = replace(
+            caption,
+            size_px=size,
+            line_px=round(size * 1.25),
+            tracking_em=0.0,
+            lines=(
+                TextLine(runs=(TextRun(id=f"{eid}.e", text=emoji, emoji=True),), width_px=width),
+            ),
+            emoji_face=self.style.emoji_face,
+        )
+        self.add(
+            Element(
+                id=eid,
+                type=ElementType.TEXT,
+                rect=spot,
+                z=3,
                 text=block,
                 shadow_blur_px=self.g.soft_shadow_px // 2,
                 shadow_opacity=self.g.soft_shadow_opacity,

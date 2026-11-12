@@ -7,7 +7,7 @@ from pathlib import Path
 
 from media_house.core.domain import Rational
 from media_house.modules.motion_graphics_engine.application.ports import FontAsset, Scene
-from media_house.modules.motion_graphics_engine.application.style import style_facts
+from media_house.modules.motion_graphics_engine.application.style import style_facts, usage
 from media_house.modules.motion_graphics_engine.domain.engine import Built, build
 from media_house.modules.motion_graphics_engine.domain.model import (
     FaceMetrics,
@@ -27,6 +27,7 @@ from media_house.modules.motion_graphics_engine.domain.values import (
 )
 from media_house.modules.motion_graphics_engine.infrastructure.composition import compose_html
 from media_house.modules.motion_graphics_engine.infrastructure.font_metrics import read_metrics
+from media_house.modules.visual_style_engine.domain.drift import validate_usage
 from media_house.modules.visual_style_engine.domain.identity import MESC_IDENTITY_V2
 from media_house.modules.visual_style_engine.domain.profile import StyleConfig
 from media_house.modules.visual_style_engine.domain.resolve import resolve_style
@@ -229,3 +230,78 @@ def test_the_wipe_travels_in_its_direction_and_defaults_to_the_original_wipe() -
     assert moves(overlay(OverlayDirection.LEFT)) == {(Prop.X, 1920, -1920)}
     assert moves(overlay(OverlayDirection.UP)) == {(Prop.Y, 1080, -1080)}
     assert moves(overlay(OverlayDirection.DOWN)) == {(Prop.Y, -1080, 1080)}
+
+
+def _f(r: Rational) -> Fraction:
+    return Fraction(r.numerator, r.denominator)
+
+
+STICKER = TimedEmoji(emoji=EXPLODING, after_word=1, local_start=R(1, 2), placement="above")
+
+
+def test_a_sticker_emoji_is_a_big_element_in_the_band_and_not_inline() -> None:
+    b = built_v2(caption(STICKER))
+
+    assert b.usable, b.issues
+    assert b.composition is not None
+    elements = {e.id: e for e in b.composition.elements}
+    text, sticker = elements["g1.text"], elements["g1.emoji0"]
+    assert text.text is not None and sticker.text is not None
+    runs = [r.id for line in text.text.lines for r in line.runs]
+    assert runs == ["g1.text.w0", "g1.text.w1", "g1.text.w2"]  # no inline duplicate
+    assert sticker.text.emoji_face == "noto_color_emoji" and sticker.text.lines[0].runs[0].emoji
+    assert sticker.text.size_px >= round(text.text.size_px * 1.5)
+    # the 9:16 band has no room over a two-line group: the sticker sits beside it, in the band
+    assert sticker.rect.left >= text.rect.right or sticker.rect.bottom <= text.rect.top
+    band = facts_v2().zone("caption_band")
+    assert band is not None
+    assert sticker.rect.top >= band.top and sticker.rect.bottom <= band.top + band.height
+    assert b.composition.rect.width <= band.width
+
+
+def test_a_sticker_caption_keeps_the_locked_style_rules() -> None:
+    style = resolve_style(
+        MESC_IDENTITY_V2,
+        StyleConfig(profile="shorts_haul"),
+        created_at=datetime(2026, 11, 2, tzinfo=UTC),
+        width=1080,
+        height=1920,
+    )
+    b = built_v2(caption(STICKER))
+    composition, animation, _ = b.parts()
+
+    found = validate_usage(style, usage(style, composition, animation))
+    assert not [i for i in found if i.severity.value == "error"], found
+
+
+def test_a_sticker_flies_in_on_its_word_and_out_before_the_group_ends() -> None:
+    b = built_v2(caption(STICKER))
+    assert b.animation is not None
+
+    tracks = {t.prop: t.keyframes for t in b.animation.tracks if t.target == "g1.emoji0"}
+    assert {Prop.SCALE, Prop.OPACITY, Prop.ROTATION, Prop.Y} <= set(tracks)
+    scale = [k.value for k in tracks[Prop.SCALE]]
+    assert max(scale) > 1.1 and scale[-1] < 1  # overshoot in, shrinks out
+    opacity = tracks[Prop.OPACITY]
+    assert opacity[0].value == 0 and opacity[-1].value == 0
+    assert _f(opacity[-1].local_at) < 2  # gone before the group (2 s) ends
+    visible = [k for k in opacity if k.value == 1]
+    assert _f(visible[0].local_at) <= Fraction(3, 5)  # in within the fly-in after 0.5 s
+    assert tracks[Prop.Y][0].value > 0 and tracks[Prop.Y][-1].value < 0  # up in, up out
+    events = [e for e in b.animation.events if e.ref == "g1.emoji0"]
+    assert [e.kind for e in events] == [EventKind.EMPHASIS]
+    assert abs(_f(events[0].local_at) - Fraction(1, 2)) < Fraction(1, 24)  # on the frame grid
+
+
+def test_a_popping_caption_line_scales_and_rises_in_and_shrinks_out() -> None:
+    b = built_v2(caption())
+    assert b.animation is not None
+    entry, exit_ = b.animation.motion.entry, b.animation.motion.exit
+    tracks = {t.prop: t.keyframes for t in b.animation.tracks if t.target == "g1.text"}
+
+    if entry in ("pop_in", "slide_in"):
+        assert tracks[Prop.SCALE][0].value < 1 and tracks[Prop.Y][0].value > 0
+    if exit_ in ("pop_out", "slide_out"):
+        assert tracks[Prop.SCALE][-1].value < 1 and tracks[Prop.Y][-1].value < 0
+    assert tracks[Prop.OPACITY][-1].value == 0 or exit_ == "cut"
+    assert entry != "cut" and Prop.SCALE in tracks  # this Shorts style moves the line

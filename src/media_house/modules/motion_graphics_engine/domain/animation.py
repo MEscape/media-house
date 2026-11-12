@@ -8,6 +8,7 @@ snapped to the frame grid, so each rendered frame samples the same state everywh
 """
 
 import hashlib
+import re
 from dataclasses import dataclass
 from fractions import Fraction
 
@@ -24,7 +25,11 @@ from media_house.modules.motion_graphics_engine.domain.model import (
     TimedEmoji,
     Track,
 )
-from media_house.modules.motion_graphics_engine.domain.presets import EXIT_FOR, PRESETS
+from media_house.modules.motion_graphics_engine.domain.presets import (
+    EXIT_FOR,
+    PRESETS,
+    parse_number,
+)
 from media_house.modules.motion_graphics_engine.domain.qc import issue
 from media_house.modules.motion_graphics_engine.domain.values import (
     ElementType,
@@ -61,6 +66,31 @@ _REVEAL_KINDS = frozenset(
 )
 #: Executors keep their own vocabulary (caption looks, transition covers).
 _EXECUTORS = frozenset({GraphicKind.CAPTION, GraphicKind.TRANSITION_OVERLAY})
+#: Small cards that float gently while they are held (never captions, labels or full frames).
+_FLOATING = frozenset(
+    {
+        GraphicKind.PRODUCT_STICKER,
+        GraphicKind.SILHOUETTE_TEASER,
+        GraphicKind.CALLOUT,
+        GraphicKind.TEXT_PANEL,
+        GraphicKind.HIGHLIGHT_PANEL,
+        GraphicKind.PRICE_TAG,
+        GraphicKind.DEADLINE_CHIP,
+        GraphicKind.URL_CARD,
+        GraphicKind.CTA,
+        GraphicKind.RANK_CARD,
+        GraphicKind.FEATURE_LIST,
+        GraphicKind.STRIKE_VALUE,
+    }
+)
+#: Float: amplitude (px, the picture of a full-screen card: two thirds), one swing (s) and the
+#: sticker's sway (degrees).
+#: A held card's punch: up, held at its peak, back (long enough to be seen, not a flicker).
+_BEAT = Fraction(4, 5)
+_BEAT_MOVE = Fraction(1, 4)
+_FLOAT_PX = 7.0
+_FLOAT_HALF = Fraction(6, 5)
+_FLOAT_SWAY = 0.6
 #: A struck value: the strike line is drawn after the value has arrived (the gesture).
 _STRIKE = ".strike"
 
@@ -254,14 +284,24 @@ class _Compiler:
                 entry_s, exit_s = entry_s * factor, exit_s * factor
         strength = max(intensity, 1) / 4
         if kind is GraphicKind.CAPTION:
-            self.caption(exit_s if exit_ != "cut" else Fraction(0))
+            self.caption(entry, entry_s, exit_, exit_s)
         elif kind is GraphicKind.TRANSITION_OVERLAY:
             self.overlay()
         else:
-            self.entry(entry, entry_s, intensity)
-            self.exit(exit_, exit_s, intensity)
+            if self.comp.full_frame:
+                self.full_frame_entry(entry_s)
+                if self.portrait:
+                    self.hold_beat(exit_s)
+                    self.zoom_exit(exit_s)
+                else:
+                    self.exit("fade_out", exit_s, intensity)
+            else:
+                self.entry(entry, entry_s, intensity)
+                self.exit(exit_, exit_s, intensity)
             self.emphasis(intensity)
+            self.float_idle(exit_s)
             self.counter(entry_s)
+            self.typing(entry_s)
             self.tracking()
         self.event(EventKind.ENTER_START, Fraction(0), strength)
         peak = self.enter_peak if kind is not GraphicKind.TRANSITION_OVERLAY else self.duration / 2
@@ -325,6 +365,121 @@ class _Compiler:
             )
             self.event(EventKind.EMPHASIS, self.enter_peak, max(intensity, 1) / 4, e.id)
             self.enter_peak += seconds
+
+    def full_frame_entry(self, seconds: Fraction) -> None:
+        """A full-screen card: the ground fades in fast, the pictures fly up into place one after
+        another (easing out, a slight scale), then the text rows slide in, staggered."""
+        if seconds == 0:
+            return
+        stagger = _f(self.m.stagger)
+        grounds = [e for e in self.comp.elements if e.id.endswith((".ground", ".plate"))]
+        pictures = [
+            e for e in self.comp.elements if e.type is ElementType.IMAGE and e not in grounds
+        ]
+        rest = [e for e in self.comp.elements if e not in grounds and e not in pictures]
+        for e in grounds:
+            self.tween(
+                e.id, Prop.OPACITY, Fraction(0), seconds * Fraction(3, 5), 0.0, 1.0, "linear"
+            )
+        lift = self.style.graphics.spacing_px * 3
+        # a Short: the cut-out pops from smaller, the rows rise from below (a slide + scale)
+        low = 0.6 if self.portrait else 0.9
+        end = seconds
+        for i, e in enumerate(pictures):
+            # a Short: the cut-out arrives with the ground (no empty dark frame between)
+            s = (Fraction(0) if self.portrait else seconds * Fraction(1, 5)) + stagger * 3 * i
+            end = max(end, s + seconds * 2)
+            self.tween(e.id, Prop.Y, s, s + seconds * 2, lift, 0.0, "enter")
+            self.tween(e.id, Prop.SCALE, s, s + seconds * 2, low, 1.0, "enter")
+            self.tween(e.id, Prop.OPACITY, s, s + seconds / 2, 0.0, 1.0, "linear")
+        rows = _reading_rows(rest)
+        first = seconds * Fraction(2, 5)
+        for i, row in enumerate(rows):
+            s = first + stagger * 2 * i
+            end = max(end, s + seconds * Fraction(3, 2))
+            for e in row:
+                if e.type is ElementType.PANEL and e.id.endswith(".rule"):
+                    self.tween(e.id, Prop.REVEAL, s, s + seconds, 0.0, 1.0, self.m.move_easing)
+                    continue
+                if self.portrait:
+                    dy = self.style.graphics.spacing_px * 2
+                    self.tween(e.id, Prop.Y, s, s + seconds * Fraction(3, 2), dy, 0.0, "enter")
+                    self.tween(e.id, Prop.SCALE, s, s + seconds * Fraction(3, 2), 0.8, 1.0, "enter")
+                else:
+                    dx = -self.style.graphics.spacing_px
+                    self.tween(e.id, Prop.X, s, s + seconds * Fraction(3, 2), dx, 0.0, "enter")
+                self.tween(e.id, Prop.OPACITY, s, s + seconds / 2, 0.0, 1.0, "linear")
+        self.enter_peak = end
+
+    @property
+    def portrait(self) -> bool:
+        return self.style.height > self.style.width
+
+    def hold_beat(self, exit_s: Fraction) -> None:
+        """A Short's full-screen card is never still for long: halfway through its hold the card
+        bumps, its pictures punch in and the price pops (an emphasis a sound can land on)."""
+        start, end = self.enter_peak, self.duration - exit_s
+        if end - start < _BEAT + Fraction(1, 5):
+            return
+        at = self.snap((start + end) / 2 - _BEAT / 2)
+        values = [e.id for e in self.comp.elements if re.search(r"\.v\d+(\.count)?$", e.id)]
+        last = max(values, key=lambda i: int(re.findall(r"\.v(\d+)", i)[-1]), default=None)
+        price = {e.id for e in self.comp.elements if e.id.endswith(".price") or e.id == last}
+        pops = [e for e in self.comp.elements if not e.id.endswith((".ground", ".plate"))]
+        for e in pops:
+            # the whole card bumps; the price (a data card's last value) and the pictures harder
+            peak = 1.28 if e.id in price else 1.22 if e.type is ElementType.IMAGE else 1.125
+            self.tween(e.id, Prop.SCALE, at, at + _BEAT_MOVE, 1.0, peak, "enter")
+            self.tween(e.id, Prop.SCALE, at + _BEAT - _BEAT_MOVE, at + _BEAT, peak, 1.0, "enter")
+        if pops:
+            self.event(EventKind.EMPHASIS, at, 0.5, next(iter(price), pops[0].id))
+
+    def zoom_exit(self, seconds: Fraction) -> None:
+        """A Short's full-screen card leaves by zooming through: its content grows towards the
+        viewer while everything fades (the next shot feels pushed into)."""
+        if seconds == 0:
+            return
+        start = self.duration - seconds
+        for e in self.comp.elements:
+            if not e.id.endswith((".ground", ".plate")):
+                self.tween(e.id, Prop.SCALE, start, self.duration, 1.0, 1.25, self.m.exit_easing)
+            self.tween(e.id, Prop.OPACITY, start, self.duration, 1.0, 0.0, self.m.exit_easing)
+
+    def float_idle(self, exit_s: Fraction) -> None:
+        """While held, a small card floats up and down (a sticker also sways a little); on a
+        full-screen card only its pictures float. Each graphic has its own phase, so cards on
+        screen together never move in step. Deterministic."""
+        kind = self.request.kind
+        if self.comp.full_frame:
+            targets = [
+                e
+                for e in self.comp.elements
+                if e.type is ElementType.IMAGE and not e.id.endswith(".plate")
+            ]
+            amplitude = _FLOAT_PX * 2 / 3
+        elif kind in _FLOATING:
+            targets = list(self.comp.elements)
+            amplitude = _FLOAT_PX
+        else:
+            return
+        start, end = self.enter_peak, self.duration - exit_s
+        if not targets or end - start < _FLOAT_HALF:
+            return
+        digest = hashlib.sha256(self.request.request_id.encode()).digest()
+        sign = 1.0 if digest[0] % 2 else -1.0
+        sway = kind in (GraphicKind.PRODUCT_STICKER, GraphicKind.SILHOUETTE_TEASER)
+        for i, e in enumerate(targets):
+            phase = sign if not self.comp.full_frame or i % 2 == 0 else -sign
+            t, value = start + _FLOAT_HALF / 2, phase
+            self.key(e.id, Prop.Y, start, 0.0, "linear")
+            self.key(e.id, Prop.Y, t, value * amplitude, self.m.move_easing)
+            while t + _FLOAT_HALF <= end:
+                t, value = t + _FLOAT_HALF, -value
+                self.key(e.id, Prop.Y, t, value * amplitude, self.m.move_easing)
+            self.key(e.id, Prop.Y, end, 0.0, self.m.move_easing)
+            if sway and e.type is ElementType.IMAGE:
+                self.key(e.id, Prop.ROTATION, start, 0.0, "linear")
+                self.key(e.id, Prop.ROTATION, end, -phase * _FLOAT_SWAY, self.m.move_easing)
 
     def enter_one(
         self,
@@ -403,6 +558,7 @@ class _Compiler:
             and c.chart is not None
             and c.chart.value == "counter"
         ):
+            self.count_figures(entry_s)
             return
         target = next((e for e in self.comp.elements if e.id.endswith(".count")), None)
         if target is None:
@@ -416,6 +572,32 @@ class _Compiler:
         )
         end = min(max(end, entry_s), hold_end)
         self.tween(target.id, Prop.COUNT, entry_s / 2, end, 0.0, value, "linear")
+
+    def count_figures(self, entry_s: Fraction) -> None:
+        """Card figures marked ``.count`` (a Short's facts) count up from zero while the card
+        arrives, landing on the exact value a little after the entry."""
+        hold_end = self.duration - _f(self.m.exit_max)
+        end = min(entry_s + Fraction(3, 5), hold_end)
+        for e in self.comp.elements:
+            if e.type is not ElementType.TEXT or e.text is None or not e.id.endswith(".count"):
+                continue
+            point = parse_number(e.text.text)
+            if point is None or _f(point.value) <= 0 or end <= entry_s / 2:
+                continue
+            self.tween(e.id, Prop.COUNT, entry_s / 2, end, 0.0, float(_f(point.value)), "enter")
+
+    def typing(self, entry_s: Fraction) -> None:
+        """A typed address: its characters appear one by one once the card is in."""
+        c = self.request.content
+        if self.request.kind is not GraphicKind.URL_CARD or c.variant != "typing":
+            return
+        target = next((e for e in self.comp.elements if e.id.endswith(".head")), None)
+        if target is None or target.text is None:
+            return
+        chars = len(target.text.text)
+        hold_end = self.duration - _f(self.m.exit_max)
+        end = min(entry_s + min(max(Fraction(chars, 20), Fraction(4, 5)), Fraction(9, 5)), hold_end)
+        self.tween(target.id, Prop.TYPE, entry_s, end, 0.0, float(chars), "linear")
 
     def tracking(self) -> None:
         track = self.request.placement.track
@@ -443,7 +625,9 @@ class _Compiler:
                 "track.lost", "the track ends before the label: it holds its last position", False
             )
 
-    def caption(self, exit_s: Fraction) -> None:
+    def caption(self, entry: str, entry_s: Fraction, exit_: str, exit_s: Fraction) -> None:
+        """Words pop in as spoken; the line itself pops / slides in and out with the group's
+        patterns; sticker emoji fly in and out as their own elements."""
         words = self.request.content.words
         text = next((e for e in self.comp.elements if e.text is not None), None)
         if text is None or text.text is None:
@@ -491,17 +675,51 @@ class _Compiler:
             self.event(EventKind.EMPHASIS, start, strength, run.id)
         for run in emojis:
             self.emoji(run.id, self.request.content.emojis[int(run.id.rsplit(".e", 1)[1])])
+        for e in self.comp.elements:
+            if ".emoji" in e.id:
+                k = int(e.id.rsplit(".emoji", 1)[1])
+                self.sticker(e, self.request.content.emojis[k])
+        lift = float(self.style.graphics.spacing_px)
+        if entry in ("pop_in", "slide_in") and entry_s:
+            self.tween(text.id, Prop.SCALE, Fraction(0), entry_s, 0.86, 1.0, self.m.entry_easing)
+            rise = lift * (2 if entry == "slide_in" else 1)
+            self.tween(text.id, Prop.Y, Fraction(0), entry_s, rise, 0.0, self.m.entry_easing)
+            if not self.captions.word_reveal:
+                self.tween(text.id, Prop.OPACITY, Fraction(0), entry_s / 2, 0.0, 1.0, "linear")
         if exit_s:
-            self.tween(
-                text.id,
-                Prop.OPACITY,
-                self.duration - exit_s,
-                self.duration,
-                1.0,
-                0.0,
-                self.m.exit_easing,
-            )
+            leave = self.duration - exit_s
+            self.tween(text.id, Prop.OPACITY, leave, self.duration, 1.0, 0.0, self.m.exit_easing)
+            if exit_ in ("pop_out", "slide_out"):
+                move = self.m.move_easing
+                self.tween(text.id, Prop.SCALE, leave, self.duration, 1.0, 0.9, move)
+                self.tween(text.id, Prop.Y, leave, self.duration, 0.0, -lift, move)
         self.enter_peak = Fraction(0)
+
+    def sticker(self, element: Element, emoji: TimedEmoji) -> None:
+        """A sticker emoji flies in on its word (up from below, scale overshoot, turning into a
+        slight tilt), holds, and flies out (up, shrinking, fading) as its group ends."""
+        start = _f(emoji.local_start)
+        room = self.duration - start
+        fly_in = min(Fraction(1, 4), room * Fraction(2, 5))
+        fly_out = min(Fraction(1, 5), room * Fraction(3, 10))
+        # gone one frame before the clip ends, so its last drawn frame shows it left
+        gone = max(self.duration - 1 / self.fps, start + fly_in + fly_out)
+        peak, settle, out = start + fly_in * Fraction(3, 5), start + fly_in, gone - fly_out
+        # the tilt side alternates between groups, decided by the group id (deterministic)
+        tilt = 8.0 if _digest(self.request.request_id)[0] % 2 else -8.0
+        lift = element.rect.height * 0.6
+        # leaving moves from its first frame (the style's exit easing barely moves in 5 frames)
+        eid, leave = element.id, self.m.move_easing
+        self.tween(eid, Prop.SCALE, start, peak, 0.2, 1.25, "enter")
+        self.key(eid, Prop.SCALE, settle, 1.0, self.m.move_easing)
+        self.tween(eid, Prop.SCALE, out, gone, 1.0, 0.4, leave)
+        self.tween(eid, Prop.OPACITY, start, start + fly_in * Fraction(2, 5), 0.0, 1.0, "linear")
+        self.tween(eid, Prop.OPACITY, out, gone, 1.0, 0.0, "linear")
+        self.tween(eid, Prop.ROTATION, start, settle, -3 * tilt, tilt, "enter")
+        self.tween(eid, Prop.ROTATION, out, gone, tilt, 3 * tilt, leave)
+        self.tween(eid, Prop.Y, start, settle, lift, 0.0, "enter")
+        self.tween(eid, Prop.Y, out, gone, 0.0, -lift, leave)
+        self.event(EventKind.EMPHASIS, start, 0.5, eid)
 
     def emoji(self, run_id: str, emoji: TimedEmoji) -> None:
         """An emoji punchline pops (or fades) in at its own time and stays with the group."""

@@ -593,7 +593,8 @@ class GraphicsProducer:
                 GraphicKind.END_SCREEN,
                 GraphicKind.MEMBERSHIP_PLUG,
                 GraphicKind.TRANSITION_OVERLAY,
-            ),
+            )
+            or (b.composition is not None and b.composition.full_frame),
             still=still,
         )
         with self._paths.temporary_directory(prefix="motion-graphic-") as tmp:

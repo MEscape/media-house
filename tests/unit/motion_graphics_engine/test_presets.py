@@ -398,8 +398,18 @@ def test_a_bare_figure_heard_as_a_fact_of_its_section_is_labelled_by_that_fact()
 # --- the still fast path ------------------------------------------------------------------
 
 
-def test_a_still_card_draws_its_entry_one_hold_frame_and_its_exit() -> None:
+def test_a_small_card_floats_while_held_and_a_full_frame_card_only_its_pictures() -> None:
     order = GraphicOrder(kind=K.CALLOUT, at=AT, slots=SAMPLES[K.CALLOUT][0], duration=R(6, 1))
+    b = build(built_request(order), v2_facts(), v2_metrics(), {}, settings())
+    _, animation, _ = b.parts()
+    lifted = [t for t in animation.tracks if t.prop.value == "y"]
+    assert lifted and all(max(abs(k.value) for k in t.keyframes) <= 8 for t in lifted)
+    assert all(t.keyframes[-1].value == 0 for t in lifted)  # back in place before it leaves
+
+
+def test_a_still_card_draws_its_entry_one_hold_frame_and_its_exit() -> None:
+    # a card that does not float while held (small cards float, so every frame changes)
+    order = GraphicOrder(kind=K.TIMELINE, at=AT, slots=SAMPLES[K.TIMELINE][0], duration=R(6, 1))
     b = build(built_request(order), v2_facts(), v2_metrics(), {}, settings())
     _, animation, frames = b.parts()
     samples = changing_frames(animation, frames.frames, frames.fps)
@@ -445,3 +455,17 @@ def test_the_sponsor_label_sits_on_a_legible_chip() -> None:
     text = next(e for e in composition.elements if e.text is not None)
     chip = next(e for e in composition.elements if e.type is ElementType.PANEL)
     assert text.text is not None and text.text.size_px >= 34 and text.rect.inside(chip.rect)
+
+
+def test_a_gallery_needs_its_pictures_and_a_sticker_its_picture() -> None:
+    from media_house.modules.motion_graphics_engine.domain.presets import validate_order
+
+    gallery = GraphicOrder(
+        kind=K.PRODUCT_STICKER, at=AT, slots={"title": "Bisher"}, variant="gallery"
+    )
+    sticker = GraphicOrder(kind=K.PRODUCT_STICKER, at=AT, slots={})
+    shown = replace(gallery, slots={"images": ("a", "b"), "captions": ("2024", "2025")})
+
+    assert any("'images'" in p for p in validate_order(gallery))
+    assert any("'image'" in p for p in validate_order(sticker))
+    assert validate_order(shown) == []

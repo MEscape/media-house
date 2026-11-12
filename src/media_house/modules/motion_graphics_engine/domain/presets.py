@@ -168,8 +168,14 @@ PRESETS: dict[GraphicKind, Preset] = {
         ),
         _p(
             K.RANK_CARD,
-            (Slot(name="rank", type=SlotType.RANK, required=True),),
-            ("outline",),
+            (
+                Slot(name="rank", type=SlotType.RANK, required=True),
+                _t("product", 34, note="the product introduced (variant 'intro')"),
+                Slot(name="price", type=SlotType.MONEY),
+                _IMAGE,
+                _LABEL,
+            ),
+            ("outline", "intro"),
             _CARD,
             ("lower_third_band",),
             hold=2.5,
@@ -199,8 +205,9 @@ PRESETS: dict[GraphicKind, Preset] = {
                 ),
                 Slot(name="price", type=SlotType.MONEY),
                 _IMAGE,
+                _LABEL,
             ),
-            ("tiles", "rows"),
+            ("tiles", "rows", "showcase"),
             _PANEL,
             ("card_safe",),
             hold=3.0,
@@ -220,8 +227,19 @@ PRESETS: dict[GraphicKind, Preset] = {
         ),
         _p(
             K.PRODUCT_STICKER,
-            (Slot(name="image", type=SlotType.IMAGE, required=True),),
-            ("glow", "shadow"),
+            (
+                _IMAGE,
+                Slot(
+                    name="images",
+                    type=SlotType.LIST,
+                    max_chars=64,
+                    max_items=5,
+                    help="gallery: 1-5 prepared picture asset ids, shown side by side",
+                ),
+                Slot(name="captions", type=SlotType.LIST, max_chars=18, max_items=5),
+                _t("title", 32, note="gallery title, e.g. 'BISHER'"),
+            ),
+            ("glow", "shadow", "gallery"),
             _CARD,
             _LEFT,
         ),
@@ -317,7 +335,7 @@ PRESETS: dict[GraphicKind, Preset] = {
         _p(
             K.URL_CARD,
             (Slot(name="url", type=SlotType.URL, required=True, max_chars=32), _LABEL),
-            ("dark", "accent"),
+            ("dark", "accent", "typing"),
             _PANEL,
             ("lower_third_band",),
             hold=3.0,
@@ -501,6 +519,10 @@ def _semantic(order: GraphicOrder, variant: str) -> list[str]:
         names = {str(r[0]) for r in lines if isinstance(r, tuple) and r}
         if isinstance(best, str) and best not in names:
             problems.append(f"slot 'best': {best!r} is not a product of the table")
+    if order.kind is K.PRODUCT_STICKER:
+        wanted = "images" if variant == "gallery" else "image"
+        if not s.get(wanted):
+            problems.append(f"variant {variant!r} needs the slot {wanted!r}")
     text = s.get("text")
     if (
         order.kind is K.CALLOUT
@@ -543,8 +565,14 @@ def _content(order: GraphicOrder, variant: str) -> GraphicContent:
             price_cents=price if isinstance(price, int) else None,
         )
     if kind in (K.RANK_CARD, K.SILHOUETTE_TEASER):
-        rank = s.get("rank")
-        return _with(base, rank=rank if isinstance(rank, int) else None, image_asset_ids=image)
+        rank, price = s.get("rank"), s.get("price")
+        return _with(
+            base,
+            rank=rank if isinstance(rank, int) else None,
+            image_asset_ids=image,
+            headline=_text(s.get("product")),
+            price_cents=price if isinstance(price, int) else None,
+        )
     if kind is K.SPEC_CARD:
         facts = s.get("facts", ())
         price = s.get("price")
@@ -567,6 +595,14 @@ def _content(order: GraphicOrder, variant: str) -> GraphicContent:
             image_asset_ids=images if all(images) else (),
         )
     if kind is K.PRODUCT_STICKER:
+        pictures, captions = s.get("images", ()), s.get("captions", ())
+        if variant == "gallery" and isinstance(pictures, tuple):
+            return _with(
+                base,
+                image_asset_ids=tuple(str(i).strip() for i in pictures),
+                body=tuple(str(c).strip() for c in captions) if isinstance(captions, tuple) else (),
+                headline=_text(s.get("title")),
+            )
         return _with(base, image_asset_ids=image)
     if kind in (K.FEATURE_LIST, K.STEP_LIST):
         items = s.get("items", ())

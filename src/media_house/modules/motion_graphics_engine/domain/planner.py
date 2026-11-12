@@ -22,6 +22,7 @@ from media_house.modules.motion_graphics_engine.domain.brief import (
     OnScreenText,
     ProductFacts,
 )
+from media_house.modules.motion_graphics_engine.domain.errors import InvalidGraphicOrder
 from media_house.modules.motion_graphics_engine.domain.layout import KIND_LAYOUT
 from media_house.modules.motion_graphics_engine.domain.model import (
     AnimationRequest,
@@ -31,12 +32,13 @@ from media_house.modules.motion_graphics_engine.domain.model import (
     StyleFacts,
     Timing,
 )
-from media_house.modules.motion_graphics_engine.domain.presets import bare_figure
+from media_house.modules.motion_graphics_engine.domain.presets import bare_figure, compile_order
 from media_house.modules.motion_graphics_engine.domain.profile import (
     MotionGraphicsConfig,
     MotionGraphicsProfile,
 )
 from media_house.modules.motion_graphics_engine.domain.qc import issue
+from media_house.modules.motion_graphics_engine.domain.short_form import short_form
 from media_house.modules.motion_graphics_engine.domain.text import german_number
 from media_house.modules.motion_graphics_engine.domain.values import (
     ChartKind,
@@ -686,11 +688,58 @@ class _Planner:
                 priority=0.8,
             )
 
+    def ordered(self) -> None:
+        """The brief's orders, each through its preset (an invalid one is reported, not drawn)."""
+        for order in self.brief.orders:
+            cps = self.profile_for(order.section_id).timing.reading_cps
+            try:
+                request = compile_order(order, self.m, reading_cps=cps)
+            except InvalidGraphicOrder as exc:
+                self.issues.append(
+                    issue(
+                        "order.invalid",
+                        Severity.ERROR,
+                        "; ".join(exc.problems),
+                        order.request_id or order.kind.value,
+                    )
+                )
+                continue
+            end = self.brief.timeline_duration
+            start = _start(request)
+            if end is not None and start + _f(request.timing.local_duration) > _f(end):
+                continue
+            self.requests.append(request)
+
+    def give_way(self) -> None:
+        """A full-screen product card already shows the product's price and facts: the cards
+        planned from the same speech (within 2 s of it) give way to it."""
+        shows = [
+            (_start(r), _start(r) + _f(r.timing.local_duration))
+            for r in self.requests
+            if r.kind is GraphicKind.SPEC_CARD and r.content.variant == "showcase"
+        ]
+        ordered = {o.request_id for o in self.brief.orders}
+        self.requests = [
+            r
+            for r in self.requests
+            if r.request_id in ordered
+            or r.kind not in (GraphicKind.PRICE_TAG, GraphicKind.SPEC_CARD)
+            or not any(
+                a - 2 < _start(r) + _f(r.timing.local_duration) and _start(r) < b + 2
+                for a, b in shows
+            )
+        ]
+
     def run(self) -> PlannedRequests:
         for g in sorted(self.brief.graphics, key=lambda x: (_f(x.timeline_at), x.request_id)):
             self.editorial(g)
+        self.ordered()
         self.ranks()
         self.prices()
+        self.give_way()
+        if self.style.height > self.style.width:  # a Short: the short-form rules
+            self.requests, found = short_form(self.requests, self.brief, SPEC_LABELS)
+            self.issues += found
         self.bookends()
         self.one_per_zone()
         requests = tuple(

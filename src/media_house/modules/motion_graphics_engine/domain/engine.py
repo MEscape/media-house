@@ -210,13 +210,14 @@ def check_request(request: GraphicRequest) -> list[QcIssue]:
             and 0 <= e.after_word < words
             and 0 <= _f(e.local_start) < _f(request.timing.local_duration)
             and e.entry in ("", "pop_in", "fade_in")
+            and e.placement in ("", "above")
         ):
             found.append(
                 issue(
                     "caption.emoji",
                     Severity.ERROR,
                     f"emoji {e.emoji!r} needs one symbol after an existing word, a start inside"
-                    " the group and the entry pop_in or fade_in",
+                    " the group, the entry pop_in or fade_in and the placement '' or above",
                     rid,
                 )
             )
@@ -417,10 +418,13 @@ def _contains(a: Built, frame: int) -> bool:
 
 
 def _clash(b: Built, accepted: list[Built]) -> str | None:
+    # a full-frame card is a background the small graphics sit on, never a clash
     if b.composition is None or b.request.kind is GraphicKind.TRANSITION_OVERLAY:
         return None
     for a in accepted:
         if a.composition is None or a.request.kind is GraphicKind.TRANSITION_OVERLAY:
+            continue
+        if a.composition.full_frame or b.composition.full_frame:
             continue
         if _overlap(_window(a), _window(b)) and a.composition.rect.overlaps(b.composition.rect):
             return a.request.request_id

@@ -56,6 +56,9 @@ class TimedEmoji:
     local_start: Rational
     #: ``pop_in`` | ``fade_in``; empty = ``pop_in``.
     entry: str = ""
+    #: Empty = inline after its word; ``above`` = a big sticker over the caption line that flies
+    #: in at ``local_start`` and out before the group ends (then no inline glyph is drawn).
+    placement: str = ""
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

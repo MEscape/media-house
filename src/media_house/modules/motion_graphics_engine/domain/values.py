@@ -15,21 +15,33 @@ SCHEMA_VERSION: Final = 2
 #: 6: the appended end ends on its last rendered frame; 7: a bare figure is never a card on its
 #: own (it needs a label) and an editorial card opens at its spoken time when the brief knows it
 #: 8: a bare figure spoken as a product fact of its section is labelled by that fact
-PLANNER_VERSION: Final = 8
+#: 9: the brief's orders are planned through their presets
+#: 10: portrait Shorts: hook title, short full-screen cards after it, fact punches, cut-out pops
+PLANNER_VERSION: Final = 11
 #: Layout and animation compiler. Bump when the same request draws or moves differently: it
 #: changes every render fingerprint, so old renders are not reused for a new look.
 #: 2: the preset system (design tokens, cards, balanced lines, choreography pairs)
-COMPILER_VERSION: Final = 2
+#: 3: typed URL cards, the full-screen showcase card on the grid plate
+#: 4: the showcase fills the frame (opaque ground, not held to a zone, under small graphics)
+#: 6: a full-frame card may render opaque
+#: 7: floating idle motion; translucent full-screen ground; intro and gallery variants
+#: 8: portrait (9:16) intro and showcase cards: the cut-out on top, the text under it
+#: 9: caption sticker emoji (fly in / out above the line), caption line entry and exit motion
+#: 10: portrait cards opaque full-bleed with the cover-fit plate, rank badge, fact punch,
+#: hook title, counting figures, rising entry and zoom-through exit
+COMPILER_VERSION: Final = 15
 #: Vocabulary of kinds, events and properties (additions are additive).
 #: 2: comparison matrix, struck value, URL card, deadline chip; preset variants and emphasis
-VOCABULARY_VERSION: Final = 2
+#: 3: the ``type`` property (characters of a text shown), ``typing`` / ``showcase`` variants
+VOCABULARY_VERSION: Final = 3
 #: Schema of the configurable knobs in ``profile.py``.
 PROFILE_VERSION: Final = 1
 DOCUMENT_TYPE: Final = "graphics_plan"
 RESULT_OPERATION: Final = "graphics_plan"
 RENDER_OPERATION: Final = "motion_graphic_render"
 #: 2: frames whose picture does not change are rendered once and repeated (still fast path)
-RENDER_VERSION: Final = 2
+#: 3: a brand plate covers the frame whatever its aspect
+RENDER_VERSION: Final = 3
 #: Library tag on every rendered graphic, so all renders can be listed.
 RENDER_TAG: Final = "motion_graphic"
 
@@ -152,6 +164,7 @@ class Prop(StrEnum):
     REVEAL = "reveal"  # 0 = clipped away (from the reveal edge), 1 = fully shown
     HIGHLIGHT = "highlight"  # 0 = text colour, 1 = highlight colour
     COUNT = "count"  # counter value shown by a text element
+    TYPE = "type"  # characters of a text element shown (typed in)
 
 
 class EventKind(StrEnum):

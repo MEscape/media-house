@@ -11,6 +11,7 @@ Easings are the style's cubic beziers, evaluated by a small solver (same curve a
 
 import hashlib
 import html
+import json
 import re
 from fractions import Fraction
 from itertools import pairwise
@@ -171,7 +172,9 @@ class _Writer:
             if e.radius_px:
                 style.append(f"border-radius:{e.radius_px}px")
         elif e.type is ElementType.IMAGE and e.image_asset_id:
-            inner = f'<img src="images/{html.escape(_file_id(e.image_asset_id))}.png" alt="">'
+            # a brand plate fills the frame whatever its aspect (a 16:9 plate on a 9:16 card)
+            fit = ' style="object-fit:cover"' if e.id.endswith(".plate") else ""
+            inner = f'<img src="images/{html.escape(_file_id(e.image_asset_id))}.png"{fit} alt="">'
         elif e.type is ElementType.SHAPE:
             fill = e.fill or "none"
             stroke = (
@@ -249,6 +252,9 @@ class _Writer:
             if track.prop is Prop.COUNT:
                 out += self.counter(track.target, target, track.keyframes)
                 continue
+            if track.prop is Prop.TYPE:
+                out += self.typed(track.target, track.keyframes)
+                continue
             name = _PROPS[track.prop]
             base = self.bases.get(track.target, 0.0) if track.prop is Prop.ROTATION else 0.0
             key = f'"{name}"' if name.startswith("--") else name
@@ -304,6 +310,42 @@ class _Writer:
             out.append(
                 f"tl.fromTo({holder}, {{ v: {num(a.value)} }}, {{ v: {num(b.value)},"
                 f' duration: {seconds(end - start)}, ease: ease("{b.easing}"),'
+                f" immediateRender: false, onUpdate: {holder}r }}, {seconds(start)});"
+            )
+        return out
+
+    def typed(self, element_id: str, frames: tuple[Keyframe, ...]) -> list[str]:
+        """Characters typed in: the first run shows the first ``v`` characters of the text and a
+        caret while typing (the other runs stay empty; the laid-out width is the full text)."""
+        element = next(e for p in self.parts for e in p.composition.elements if e.id == element_id)
+        runs = element.text.lines[0].runs if element.text and element.text.lines else ()
+        if not runs:
+            return []
+        every = [r for line in element.text.lines for r in line.runs]  # type: ignore[union-attr]
+        full = " ".join(r.text for r in every)
+        span = f'el("{self.html_id(runs[0].id)}")'
+        clear = "".join(f'el("{self.html_id(r.id)}").textContent = ""; ' for r in every[1:])
+        holder = f"t{len(self.counters)}"
+        self.counters[element_id] = (0, "")
+        caret = json.dumps("|")
+        out = [
+            f"const {holder} = {{ v: {num(frames[0].value)} }};",
+            f"const {holder}r = () => {{ const n = Math.round({holder}.v);"
+            f" {span}.textContent = {json.dumps(full)}.slice(0, n)"
+            f' + (n < {len(full)} ? {caret} : ""); {clear}}};',
+        ]
+        first = seconds(self.offset) if self.scene.parts else "0"
+        out.append(
+            f"tl.set({holder}, {{ v: {num(frames[0].value)}, onUpdate: {holder}r }}, {first});"
+        )
+        for a, b in pairwise(frames):
+            start = Fraction(a.local_at.numerator, a.local_at.denominator) + self.offset
+            end = Fraction(b.local_at.numerator, b.local_at.denominator) + self.offset
+            if end <= start:
+                continue
+            out.append(
+                f"tl.fromTo({holder}, {{ v: {num(a.value)} }}, {{ v: {num(b.value)},"
+                f' duration: {seconds(end - start)}, ease: "none",'
                 f" immediateRender: false, onUpdate: {holder}r }}, {seconds(start)});"
             )
         return out

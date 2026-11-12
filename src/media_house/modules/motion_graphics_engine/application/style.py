@@ -213,7 +213,12 @@ def usage(
     ]
     for e in composition.elements:
         if e.text is not None:
-            behind = next((p for p in panels if e.rect.inside(p.rect)), None)
+            # the smallest panel around the text is the one it is read against (a chip on a ground)
+            behind = min(
+                (p for p in panels if e.rect.inside(p.rect)),
+                key=lambda p: p.rect.width * p.rect.height,
+                default=None,
+            )
             texts.append(
                 TextUse(
                     element_id=e.id,

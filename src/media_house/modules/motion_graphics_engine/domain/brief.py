@@ -10,6 +10,7 @@ from dataclasses import dataclass
 
 from media_house.core.domain import Rational
 from media_house.modules.motion_graphics_engine.domain.model import DataPoint
+from media_house.modules.motion_graphics_engine.domain.presets import GraphicOrder
 from media_house.modules.motion_graphics_engine.domain.values import EditRef, Intent
 
 
@@ -120,3 +121,6 @@ class GraphicsBrief:
     membership_plug_at: Rational | None = None
     #: Text already burned into the picture: a card showing the same is not drawn again.
     on_screen: tuple[OnScreenText, ...] = ()
+    #: Graphics a planner outside this module ordered (the owner's brief, a typed address):
+    #: compiled through their presets, timed at the moment each must be fully in.
+    orders: tuple[GraphicOrder, ...] = ()
