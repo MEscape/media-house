@@ -13,6 +13,7 @@ is serialised. On a CUDA device the weights run in fp16, on the CPU in bfloat16 
 import importlib.metadata
 import importlib.util
 import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -74,9 +75,19 @@ class TransformersLanguageModel:
         cancellation: CancellationToken,
     ) -> LlmReply:
         cancellation.raise_if_cancelled()
-        with self._lock:
+        deadline = time.monotonic() + settings.timeout_seconds
+        while not self._lock.acquire(timeout=min(0.05, _remaining(deadline))):
+            cancellation.raise_if_cancelled()
+        try:
+            cancellation.raise_if_cancelled()
             tokenizer, model, device = self._load(settings.model)
-            return self._generate(tokenizer, model, device, system, user, settings, cancellation)
+            cancellation.raise_if_cancelled()
+            _remaining(deadline)
+            return self._generate(
+                tokenizer, model, device, system, user, settings, cancellation, deadline=deadline
+            )
+        finally:
+            self._lock.release()
 
     # --- model location and loading ----------------------------------------------------------
     def _resolve(self, name: str) -> Path:
@@ -139,15 +150,17 @@ class TransformersLanguageModel:
         user: str,
         settings: LlmSettings,
         cancellation: CancellationToken,
+        *,
+        deadline: float,
     ) -> LlmReply:
         import torch
         from transformers import StoppingCriteria, StoppingCriteriaList
 
-        class Cancelled(StoppingCriteria):
+        class StopRequested(StoppingCriteria):
             def __call__(self, input_ids: Any, scores: Any, **kwargs: Any) -> Any:
                 return torch.full(
                     (input_ids.shape[0],),
-                    cancellation.is_cancelled,
+                    cancellation.is_cancelled or time.monotonic() >= deadline,
                     dtype=torch.bool,
                     device=input_ids.device,
                 )
@@ -174,11 +187,12 @@ class TransformersLanguageModel:
                 output = model.generate(
                     **encoded,
                     max_new_tokens=settings.max_output_tokens,
+                    max_time=_remaining(deadline),
                     do_sample=sampling,
                     temperature=settings.temperature if sampling else None,
                     top_p=None,
                     top_k=None,
-                    stopping_criteria=StoppingCriteriaList([Cancelled()]),
+                    stopping_criteria=StoppingCriteriaList([StopRequested()]),
                     pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id,
                 )
         except RuntimeError as exc:
@@ -189,8 +203,22 @@ class TransformersLanguageModel:
                 user_message="The language model ran out of memory or failed.",
             ) from exc
         cancellation.raise_if_cancelled()
+        _remaining(deadline)
         new_tokens = output[0, prompt_tokens:]
         reply = tokenizer.decode(new_tokens, skip_special_tokens=True)
         if cancellation.is_cancelled:
             raise OperationCancelledError("Operation was cancelled")
         return LlmReply(_PRIME + reply, prompt_tokens, int(new_tokens.shape[0]))
+
+
+def _remaining(deadline: float) -> float:
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise ExternalSystemError(
+            "Language model request exceeded its time budget",
+            user_message=(
+                "Das lokale Sprachmodell braucht zu lange. Versuch es erneut oder nutze "
+                "ein schnelleres Modell."
+            ),
+        )
+    return remaining
