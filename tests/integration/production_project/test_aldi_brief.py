@@ -60,6 +60,7 @@ def editorial_brief() -> str:
             "Stand der Quellen: Vorjahrespreise vor dem Dreh am aktuellen Prospekt abgleichen.",
             "Alle drei Referenzvideos wurden am 10.11.2026 veröffentlicht.",
             "Video-Ziel: Neuheiten und vermutete Umlabelungen mit Belegen unterscheiden.",
+            "Archivbilder älterer Prospekte nur mit Genehmigung nutzen.",
         ]
     )
 
@@ -112,7 +113,9 @@ def test_brief_import_never_waits_for_a_model_and_downstream_artifacts_are_groun
     assert not any(f.key in {"price_total", "price_spread"} for f in project.facts)
     assert "Bestellen kannst du vom" not in project.script
     assert "Geliefert wird" not in project.script
-    assert isinstance(world.workflow.plan_material(pid), Ok)
+    planned = world.workflow.plan_material(pid)
+    assert isinstance(planned, Ok)
+    assert all(requirement.scene_ids for requirement in planned.value.requirements)
     contexts = world.workflow.build_context(pid)
     assert isinstance(contexts, Ok)
     assert len(contexts.value.contexts) == 3

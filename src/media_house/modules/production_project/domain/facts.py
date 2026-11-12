@@ -45,7 +45,9 @@ class Formula:
 
 def number_of(fact: Fact) -> Fraction | None:
     """The numeric value of a fact (a date or a name has none)."""
-    if fact.kind in {"date", "url", "product"}:
+    if fact.kind in {"date", "url", "product", "description"} or fact.kind.startswith(
+        "historical_"
+    ):
         return None
     return parse_number(fact.value)
 

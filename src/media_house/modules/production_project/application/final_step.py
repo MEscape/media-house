@@ -217,6 +217,26 @@ class CheckGate:
                     )
                 )
         findings += _asset_findings(project)
+        readiness = (
+            (Artifact.SCRIPT, bool(project.script), "Script"),
+            (Artifact.REQUIREMENTS, bool(project.requirements), "Materialplan"),
+            (Artifact.CONTEXT, bool(project.contexts), "Kontext"),
+            (Artifact.METADATA, project.metadata is not None, "Metadaten"),
+        )
+        for artifact, present, label in readiness:
+            if present and artifact in project.dirty:
+                findings.append(
+                    Finding(
+                        f"project.stale_{artifact.value}",
+                        f"project.stale_{artifact.value}",
+                        Stage.METADATA,
+                        Severity.BLOCKER,
+                        artifact.value,
+                        "",
+                        f"{label} ist nach Änderungen veraltet. "
+                        "Erzeuge oder prüfe den Stand erneut.",
+                    )
+                )
         brief = project.brief
         if brief is not None and project.metadata is not None:
             meta = project.metadata

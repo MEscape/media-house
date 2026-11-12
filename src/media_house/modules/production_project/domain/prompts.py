@@ -192,7 +192,8 @@ def script_prompt(
         "Freigabe zwischen '[CONDITIONAL: needs approval]' und '[/CONDITIONAL]'. Ein Satz, den "
         "der Fakten-Check prüfen muss, endet mit [VERIFY]. Es gibt einen Hook in den ersten "
         "fünf Sekunden und einen Bogen zum Anfang am Ende. Die Szenenzahl und Länge richten "
-        "sich nach diesem Briefing. Zeige alle verfügbaren Artikel; fehlende Angaben bleiben offen.\n"
+        "sich nach diesem Briefing. Zeige alle verfügbaren Artikel; "
+        "fehlende Angaben bleiben offen.\n"
         "Antworte NUR mit JSON in dieser Form:\n" + schema_hint(LlmScript)
     )
     user = (
@@ -338,7 +339,8 @@ def deterministic_concepts(
                 ),
                 (
                     "Was passt zu dir?",
-                    "Wir vergleichen Wirkung und Aufbau; das Preisurteil wartet auf aktuelle Preise.",
+                    "Wir vergleichen Wirkung und Aufbau; "
+                    "das Preisurteil wartet auf aktuelle Preise.",
                     "Entscheidungshilfe",
                     "Die Zuschauer wählen nach Effekt statt nach einer erfundenen Rangliste.",
                 ),

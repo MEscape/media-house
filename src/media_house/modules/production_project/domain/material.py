@@ -119,7 +119,7 @@ def plan_materials(inputs: PlanInputs) -> tuple[AssetRequirement, ...]:
         for c in inputs.brief.constraints_of(ConstraintKind.CONDITIONAL)
         if _ARCHIVE.search(c.text)
     ]
-    if archive or cond:
+    if archive:
         out.append(_archive(slug, archive, cond[0].constraint_id if cond else "", forbidden))
     background_scenes = tuple(s.scene_id for s in scenes if s.graphics_intent)
     if background_scenes:
@@ -237,12 +237,12 @@ def _talking(slug: str, scenes: tuple[str, ...], forbidden: tuple[str, ...]) -> 
             "Das Skript Szene für Szene sprechen, bei einem Versprecher den Satz neu ansetzen.",
             "Vor jeder Szene laut „Szene …“ und die Nummer sagen (als Marker).",
             "Kameralicht und Ton prüfen, bevor du startest.",
-            "Keine Logos auf Kleidung, Marken am Set abkleben.",
+            *(forbidden or ()),
         ),
         accepts=_VIDEO,
         multi=MultiFile.ORDERED_CHUNKS,
         scene_ids=scenes,
-        duration="so lang wie das Skript (ca. 8 bis 10 Minuten)",
+        duration="So lang wie dein freigegebenes Script; die Schätzung steht im Script-Tab.",
         spec=AssetSpec("3840x2160", 0, "required"),
         depends=(FACT_CHECK, SLOTS_FILLED),
         validators=("no-third-party-brands", "audio-present", "no-confidential", "resolution-ok"),

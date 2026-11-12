@@ -272,8 +272,10 @@ class ProductionWorkflowService:
             project_id, finding_id, reason, remember_for_client=remember_for_client
         )
 
-    def lint(self, project_id: str) -> Result[ScriptReport, NotFoundError]:
-        return self._lint.execute(project_id)
+    def lint(
+        self, project_id: str, *, text: str | None = None
+    ) -> Result[ScriptReport, NotFoundError]:
+        return self._lint.execute(project_id, text=text)
 
     # --- 4: material ----------------------------------------------------------------------------
     def plan_material(self, project_id: str) -> Result[Project, Failure]:

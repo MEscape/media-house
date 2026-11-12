@@ -245,7 +245,9 @@ def allowed_numbers(facts: Sequence[Fact]) -> tuple[set[Fraction], set[tuple[int
 
 def _number_findings(script: Script, ctx: LintContext) -> list[Finding]:
     numbers, dates = allowed_numbers(ctx.facts)
-    prices = sorted(n for n in numbers)
+    prices = sorted(
+        {value for fact in ctx.facts if fact.unit == "€" and (value := number_of(fact)) is not None}
+    )
     out: list[Finding] = []
     for scene in script.scenes:
         for s in scene.sentences:
@@ -253,7 +255,7 @@ def _number_findings(script: Script, ctx: LintContext) -> list[Finding]:
                 continue
             for m in _PRICE.finditer(s.text):
                 value = parse_number(m.group(1))
-                if value is not None and value not in numbers:
+                if value is not None and value not in prices:
                     near = _nearest(prices, value)
                     hint = f" Nächster Wert der Tabelle: {format_number(near)} €." if near else ""
                     out.append(

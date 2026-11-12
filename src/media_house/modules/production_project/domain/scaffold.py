@@ -3,6 +3,7 @@ unknown a slot. It is what a run produces with no model at all, and what a model
 checked against. It states nothing it was not given.
 """
 
+import re
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 
@@ -72,12 +73,34 @@ def _build(i: ScaffoldInputs) -> Script:
     known = {fact.key: fact for fact in i.facts}
     online = "order_window" in known
     all_prices = bool(i.products) and all(r.price is not None for r in i.products)
+    editorial = any("umlabel" in f.value.casefold() for f in i.facts if f.kind == "description")
 
     def fact_or_slot(stem: str, subject: str, unit: str = "") -> str:
         key = f"{stem}_{subject}"
         if key in known:
             return "{{fact:" + key + "}}"
         return "{" + slot_key(stem, subject) + "}" + (f" {unit}" if unit else "")
+
+    def source_description(key: str) -> str:
+        fact = known.get(key)
+        if fact is None:
+            return ""
+        # Historical specifications stay in the evidence table, not in current product claims.
+        text = re.sub(r"\([^)]*Vorjahr[^)]*\)", "", fact.value, flags=re.I)
+        sentences = re.split(r"(?<=[.!?])\s+", text)
+        return " ".join(
+            sentence
+            for sentence in sentences
+            if not re.search(r"vorjahrespreis|\d[,.]\d{2}\s*€", sentence, re.I)
+        ).strip()
+
+    detail_rows = tuple(
+        row
+        for row in i.products
+        if row.price is not None
+        or any(f"{stem}_{row.subject}" in known for stem in ("shots", "kaliber", "duration"))
+    )
+    overview_rows = tuple(row for row in i.products if row not in detail_rows)
 
     sid = _ids()
     scene(
@@ -103,7 +126,7 @@ def _build(i: ScaffoldInputs) -> Script:
             "was lässt sich vergleichen und was ist noch offen?",
             "Nicht jeder neue Name bedeutet automatisch einen neuen Effekt. "
             "Dafür müssen Aufbau und Daten zusammenpassen."
-            if not all_prices
+            if editorial
             else "Wir vergleichen die Artikel innerhalb dieses Angebots. "
             "Nicht nur nach dem Preis: Entscheidend ist, was du am Himmel sehen willst.",
         ],
@@ -131,7 +154,8 @@ def _build(i: ScaffoldInputs) -> Script:
                 if all_prices
                 else [
                     "Aktuelle Preise liegen im Briefing noch nicht vor. "
-                    "Deshalb gibt es hier noch keine Preisrangliste und keine Kaufempfehlung nach Budget.",
+                    "Deshalb gibt es hier noch keine Preisrangliste "
+                    "und keine Kaufempfehlung nach Budget.",
                     "Vorjahrespreise sind nur eine Orientierung für den Rückblick. "
                     "Sie sind keine Zusage für diese Saison.",
                 ]
@@ -141,7 +165,7 @@ def _build(i: ScaffoldInputs) -> Script:
             "Die Angaben aus dem Briefing gleichen wir vor der Veröffentlichung mit den Quellen ab."
         ],
     )
-    for row in i.products:
+    for row in detail_rows:
         s = row.subject
         scene(
             next(sid),
@@ -153,25 +177,45 @@ def _build(i: ScaffoldInputs) -> Script:
             + "Nur vorhandene Werte zeigen; fehlende Angaben nicht ergänzen.",
             [
                 f"Schauen wir auf {row.name}."
-                + (
-                    f" Der Preis: {{{{fact:price_{s}}}}}."
-                    if row.price is not None
-                    else " Der aktuelle Preis ist noch offen."
-                ),
+                + (f" Der Preis: {{{{fact:price_{s}}}}}." if row.price is not None else ""),
                 f"Laut Briefing sind es {fact_or_slot('shots', s, 'Schuss')}. [VERIFY]",
-                f"Das angegebene Kaliber liegt bei {fact_or_slot('kaliber', s, 'Millimetern')}. [VERIFY]",
+                "Das angegebene Kaliber liegt bei "
+                f"{fact_or_slot('kaliber', s, 'Millimetern')}. [VERIFY]",
                 f"Die Effektmasse: {fact_or_slot('effektmasse', s, 'Gramm')}. [VERIFY]",
                 *(
                     [f"Die angegebene Brenndauer: {{{{fact:duration_{s}}}}}. [VERIFY]"]
                     if f"duration_{s}" in known
                     else []
                 ),
-                f"Der Effekt: {fact_or_slot('effekt', s)}.",
+                (
+                    f"Laut Briefing: {source_description(f'effekt_{s}')}. [VERIFY]"
+                    if source_description(f"effekt_{s}")
+                    else f"Der Effekt: {fact_or_slot('effekt', s)}."
+                ),
                 *(
-                    [f"Im Briefing steht dazu: {{{{fact:assessment_{s}}}}}. [VERIFY]"]
-                    if f"assessment_{s}" in known
+                    [
+                        "Zur Einordnung laut Briefing: "
+                        f"{source_description(f'assessment_{s}')} [VERIFY]"
+                    ]
+                    if source_description(f"assessment_{s}")
                     else [f"Für die Einordnung von {row.name}: {{{slot_key('einordnung', s)}}}."]
                 ),
+            ],
+        )
+    if overview_rows:
+        names = ", ".join(row.name for row in overview_rows)
+        scene(
+            next(sid),
+            "Klassiker und Rückkehrer",
+            f"Diese Artikel vollständig zeigen: {names}",
+            "product",
+            "Übersicht mit allen Namen und Bildern; fehlende Daten als offen kennzeichnen",
+            [
+                f"Außerdem nennt das Briefing diese Artikel: {names}. [VERIFY]",
+                "Für diese Übersicht liegen noch keine vollständigen aktuellen Daten vor. "
+                "Deshalb übernehme ich hier keine Schusszahlen oder Preise aus dem Vorjahr.",
+                "Sobald die aktuellen Angaben vorliegen, ergänzen wir den Vergleich. "
+                "Ob ein Artikel in deiner Region verfügbar ist, bleibt bis dahin offen.",
             ],
         )
     scene(
@@ -188,7 +232,8 @@ def _build(i: ScaffoldInputs) -> Script:
         if all_prices
         else [
             "Ein fairer Preisvergleich braucht aktuelle Preise. "
-            "Sobald sie vorliegen, können wir Kosten pro Schuss und pro Gramm Effektmasse berechnen.",
+            "Sobald sie vorliegen, können wir Kosten pro Schuss "
+            "und pro Gramm Effektmasse berechnen.",
             "Bis dahin vergleiche ich die belegten Eigenschaften. "
             "Eine niedrige Schusszahl bedeutet nicht automatisch weniger Wirkung.",
         ],
@@ -209,7 +254,9 @@ def _build(i: ScaffoldInputs) -> Script:
             "Für den Technikvergleich brauchen wir Schusszahl, Kaliber und Effektmasse zusammen. "
             "Fehlen diese Angaben, bleibt die Bewertung offen.",
             "Eine Ähnlichkeit auf dem Karton ist noch kein Beweis für eine Umlabelung. "
-            "Dafür müssen die Daten und die Herkunft überprüfbar zusammenpassen.",
+            "Dafür müssen die Daten und die Herkunft überprüfbar zusammenpassen."
+            if editorial
+            else "Wirkung und Aufbau zählen zusammen. Die Zahlen allein sagen noch nicht alles.",
         ],
     )
     scene(
@@ -227,7 +274,8 @@ def _build(i: ScaffoldInputs) -> Script:
         else [
             "Das ist der aktuelle Stand, noch keine vollständige Marktübersicht. "
             "Für eine endgültige Einordnung fehlen aktuelle Preise und bestätigte Listungen.",
-            "Wenn die Prospekte da sind, vergleichen wir die Regionen und ergänzen die offenen Daten. "
+            "Wenn die Prospekte da sind, vergleichen wir die Regionen "
+            "und ergänzen die offenen Daten. "
             "Eine fehlende Angabe ist dabei noch kein Beleg, dass ein Artikel gestrichen wurde.",
         ],
     )
@@ -277,8 +325,12 @@ def _build(i: ScaffoldInputs) -> Script:
         [
             "Neu auf dem Karton heißt also noch nicht automatisch neu am Himmel. "
             "Entscheidend sind die belegten Daten. Alles andere bleibt bis zur Prüfung offen."
-            if concept and concept.hook.startswith("Neu auf dem Karton")
-            else "{CALLBACK}"
+            if editorial
+            else (
+                concept.callback
+                if concept and not concept.concept_id.startswith("det-")
+                else "{CALLBACK}"
+            )
         ],
     )
     scene(

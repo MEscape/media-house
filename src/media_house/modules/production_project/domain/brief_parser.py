@@ -672,6 +672,21 @@ class _Reader:
     # --- facts ----------------------------------------------------------------------------------
     def _facts(self, unit: _Unit) -> None:
         text = unit.text
+        if target := re.search(
+            r"(?:Länge|Laufzeit|Videolänge)\s*:\s*(\d{1,2})\s*[-\u2013]\s*"
+            r"(\d{1,2})\s*(?:Minuten|min)\b",
+            text,
+            re.I,
+        ):
+            for bound, value in zip(("min", "max"), target.groups(), strict=True):
+                self._fact(
+                    unit,
+                    f"target_minutes_{bound}",
+                    "Gewünschte Videolänge",
+                    value,
+                    "min",
+                    "duration",
+                )
         for m in _URL.finditer(text):
             self._fact(
                 unit,

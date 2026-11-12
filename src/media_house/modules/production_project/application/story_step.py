@@ -436,6 +436,16 @@ def _script_problem(raw: LlmScript, project: Project, guidance: Guidance) -> str
     missing = [row.name for row in rows_of(project) if row.name.casefold() not in blob]
     if missing:
         return "Diese Artikel fehlen: " + ", ".join(missing)
+    for row in rows_of(project):
+        coverage = [
+            scene
+            for scene in scenes
+            if row.name.casefold() in scene.title.casefold()
+            and scene.function == "product"
+            and len(scene.spoken) >= 2
+        ]
+        if not coverage:
+            return f"Für {row.name} fehlt eine eigene Produktszene mit konkretem Sprechtext."
     if scenes[0].function != "hook" or not scenes[0].spoken:
         return "Der Einstieg braucht einen gesprochenen Hook."
     text = render_script(candidate, title=project.settings.title)
@@ -571,6 +581,13 @@ class EditScript:
         if isinstance(answer, Err):
             return Err(ValidationError(answer.error.reason, user_message=answer.error.reason))
         new = answer.value
+        if new.scene_id != scene_id:
+            return Err(
+                ValidationError(
+                    "scene id changed",
+                    user_message="Der Vorschlag verändert die Szenenkennung. Hol ihn bitte neu.",
+                )
+            )
         specs = [
             SceneSpec(
                 new.scene_id or scene_id,
@@ -590,6 +607,13 @@ class EditScript:
             facts=project.facts,
             slot_rows=[(s.key, s.label, s.value) for s in project.slots],
         )
+        if not _fact_refs_exist(script_from_specs(specs), project):
+            return Err(
+                ValidationError(
+                    "unknown facts",
+                    user_message="Der Vorschlag enthält unbekannte Fakten. Hol ihn bitte neu.",
+                )
+            )
         return Ok(RewriteProposal(scene_id, instruction, project.script, text))
 
     def apply(self, project_id: str, proposal: RewriteProposal) -> Result[Project, _Failure]:
@@ -775,10 +799,14 @@ class LintScript:
         self._projects = projects
         self._style = style
 
-    def execute(self, project_id: str) -> Result[ScriptReport, NotFoundError]:
+    def execute(
+        self, project_id: str, *, text: str | None = None
+    ) -> Result[ScriptReport, NotFoundError]:
         found = self._projects.get(project_id)
         if isinstance(found, Err):
             return found
         project = found.value
+        if text is not None:
+            project = replace(project, script=text)
         guidance = self._style.guidance(_query(project, Task.SCRIPT))
         return Ok(script_report(project, style_facts_of(guidance)))

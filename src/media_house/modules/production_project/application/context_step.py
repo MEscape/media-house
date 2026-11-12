@@ -317,6 +317,21 @@ class RunVariant:
                     "no variant", user_message="Diese Kontext-Stufe gibt es noch nicht: erst bauen."
                 )
             )
+        if project.manifest is not None:
+            approved_paths = {
+                entry.source_path.replace("\\", "/").casefold()
+                for entry in project.manifest.usable_entries()
+                if entry.source_path
+            }
+            if any(path.as_posix().casefold() not in approved_paths for path in paths):
+                return Err(
+                    ValidationError(
+                        "unapproved variant inputs",
+                        user_message="Für den Testlauf darfst du nur "
+                        "geprüftes Projektmaterial verwenden. "
+                        "Ordne neue Dateien zuerst zu und kläre offene Markierungen.",
+                    )
+                )
         ran = self._runner.run(paths, variant.text, output_format, ctx)
         if isinstance(ran, Err):
             return ran

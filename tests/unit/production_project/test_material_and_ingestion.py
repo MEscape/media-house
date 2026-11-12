@@ -1,6 +1,7 @@
 """The golden upload: a plan from the script, then the real folder listing classified, named,
 validated and reconciled (all evidence synthetic)."""
 
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -155,10 +156,24 @@ def test_switching_an_optional_block_off_removes_nothing_the_video_still_needs(
 def test_the_archive_needs_the_approval_the_brief_asks_for(
     script: Script, brief: BriefModel
 ) -> None:
-    archive = next(r for r in plan(script, brief) if r.role is Role.ARCHIVE)
+    archive_script = replace(
+        script,
+        scenes=(
+            replace(script.scenes[0], graphics_intent="Archivaufnahme älterer Prospekte"),
+            *script.scenes[1:],
+        ),
+    )
+    archive = next(r for r in plan(archive_script, brief) if r.role is Role.ARCHIVE)
 
     assert archive.priority is Priority.OPTIONAL
     assert archive.depends_on == (f"approval:{archive.switched_by}",)
+    assert archive.scene_ids == (script.scenes[0].scene_id,)
+
+
+def test_an_archive_permission_alone_does_not_request_unused_material(
+    script: Script, brief: BriefModel
+) -> None:
+    assert not any(r.role is Role.ARCHIVE for r in plan(script, brief))
 
 
 def test_natural_order_and_names() -> None:
@@ -276,7 +291,14 @@ def test_a_file_date_or_name_alone_never_decides() -> None:
 
 
 def test_the_validators_flag_what_the_brief_forbids(brief: BriefModel, script: Script) -> None:
-    reqs = {r.requirement_id: r for r in plan(script, brief)}
+    archive_script = replace(
+        script,
+        scenes=(
+            replace(script.scenes[0], graphics_intent="Archivaufnahme älterer Prospekte"),
+            *script.scenes[1:],
+        ),
+    )
+    reqs = {r.requirement_id: r for r in plan(archive_script, brief)}
     ctx = ValidationContext(compile_rules(brief), brief)
 
     stock = validate_asset(LISTING["stock"], Role.BACKGROUND, reqs["background"], ctx)

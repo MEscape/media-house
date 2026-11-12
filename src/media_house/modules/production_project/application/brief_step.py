@@ -32,6 +32,7 @@ from media_house.modules.production_project.domain.claims import (
     scan_plan,
     scan_script,
 )
+from media_house.modules.production_project.domain.compliance import Override
 from media_house.modules.production_project.domain.documents import (
     Document,
     kurzkonzept,
@@ -49,6 +50,7 @@ from media_house.modules.production_project.domain.project import (
     Project,
     stamp,
     touch,
+    with_script,
 )
 from media_house.modules.production_project.domain.prompts import (
     PROMPT_VERSION,
@@ -313,7 +315,57 @@ class DecideRisk:
 
         def apply(p: Project) -> Project:
             others = tuple(d for d in p.decisions if d.risk_id != risk_id)
-            return replace(p, decisions=(*others, decision), updated_at=now)
+            changed = replace(p, decisions=(*others, decision), updated_at=now)
+            if action is RiskAction.REPLACED:
+                if risk.where == "idea":
+                    changed = touch(
+                        replace(
+                            changed,
+                            ideas=_replace_risky_sentence(
+                                p.ideas, risk.quote, decision.replacement
+                            ),
+                        ),
+                        Artifact.CONCEPTS,
+                        now=now,
+                    )
+                elif risk.where.startswith("concept:"):
+                    cid = risk.where.removeprefix("concept:")
+                    concepts = tuple(
+                        replace(
+                            c,
+                            logline=_replace_risky_sentence(
+                                c.logline, risk.quote, decision.replacement
+                            ),
+                            hook=_replace_risky_sentence(c.hook, risk.quote, decision.replacement),
+                            red_thread=_replace_risky_sentence(
+                                c.red_thread, risk.quote, decision.replacement
+                            ),
+                            callback=_replace_risky_sentence(
+                                c.callback, risk.quote, decision.replacement
+                            ),
+                        )
+                        if c.concept_id == cid
+                        else c
+                        for c in p.concepts
+                    )
+                    changed = touch(replace(changed, concepts=concepts), Artifact.CONCEPTS, now=now)
+                elif risk.where.startswith("S") and risk.quote in p.script:
+                    pattern = rf"(^## {re.escape(risk.where)}\b.*?)(?=^## S\d+\b|^---|\Z)"
+                    text = re.sub(
+                        pattern,
+                        lambda match: _replace_risky_sentence(
+                            match.group(0), risk.quote, decision.replacement
+                        ),
+                        p.script,
+                        flags=re.M | re.S,
+                    )
+                    changed = with_script(changed, text, "Sichere Alternative übernommen", now=now)
+            elif risk.where.startswith("S"):
+                quoted = fold(risk.quote)[:40].replace(" ", "-")
+                key = f"claim.{risk.kind.value}:{risk.where}:{quoted}"
+                override = Override(key, reason.strip(), now, remember_for_client)
+                changed = replace(changed, overrides=(*p.overrides, override))
+            return changed
 
         saved = self._projects.update(
             project_id, apply, audit=("risk_" + action.value, f"{risk.kind.value}: {reason[:80]}")
@@ -344,6 +396,12 @@ class DecideRisk:
                 scope_hint=Scope.CLIENT if decision.remember_for_client else Scope.PROJECT,
             )
         )
+
+
+def _replace_risky_sentence(text: str, quote: str, alternative: str) -> str:
+    """Replace the reviewed sentence, retaining surrounding paragraphs and sentences."""
+    parts = re.split(r"((?<=[.!?])\s+|\n+)", text)
+    return "".join(alternative if quote in part else part for part in parts)
 
 
 @dataclass(frozen=True, slots=True)

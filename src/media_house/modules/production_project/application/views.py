@@ -1,6 +1,6 @@
 """What a step needs to look at in a project, computed the same way everywhere."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from media_house.modules.production_project.domain.brief import BriefModel, Fact
 from media_house.modules.production_project.domain.claims import ScanContext
@@ -15,7 +15,7 @@ from media_house.modules.production_project.domain.compliance import (
     lint_script,
     qc_timeline,
 )
-from media_house.modules.production_project.domain.facts import ProductRow, products
+from media_house.modules.production_project.domain.facts import ProductRow, number_of, products
 from media_house.modules.production_project.domain.project import Project
 from media_house.modules.production_project.domain.script import Script, parse_script
 from media_house.modules.production_project.domain.script_tools import (
@@ -120,6 +120,12 @@ class ScriptReport:
 
 def script_report(project: Project, style: StyleFacts) -> ScriptReport:
     """The live lint of a script and its length estimate."""
+    facts = {fact.key: fact for fact in project.facts}
+    low_fact, high_fact = facts.get("target_minutes_min"), facts.get("target_minutes_max")
+    if low_fact is not None and high_fact is not None:
+        low, high = number_of(low_fact), number_of(high_fact)
+        if low is not None and high is not None and 0 < low <= high:
+            style = replace(style, target_minutes=(float(low), float(high)))
     spoken = spoken_script(project)
     lengths = lengths_of(project, style)
     seconds = total_seconds(lengths)

@@ -137,8 +137,7 @@ def _claims(sentence: str, low: str, where: str, ctx: ScanContext) -> Iterable[C
             where,
             "„Erster“ oder „noch nie dagewesen“ lässt sich nicht belegen.",
             Severity.BLOCKER,
-            "Ich habe so etwas bisher noch nirgends in der Hand gehabt. "
-            "[Nur mit Freigabe] Das gibt es so sonst nirgends.",
+            "Schauen wir uns an, was dieses Angebot konkret bietet.",
         )
     if m := _EXCLUSIVE.search(low):
         yield _risk(
@@ -149,9 +148,7 @@ def _claims(sentence: str, low: str, where: str, ctx: ScanContext) -> Iterable[C
             "Eine Aussage über alle anderen Anbieter ist nicht belegt "
             "und berührt das Vergleichsverbot.",
             Severity.BLOCKER,
-            "Persönliche Erfahrung statt Marktaussage: "
-            "„Bei mir ist das so noch nicht aufgetaucht.“ "
-            "Die Aussage über andere Anbieter nur als Zeile mit Freigabe.",
+            "Hier geht es um diese Artikel und ihre Unterschiede.",
         )
     if m := _GUARANTEE.search(low):
         yield _risk(
@@ -161,7 +158,7 @@ def _claims(sentence: str, low: str, where: str, ctx: ScanContext) -> Iterable[C
             where,
             "Eine Garantie über das Wissen oder die Reaktion der Zuschauer kannst du nicht geben.",
             Severity.BLOCKER,
-            "Vielleicht kennt ihr es schon. Für mich war es neu.",
+            "Vielleicht ist für dich eine neue Entdeckung dabei.",
         )
     if (m := _SUPERLATIVE.search(low)) and not scoped:
         yield _risk(
@@ -171,7 +168,7 @@ def _claims(sentence: str, low: str, where: str, ctx: ScanContext) -> Iterable[C
             where,
             "Ein Superlativ ohne Beleg: nur innerhalb der gezeigten Produkte ist er erlaubt.",
             Severity.BLOCKER,
-            f"Nur im Rahmen des Angebots: „unter diesen {ctx.scope_word or 'fünf'} der …“",
+            "Ich vergleiche die Artikel innerhalb dieses Angebots.",
         )
     yield from _names(sentence, low, where, ctx)
 
