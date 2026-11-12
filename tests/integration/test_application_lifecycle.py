@@ -87,6 +87,7 @@ def test_starts_with_default_modules_and_wires_everything(tmp_path: Path) -> Non
             "workspace",
             "media_library",
             "visual_asset_generation",
+            "thumbnail_design",
             "visual_style_engine",
             "music_and_sound_design",
             "vfx_engine",

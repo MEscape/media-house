@@ -84,18 +84,20 @@ def statuses(status: StatusReporter) -> list[str]:
 
 
 class TestContributor:
-    def test_contributes_four_pages_and_no_second_job_monitor(self, qtbot: QtBot) -> None:
+    def test_contributes_five_pages_and_no_second_job_monitor(self, qtbot: QtBot) -> None:
         registry = UiRegistry()
         ControlCenterUiContributor(
             resolve=lambda: pytest.fail("built lazily"),
             sounds=lambda: pytest.fail("built lazily"),
             review=lambda: pytest.fail("built lazily"),
+            thumbnail=lambda: pytest.fail("built lazily"),
         ).contribute(registry)
         assert [v.id for v in registry.views] == [
             "control_center.pipeline",
             "control_center.resolve",
             "control_center.sounds",
             "control_center.review",
+            "control_center.thumbnail",
         ]
         assert registry.docks == ()
 
@@ -106,7 +108,7 @@ class TestPipelinePage:
         qtbot.addWidget(view)
         tree = view.tree
         assert tree.topLevelItemCount() == 7
-        assert sum(node(tree, i).childCount() for i in range(7)) == 35
+        assert sum(node(tree, i).childCount() for i in range(7)) == 36
         assert view.detail.currentWidget() is view.empty
 
         layer2 = node(tree, 1)

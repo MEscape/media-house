@@ -220,3 +220,166 @@ DONE_FEEDBACK = "Feedback recorded."
 DONE_LOCK = "Section locked."
 DONE_UNLOCK = "Section unlocked."
 DONE_DECISION = "Decision recorded."
+
+# --- Thumbnail page --------------------------------------------------------------------------
+NAV_THUMBNAIL = "Thumbnail"
+THUMB_TITLE = "Thumbnail"
+THUMB_SUBTITLE = (
+    "The channel thumbnail for a video: 1-2 huge words, your reaction, the products and the "
+    "retailer logo. Variants A/B/C are made for YouTube's Test & Compare."
+)
+THUMB_VIDEO = "Video"
+THUMB_NO_VIDEO = "(no video)"
+THUMB_NONE = "(none)"
+THUMB_HEADLINE = "Headline"
+THUMB_LINE1 = "Line 1 (e.g. ERSTMALS)"
+THUMB_LINE2 = "Line 2 (e.g. ONLINE!)"
+THUMB_ACCENT = "Last line in yellow"
+THUMB_ALT = "Headline C (optional)"
+THUMB_REACTION = "Reaction"
+THUMB_UPLOAD_REACTION = "Upload…"
+THUMB_FROM_FOOTAGE = "From footage"
+THUMB_FLIP = "Mirror (look into the picture)"
+THUMB_CANDIDATES = "Moments from the footage (click to use)"
+THUMB_PRODUCTS = "Products (up to 3, most important first)"
+THUMB_IMPORT_PICTURE = "Import picture…"
+THUMB_LOGO = "Retailer logo"
+THUMB_DEVICE = "Phone with the shop"
+THUMB_DEVICE_PRODUCT = "Product"
+THUMB_DEVICE_NAME = "Name"
+THUMB_DEVICE_PRICE = "Price (79,99 €)"
+THUMB_DEVICE_BUTTON = "Button"
+THUMB_DEVICE_SCREEN = "Shop page picture"
+THUMB_BADGE = "Story badge (B), struck through"
+THUMB_PLATE = "Fireworks plate"
+THUMB_DESIGN = "Design thumbnails"
+THUMB_EXPORT = "Export for YouTube…"
+THUMB_VARIANTS = "Variants"
+THUMB_FEED = "In the feed (320 px)"
+THUMB_EMPTY = "Fill in the headline and choose a reaction, then design."
+THUMB_DONE = "{count} thumbnail(s) ready."
+THUMB_EXPORTED = "Saved {path}"
+THUMB_NO_SUGGESTIONS = (
+    "No good moments found: analyse the video first (pipeline, video analysis) or upload a picture."
+)
+THUMB_PICK_IMAGE = "Choose a picture"
+THUMB_IMAGE_FILTER = "Pictures (*.png *.jpg *.jpeg *.webp);;All Files (*)"
+THUMB_SAVE_TITLE = "Save thumbnail"
+THUMB_SAVE_FILTER = "JPEG (*.jpg)"
+
+# --- Brief to Cut (the wizard; German copy, informal "du") -------------------------------------
+NAV_BRIEF_TO_CUT = "Brief to Cut"
+NAV_STYLE_REVIEW = "Dein Stil"
+B2C_TITLE = "Brief to Cut"
+B2C_SUBTITLE = "Vom Briefing zum fertig geschnittenen Video, in deinem Stil."
+B2C_STEPS = ("1 Briefing", "2 KI-Analyse", "3 Story & Script", "4 Material", "5 Finalisierung")
+B2C_PROJECT = "Projekt"
+B2C_NEW_PROJECT = "Neues Projekt"
+B2C_PROJECT_TITLE = "Titel"
+B2C_PROJECT_CLIENT = "Auftraggeber"
+B2C_PROJECT_FORMAT = "Format"
+B2C_CREATE = "Anlegen"
+B2C_BRIEF_LABEL = "Briefing (Text einfügen oder Datei laden)"
+B2C_BRIEF_LOAD = "Datei laden…"
+B2C_BRIEF_FILTER = "Briefing (*.pdf *.docx *.txt *.md);;Alle Dateien (*)"
+B2C_IDEAS_LABEL = "Deine Ideen und Wünsche"
+B2C_EXTRACT = "Briefing einlesen"
+B2C_EXPORT_DOCS = "Kurzkonzept und Rückfragen exportieren…"
+B2C_MODEL_TREE = ("Punkt", "Art", "Quelle")
+B2C_RISK_HEADERS = ("Schwere", "Art", "Stelle", "Warum", "Sicher stattdessen")
+B2C_RISK_RUN = "Risiken prüfen"
+B2C_RISK_REPLACE = "Mit Alternative ersetzen"
+B2C_RISK_KEEP = "Bewusst behalten…"
+B2C_RISK_REASON = "Warum behältst du es?"
+B2C_RISK_NONE = "Keine Risiken gefunden."
+B2C_BRAINSTORM = "Brainstorm"
+B2C_CHOOSE = "Dieses Konzept wählen"
+B2C_GENERATE = "Script erzeugen"
+B2C_SAVE_SCRIPT = "Script speichern"
+B2C_LINT_TITLE = "Prüfung"
+B2C_LENGTH = "Geschätzte Länge: {minutes} min"
+B2C_SLOT_HEADERS = ("Feld", "Angabe", "Wert")
+B2C_FACT_HEADERS = ("Schlüssel", "Wert", "Quelle", "Geprüft")
+B2C_SCENE_HEADERS = ("Szene", "Funktion", "Zeit", "Grafik")
+B2C_REQ_HEADERS = ("Nr.", "Datei", "Ordner", "Pflicht", "Wann", "Status")
+B2C_PLAN = "Materialplan erstellen"
+B2C_PICK_FOLDER = "Ordner wählen…"
+B2C_DROP = "Alles hier reinziehen, ich sortiere"
+B2C_DROP_HINT = "Ziehe einen Projektordner hierher oder wähle ihn aus."
+B2C_INGEST_HEADERS = ("Datei", "Rolle", "Platz", "Status")
+B2C_SETTLE_APPROVE = "Freigabe liegt vor…"
+B2C_SETTLE_BLUR = "Verpixeln"
+B2C_SETTLE_REPLACE = "Ersetzen"
+B2C_SETTLE_NOTE = "Woher kommt die Freigabe?"
+B2C_CONTEXT_BUILD = "Kontext erzeugen"
+B2C_CONTEXT_WORDS = "{words} Wörter"
+B2C_CONTEXT_SCORE = "{words} Wörter · Testlauf: {summary}"
+B2C_VARIANT_LEVEL = "Stufe für den Testlauf"
+B2C_VARIANT_RUN = "Testlauf mit Aufnahmen…"
+B2C_VARIANT_PICK = "Aufnahmen für den Testlauf"
+B2C_CONTEXT_CHOOSE = "Beste Stufe übernehmen"
+B2C_CONTEXT_WINNER = "Gewählt: {level}"
+B2C_TIMELINE = "Timeline einlesen"
+B2C_METADATA = "Metadaten erzeugen"
+B2C_TRACKING = "Tracking-Link (nach der Freigabe)"
+B2C_GATE = "Prüfen"
+B2C_GATE_OK = "Alles in Ordnung: der Export ist freigegeben."
+B2C_GATE_BLOCKED = "{count} Punkte blockieren den Export."
+B2C_EXPORT = "Paket exportieren…"
+B2C_EXPORTED = "Exportiert nach {path}"
+B2C_DOCS_EXPORTED = "{count} Dokumente exportiert."
+B2C_BUSY = "Einen Moment …"
+B2C_OPERATION = "{name} läuft … Du kannst den Auftrag in der Aufgabenliste abbrechen."
+B2C_ALREADY_BUSY = (
+    "Der aktuelle Schritt läuft noch. Warte kurz oder brich ihn in der Aufgabenliste ab."
+)
+B2C_BACK = "Zurück"
+B2C_NEXT = "Weiter"
+B2C_YEAR = "Saison"
+B2C_SPONSORED = "Bezahlte Partnerschaft"
+B2C_MODEL_OPT_IN = "Briefing zusätzlich mit lokalem KI-Modell ergänzen (kann länger dauern)"
+B2C_BRIEF_HINT = (
+    "Lade dein Briefing oder füge den Text ein. Fakten und Quellen bleiben zum Prüfen sichtbar."
+)
+B2C_BRIEF_PLACEHOLDER = "Zieh eine PDF-, Word- oder Textdatei hierher oder füge dein Briefing ein …"
+B2C_IDEAS_PLACEHOLDER = (
+    "Was soll dein Video besonders machen? Was möchtest du anders als im Briefing?"
+)
+B2C_SUMMARY_EMPTY = "Dein Projekt beginnt mit einem Briefing."
+B2C_SUMMARY = "{products} Produkte · {facts} Fakten · {questions} offene Fragen · {scenes} Szenen"
+B2C_DIRTY = "Nach Änderungen neu prüfen: {items}"
+B2C_UNSAVED = "Dein Script enthält ungespeicherte Änderungen. Speichere sie, bevor du das Projekt wechselst oder neu generierst."
+B2C_DRAFT_NOTE = "Arbeitsentwurf aus Regeln und Fakten. Prüfe Stimme, Dramaturgie und offene Felder vor der Aufnahme."
+B2C_MATERIAL_EMPTY = (
+    "Erstelle zuerst deinen Materialplan. Wähle dann einen Platz für die genaue Aufnahmeanleitung."
+)
+B2C_MATERIAL_HEADERS = ("Material / Ordner", "Status", "Szenen")
+B2C_MATERIAL_DETAIL = "{instruction}\n\nSo nimmst du es auf:\n{checklist}\n\nDateiname: {name}\nDateitypen: {types}\nDauer: {duration}\nVorher erledigen: {depends}"
+B2C_CONTEXT_SAVE = "Kontext speichern"
+B2C_VERSION = "Script-Version"
+B2C_RESTORE = "Version wiederherstellen"
+B2C_MODEL_NOTE = "Briefing gespeichert. {note}"
+B2C_NO_SCENE = "Erstelle ein Script und wähle eine Szene, um einen Vorschlag zu holen."
+B2C_STATUS_LABELS = {
+    "open": "Offen",
+    "partial": "Teilweise",
+    "filled": "Passt",
+    "flagged": "Prüfen",
+}
+B2C_PRIORITY_LABELS = {"required": "Pflicht", "recommended": "Empfohlen", "optional": "Optional"}
+B2C_LEVEL_LABELS = {"minimal": "Kurz", "normal": "Normal", "detailed": "Ausführlich"}
+B2C_REWRITE_TITLE = "Szene bearbeiten"
+B2C_REWRITE_INSTRUCTION = "Anweisung (z. B. kürzer, lustiger, fachlicher)"
+B2C_REWRITE_RUN = "Vorschlag holen"
+B2C_REWRITE_APPLY = "Übernehmen"
+B2C_REWRITE_DISCARD = "Verwerfen"
+B2C_QUICK = ("Kürzer", "Lustiger", "Fachlicher", "Mehr Vergleiche")
+B2C_NO_PROJECT = "Lege ein Projekt an oder öffne eins."
+B2C_STYLE_TITLE = "Was MediaHouse über deinen Stil gelernt hat"
+B2C_STYLE_SUBTITLE = "Nichts wird verbindlich, ohne dass du zustimmst."
+B2C_STYLE_HEADERS = ("Regel", "Art", "Stärke", "Geltung", "Sicherheit", "Status", "Gesperrt")
+B2C_STYLE_APPROVE = "Übernehmen"
+B2C_STYLE_REJECT = "Ablehnen"
+B2C_STYLE_LOCK = "Sperren / Entsperren"
+B2C_STYLE_DELETE = "Löschen"
+B2C_STYLE_REFRESH = "Aktualisieren"

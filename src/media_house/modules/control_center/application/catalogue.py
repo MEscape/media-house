@@ -608,6 +608,33 @@ LAYERS: tuple[LayerEntry, ...] = (
                 reads=("broll_intelligence", _INS, _LIB, "visual_style_engine"),
                 status=_GAPS,
             ),
+            _m(
+                "thumbnail_design",
+                "Thumbnail Design",
+                "The channel's YouTube thumbnails as A/B/C variants for Test & Compare: headline, "
+                "creator reaction (uploaded, tagged collection or picked from the footage), "
+                "product stickers, retailer logo, shop phone and story badge, checked for the "
+                "feed.",
+                (
+                    "One fixed layout (the 2025/26 channel system); no free placement.",
+                    "Reaction moments come from per-shot face cues, not from every frame.",
+                    "The headline is the owner's: no title is written by a model.",
+                ),
+                reads=(
+                    _LIB,
+                    "video_intelligence",
+                    "visual_asset_generation",
+                    "visual_style_engine",
+                ),
+                task=PipelineTask(
+                    "thumbnail_design",
+                    "cpu",
+                    needs=("inspect", "visual_style"),
+                    wants=("edit_plan", "video_analysis"),
+                ),
+                status=_GAPS,
+                ui="Thumbnail page",
+            ),
         ),
     ),
     LayerEntry(
@@ -676,7 +703,9 @@ LAYERS: tuple[LayerEntry, ...] = (
                     "Colour management only set for rec709.",
                 ),
                 reads=(_INS, _LIB, "proxy_manager", "timeline_builder"),
-                task=PipelineTask("resolve_execute", "light", needs=("timeline_build",)),
+                task=PipelineTask(
+                    "resolve_execute", "light", needs=("timeline_build",), wants=("audio_mix",)
+                ),
                 validation=_NR,
                 ui="DaVinci Resolve page",
             ),
@@ -859,6 +888,7 @@ LAYERS: tuple[LayerEntry, ...] = (
                             "reframing_intelligence",
                             "resolve_adapter",
                             "story_architecture",
+                            "thumbnail_design",
                             "timeline_builder",
                             "transition_engine",
                             "vfx_engine",
@@ -894,7 +924,12 @@ TASK_OWNERS: Mapping[str, str] = MappingProxyType(
         "deliver": "media_pipeline",
     }
 )
-DELIVER_TASK = PipelineTask("deliver", "cpu", needs=("resolve_execute", "audio_mix"))
+DELIVER_TASK = PipelineTask(
+    "deliver",
+    "cpu",
+    needs=("resolve_execute", "audio_mix"),
+    wants=("timeline_build", "edit_plan", "captions", "graphics"),
+)
 
 DEPENDENCY_NOTE = (
     "Dependencies are not a fixed order. The pipeline runs any requested task as soon as what it "

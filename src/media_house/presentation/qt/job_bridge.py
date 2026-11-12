@@ -23,6 +23,7 @@ from media_house.shared.errors.handler import ErrorReport
 
 class UiJobRunner(QObject):
     job_submitted = Signal(object)  # JobHandle
+    job_started = Signal(object)  # JobHandle
     job_progress = Signal(object, object)  # JobHandle, JobProgress
     job_finished = Signal(object, object)  # JobHandle, JobOutcome
 
@@ -60,6 +61,9 @@ class UiJobRunner(QObject):
             raise RuntimeError("UiJobRunner.submit() must be called on the UI thread")
         post = self._dispatcher.post
 
+        def started(handle: JobHandle[T]) -> None:
+            post(lambda: self.job_started.emit(handle))
+
         def finished(handle: JobHandle[T], outcome: JobOutcome[T]) -> None:
             post(
                 lambda: self._finish(
@@ -73,7 +77,7 @@ class UiJobRunner(QObject):
         handle = self._scheduler.submit(
             name,
             work,
-            callbacks=JobCallbacks(on_progress=progress, on_finished=finished),
+            callbacks=JobCallbacks(on_started=started, on_progress=progress, on_finished=finished),
         )
         self._handles[handle.id] = handle  # type: ignore[assignment]
         self.job_submitted.emit(handle)

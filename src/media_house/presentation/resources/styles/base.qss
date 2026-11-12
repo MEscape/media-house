@@ -61,6 +61,7 @@ QLabel[role="note"] {
     border-radius: 4px; padding: 6px 10px;
 }
 QLabel[role="empty"] { color: $text_muted; padding: 12px; }
+QLabel[role="preview"] { background-color: $surface; border: 1px solid $border; border-radius: 4px; }
 QLabel[status="ok"], QLabel[status="warn"], QLabel[status="error"], QLabel[status="info"],
 QLabel[status="neutral"] { border: 1px solid $border; border-radius: 3px; padding: 1px 6px; }
 QLabel[status="ok"] { color: $success; border-color: $success; }
@@ -68,3 +69,9 @@ QLabel[status="warn"] { color: $warning; border-color: $warning; }
 QLabel[status="error"] { color: $danger; border-color: $danger; }
 QLabel[status="info"] { color: $accent; border-color: $accent; }
 QLabel[status="neutral"] { color: $text_muted; }
+QLabel[role="dropzone"] {
+    background-color: $surface; color: $text_muted; border: 2px dashed $border;
+    border-radius: 8px; padding: 16px; font-weight: 600;
+}
+QPushButton[role="step"] { border-radius: 14px; padding: 4px 14px; }
+QPushButton[role="step"]:checked { background-color: $accent; color: $accent_text; border-color: $accent; }

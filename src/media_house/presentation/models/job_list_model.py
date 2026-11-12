@@ -31,6 +31,7 @@ class JobListModel(QAbstractListModel):
         super().__init__(parent)
         self._rows: list[_Row] = []
         runner.job_submitted.connect(self._on_submitted)
+        runner.job_started.connect(self._on_started)
         runner.job_progress.connect(self._on_progress)
         runner.job_finished.connect(self._on_finished)
 
@@ -65,6 +66,9 @@ class JobListModel(QAbstractListModel):
     def _on_progress(self, handle: JobHandle[object], progress: JobProgress) -> None:
         text = f"{progress.current}/{progress.total}" if progress.total else str(progress.current)
         self._update(handle.id, state=JobState.RUNNING, progress=text)
+
+    def _on_started(self, handle: JobHandle[object]) -> None:
+        self._update(handle.id, state=JobState.RUNNING)
 
     def _on_finished(self, handle: JobHandle[object], outcome: JobOutcome[object]) -> None:
         self._update(handle.id, state=outcome.state)
