@@ -20,7 +20,7 @@ from media_house.modules.production_project.domain.script import (
 
 _WORD = re.compile(r"[a-z0-9]+")
 #: A slot's name is not speech: a recording that says "Kaliber 30 mm" filled the slot.
-_SLOT = re.compile(r"\{[A-Z_]+\}")
+_SLOT = re.compile(r"\{[A-Z][A-Z0-9_]*\}")
 #: Frequent German / English function words: they match everything and prove nothing.
 _STOP = frozenset(
     {
