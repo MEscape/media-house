@@ -227,6 +227,10 @@ def _video(v: VideoItem) -> f.VideoFact:
             )
             for r in v.reframe
         ),
+        blur=tuple(
+            f.BlurKeyFact(source_time=k.source_time, size=k.size, interpolation=k.interpolation)
+            for k in v.blur
+        ),
         effect_ids=v.effect_ids,
         transition_in=v.transition_in,
         transition_out=v.transition_out,

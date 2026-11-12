@@ -4,15 +4,18 @@ Overlays are classified by where they sit and how long they stay, from measureme
 
 * watermark          the same text in the same place across much of the whole video;
 * lower third        short-lived text in the lower part of the picture;
-* burned-in caption  different text appearing one after another in the same bottom band;
+* burned-in caption  different word-like text appearing one after another in the same bottom
+                     band (misreads of one static text and screens full of text are not);
 * split screen       a straight seam across the picture (from the geometry signals).
 """
 
 import math
 import re
 from bisect import bisect_right
+from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from difflib import SequenceMatcher
 
 from media_house.modules.video_intelligence.domain.geometry import BBox, iou
 from media_house.modules.video_intelligence.domain.observations import (
@@ -37,6 +40,16 @@ _MIN_INTERFACE_ITEMS = 6
 _INTERFACE_MAX_LENGTH = 14
 _SEAM_MIN = 0.5
 _FULL_CONFIDENCE_FRAMES = 3
+#: Caption text is word-like: this many letters, and letters at least this share of the
+#: characters. OCR misreads of a logo or texture ("9ax", "af") are short codes.
+_CAPTION_MIN_LETTERS = 3
+_CAPTION_LETTER_SHARE = 0.5
+#: Strings at least this similar (difflib ratio) are misreads of one text, not a change.
+_SAME_TEXT_RATIO = 0.6
+#: More than this many strings in the bottom band at once, in more than this share of the read
+#: frames, is a screen full of text (a web page, an app), not captions.
+_CAPTION_MAX_LINES = 2
+_CROWDED_SHARE = 0.2
 
 
 def normalise(text: str) -> str:
@@ -209,6 +222,36 @@ def _overlay(
     )
 
 
+def _word_like(key: str) -> bool:
+    letters = sum(1 for c in key if c.isalpha())
+    return letters >= _CAPTION_MIN_LETTERS and letters >= _CAPTION_LETTER_SHARE * len(
+        key.replace(" ", "")
+    )
+
+
+def _caption_lines(
+    members: Sequence[TrackedText], settings: TextSettings
+) -> tuple[list[TrackedText], int]:
+    """The bottom-band text of one shot that reads as burned-in captions, and how many strings.
+
+    Captions are word-like strings that change: more than ``caption_min_changes`` strings unlike
+    every string before them in the shot (a misread of one text is no change), and at most two
+    lines at a time.
+    """
+    words = [m for m in members if _word_like(m.key)]
+    distinct = 0
+    for i, m in enumerate(words):
+        seen = (w.key for w in words[:i])
+        distinct += all(SequenceMatcher(None, m.key, k).ratio() < _SAME_TEXT_RATIO for k in seen)
+    if distinct <= settings.caption_min_changes:
+        return [], 0
+    per_frame = Counter(f for m in words for f in m.frames)
+    crowded = sum(1 for n in per_frame.values() if n > _CAPTION_MAX_LINES)
+    if crowded > _CROWDED_SHARE * len(per_frame):
+        return [], 0
+    return words, distinct
+
+
 def find_overlays(
     items: Sequence[TrackedText],
     signals: TextSignals,
@@ -252,21 +295,23 @@ def find_overlays(
             by_shot.setdefault(item.shot_index, []).append(item)
     captioned: set[int] = set()
     for members in by_shot.values():
-        distinct = {m.key for m in members}
-        if len(distinct) > settings.caption_min_changes:
-            first, last = min(m.first for m in members), max(m.last for m in members)
+        if len({m.key for m in members}) <= settings.caption_min_changes:
+            continue
+        captioned.update(id(m) for m in members)  # a busy bottom band is no lower third either
+        lines, distinct = _caption_lines(members, settings)
+        if lines:
+            first, last = min(m.first for m in lines), max(m.last for m in lines)
             overlays.append(
                 _overlay(
                     OverlayKind.BURNED_IN_CAPTION,
                     timeline,
                     first,
                     last,
-                    len(distinct) / (len(distinct) + 2),
+                    distinct / (distinct + 2),
                     None,
-                    members[0].text,
+                    lines[0].text,
                 )
             )
-            captioned.update(id(m) for m in members)
 
     for item in remaining:
         seconds = (timeline.pts[item.last] - timeline.pts[item.first]) * timeline.timebase.value

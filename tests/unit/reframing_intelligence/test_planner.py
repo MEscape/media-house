@@ -193,6 +193,14 @@ def test_two_speakers_who_cannot_share_the_crop_are_never_silently_dropped() -> 
     assert score(p, ScoreName.CROP_FEASIBILITY) == 0.0
 
 
+def test_one_speaker_wider_than_the_window_is_framed_tighter_not_given_up() -> None:
+    gesturing = still("p", (0.25, 0.1, 0.75, 0.95))  # arms out: wider than a 9:16 window
+
+    p = plan(shot(tracks=(gesturing,)), target=T916)
+
+    assert p.strategy is not Strategy.UNREFRAMEABLE and p.keyframes and p.executable
+
+
 def test_a_profile_that_allows_it_proposes_the_fill_treatment_not_a_crop() -> None:
     left, right = still("a", (0.05, 0.2, 0.22, 0.9)), still("b", (0.75, 0.2, 0.92, 0.9))
     p = plan(shot(tracks=(left, right)), prof=profile("interview_podcast"))

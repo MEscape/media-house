@@ -130,7 +130,7 @@ DERIVATION_VERSIONS: dict[str, int] = {
     "faces": 1,
     "body": 1,
     "text": 1,
-    "overlays": 1,
+    "overlays": 2,  # 2: word-like, misread-merged caption lines; a busy screen is no caption
     "meaning": 1,
     "scenes": 1,
     "retakes": 1,

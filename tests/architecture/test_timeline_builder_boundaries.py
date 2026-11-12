@@ -167,6 +167,7 @@ def test_only_the_pipeline_its_consumers_and_the_composition_root_depend_on_the_
         "media_house.modules.render_manager",  # Layer 6 reads the stored result
         "media_house.modules.export_validation",  # Layer 6 reads the stored result
         "media_house.modules.resolve_export",  # Layer 6 reads the stored result
+        "media_house.modules.production_project",  # the timeline QC reads the stored build
         "media_house.bootstrap",
     )
     offenders = [

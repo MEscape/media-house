@@ -50,7 +50,7 @@ is how well the evidence covers the shot, an ordinal heuristic, never a probabil
 from enum import StrEnum
 from typing import Final
 
-ANALYZER_VERSION: Final = 7
+ANALYZER_VERSION: Final = 8
 SCHEMA_VERSION: Final = 1
 VOCABULARY_VERSION: Final = 2
 PROFILE_VERSION: Final = 1

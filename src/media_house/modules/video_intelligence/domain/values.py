@@ -12,7 +12,7 @@ from media_house.shared.errors import InvariantViolation
 #: Layout of every stored document. Readers refuse other schemas instead of guessing.
 SCHEMA_VERSION = 2
 #: Bump when how the signals are turned into the result changes (the derivations in ``derive``).
-PROCESSING_VERSION = 2
+PROCESSING_VERSION = 3
 #: Operation name of the final result document in the Media Library.
 RESULT_OPERATION = "video_intelligence"
 

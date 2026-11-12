@@ -158,6 +158,16 @@ class TestPictureClips:
         assert b.transform is not None and b.transform.fit.value == "contain"
         assert (b.opacity, b.blend) == (1.0, BlendMode.NORMAL)
 
+    def test_cover_footage_fills_a_portrait_frame(self) -> None:
+        facts = f.facts_of()
+        portrait = replace(facts, timebase=replace(facts.timebase, width=1080, height=1920))
+
+        c = video(f.built(portrait), "v:pC")
+        b = video(f.built(portrait), "v:pB")
+
+        assert c.transform is not None and c.transform.fit.value == "cover"
+        assert b.transform is not None and b.transform.fit.value == "contain"
+
     def test_cover_footage_is_a_cover_clip_on_its_own_track(self) -> None:
         c = video(f.built(), "v:pC")
 

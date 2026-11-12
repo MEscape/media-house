@@ -8,7 +8,7 @@ bumps ``SCHEMA_VERSION`` (older documents are then refused, never reinterpreted)
 from enum import StrEnum
 
 SCHEMA_VERSION = 1
-BUILDER_VERSION = 1
+BUILDER_VERSION = 3
 VOCABULARY_VERSION = 1
 PROFILE_VERSION = 1
 DOCUMENT_TYPE = "built_timeline"

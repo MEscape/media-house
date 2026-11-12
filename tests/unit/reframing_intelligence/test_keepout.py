@@ -1,4 +1,4 @@
-"""A colour the picture must not show (the green wall of a set): the window crops in until it is gone."""
+"""A colour the picture must not show (the green wall of a set): the window crops in until gone."""
 
 from dataclasses import replace
 

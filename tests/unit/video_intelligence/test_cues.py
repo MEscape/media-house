@@ -258,7 +258,8 @@ class TestOnScreenText:
     def test_different_text_in_the_bottom_band_one_after_another_is_a_burned_in_caption(
         self,
     ) -> None:
-        rows = [line(f, f"caption number {f}", (0.2, 0.8, 0.8, 0.9)) for f in FRAMES[:6]]
+        said = ["hello there", "welcome back", "today we test", "three alarm clocks", "bye"]
+        rows = [line(f, s, (0.2, 0.8, 0.8, 0.9)) for f, s in zip(FRAMES, said, strict=False)]
 
         overlays = text_result(rows).overlays
 

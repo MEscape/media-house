@@ -47,7 +47,9 @@ _CLIP_ROLE: dict[ClipKind, tuple[Role, ...]] = {
     ClipKind.PRIMARY: (Role.PRIMARY,),
     ClipKind.VFX: (Role.PRIMARY,),
     ClipKind.COVER: (Role.COVER,),
-    ClipKind.GRAPHIC: (Role.GRAPHICS,),
+    # a full-screen card replaces the picture, so it may sit with the cover footage (under the
+    # small graphics such as the sponsor label)
+    ClipKind.GRAPHIC: (Role.GRAPHICS, Role.COVER),
     ClipKind.CAPTION: (Role.CAPTIONS,),
     ClipKind.TRANSITION_OVERLAY: (Role.EFFECTS,),
 }

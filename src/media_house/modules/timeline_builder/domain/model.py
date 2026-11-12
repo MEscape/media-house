@@ -231,6 +231,17 @@ class CropKeyframe:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class BlurKeyframe:
+    """A key of the picture blur (``size`` 0 = sharp); the curve is the one INTO the key."""
+
+    source_time: Rational
+    timeline_time: Rational | None
+    timeline_frame: int | None
+    size: float
+    interpolation: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class CropPlan:
     crop_id: str
     target: str
@@ -308,6 +319,7 @@ class VideoClip:
     time_map: TimeMap | None = None
     transform: Transform | None = None
     crops: tuple[CropPlan, ...] = ()
+    blur: tuple[BlurKeyframe, ...] = ()
     effects: tuple[EffectStep, ...] = ()
     chain: tuple[ChainStep, ...] = ()
     opacity: float = 1.0

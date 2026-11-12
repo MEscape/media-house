@@ -155,6 +155,13 @@ class CropKeyFact:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class BlurKeyFact:
+    source_time: Rational
+    size: float
+    interpolation: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ReframeFact:
     target: str
     recommendation_id: str
@@ -184,6 +191,7 @@ class VideoFact:
     beat_id: str | None
     retime: RetimeFact | None = None
     reframe: tuple[ReframeFact, ...] = ()
+    blur: tuple[BlurKeyFact, ...] = ()
     effect_ids: tuple[str, ...] = ()
     transition_in: str | None = None
     transition_out: str | None = None

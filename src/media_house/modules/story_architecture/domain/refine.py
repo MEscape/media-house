@@ -80,7 +80,20 @@ def section_text(texts: Mapping[tuple[str, str], str], section: Section) -> str:
     )
 
 
-def build_requests(plan: StoryPlan, assets: tuple[AssetFacts, ...]) -> tuple[RefineRequest, ...]:
+def with_context(system: str, context: str) -> str:
+    """The system prompt with what the creator's brief says about this video appended: background
+    for understanding, never a source of facts (every reworded statement is still grounded)."""
+    if not context.strip():
+        return system
+    return (
+        f"{system}\n\nBackground about this video, written by its creator (use it only to "
+        f"understand the content; never add a fact that is not in the excerpts):\n{context.strip()}"
+    )
+
+
+def build_requests(
+    plan: StoryPlan, assets: tuple[AssetFacts, ...], context: str = ""
+) -> tuple[RefineRequest, ...]:
     texts = _texts(assets)
     ordered = plan.ordered_sections()
     requests: list[RefineRequest] = []
@@ -94,7 +107,7 @@ def build_requests(plan: StoryPlan, assets: tuple[AssetFacts, ...]) -> tuple[Ref
         requests.append(
             RefineRequest(
                 "sections",
-                _SYSTEM_SECTIONS,
+                with_context(_SYSTEM_SECTIONS, context),
                 "Label these sections.\n\n" + "\n\n".join(blocks),
                 tuple(s.section_id for s in chunk),
             )
@@ -105,7 +118,7 @@ def build_requests(plan: StoryPlan, assets: tuple[AssetFacts, ...]) -> tuple[Ref
     requests.append(
         RefineRequest(
             "message",
-            _SYSTEM_MESSAGE,
+            with_context(_SYSTEM_MESSAGE, context),
             "State the main message.\n\n<<<\n" + "\n".join(summaries) + "\n>>>",
             (),
         )

@@ -212,6 +212,10 @@ def _plan(
         # The configuration put the wall above a perfect fit of the subject: a lean or a raised arm
         # that the window clips is the price of it (said in the reasons), not a failed shot.
         unfit = [False] * len(unfit)
+    elif len(required) == 1 and required[0] is primary:
+        # One person carries the shot: an arm or a lean the window clips at times is a tighter
+        # framing of that person, not a lost element (a letterboxed original is the worse answer).
+        unfit = [False] * len(unfit)
     if keep.window is not None and not push:
         n_moments = len(moments.t)
         lo_x = hi_x = [keep.window.x] * n_moments

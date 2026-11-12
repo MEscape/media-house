@@ -14,6 +14,7 @@ from media_house.modules.timeline_builder.domain.digest import digest
 from media_house.modules.timeline_builder.domain.facts import (
     AudioFact,
     AutomationFact,
+    BlurKeyFact,
     CropKeyFact,
     EffectFact,
     LiveSources,
@@ -26,6 +27,7 @@ from media_house.modules.timeline_builder.domain.facts import (
 )
 from media_house.modules.timeline_builder.domain.model import (
     AudioClip,
+    BlurKeyframe,
     BuiltTrack,
     BuiltTransition,
     ChainStep,
@@ -64,6 +66,7 @@ from media_house.modules.timeline_builder.domain.values import (
     ClipKind,
     ClipState,
     Execution,
+    FitMode,
     Provenance,
     Role,
     TrackKind,
@@ -270,7 +273,7 @@ def video_clip(ctx: Ctx, v: VideoFact, source_digest: str) -> VideoClip:
     effects = tuple(
         _effect(ctx, e) for e in sorted(ctx.effects_of.get(v.item_id, []), key=_effect_key)
     )
-    transform = Transform(fit=ctx.config.fit_mode)
+    transform = Transform(fit=_fit(ctx, v, role, crops))
     return VideoClip(
         clip_id=v.item_id,
         track_id=v.track_id,
@@ -293,6 +296,7 @@ def video_clip(ctx: Ctx, v: VideoFact, source_digest: str) -> VideoClip:
         time_map=time_map,
         transform=transform,
         crops=crops,
+        blur=tuple(_blur_key(ctx, v, k) for k in sorted(v.blur, key=lambda k: fr(k.source_time))),
         effects=effects,
         chain=_chain(time_map, crops, effects),
         opacity=1.0,
@@ -367,6 +371,16 @@ def _time_map(v: VideoFact) -> TimeMap | None:
     )
 
 
+def _fit(ctx: Ctx, v: VideoFact, role: Role, crops: tuple[CropPlan, ...]) -> FitMode:
+    """A plate under a full-frame card, and cover footage in a portrait format, fill the frame."""
+    if crops:
+        return ctx.config.fit_mode
+    portrait = ctx.spec.timebase.height > ctx.spec.timebase.width
+    if v.clip_id.startswith("background:") or (role is Role.COVER and portrait):
+        return FitMode.COVER
+    return ctx.config.fit_mode
+
+
 def _crops(ctx: Ctx, v: VideoFact) -> tuple[CropPlan, ...]:
     plans: list[CropPlan] = []
     for r in sorted(v.reframe, key=lambda r: (r.recommendation_id, r.analysis_id)):
@@ -383,6 +397,17 @@ def _crops(ctx: Ctx, v: VideoFact) -> tuple[CropPlan, ...]:
             )
         )
     return tuple(plans)
+
+
+def _blur_key(ctx: Ctx, v: VideoFact, k: BlurKeyFact) -> BlurKeyframe:
+    at = timeline_time_of(v, fr(k.source_time))
+    return BlurKeyframe(
+        source_time=k.source_time,
+        timeline_time=None if at is None else rat(at),
+        timeline_frame=None if at is None else frame_at(at, ctx.fps),
+        size=k.size,
+        interpolation=k.interpolation,
+    )
 
 
 def _crop_key(ctx: Ctx, v: VideoFact, k: CropKeyFact) -> CropKeyframe:

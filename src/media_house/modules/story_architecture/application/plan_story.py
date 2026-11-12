@@ -106,6 +106,9 @@ class PlanStoryCommand:
     use_alignment: bool = True
     #: Let a language model reword section purposes and the main message (grounded, checked).
     llm: bool = False
+    #: What the creator's brief says about this video, given to the model as background. Part of
+    #: the model's identity, so a changed context never serves a cached reply of another one.
+    context: str = ""
     #: For a story of several recordings: read how they relate (copies, takes, overlaps) from
     #: ``asset_relationships``. Never requested, never required; a missing answer is recorded.
     use_relationships: bool = True
@@ -213,7 +216,7 @@ class PlanStory:
         except NothingToPlan as exc:
             return Err(exc)
         if command.llm:
-            plan = self._refine(plan, tuple(gathered.value.facts), llm_id, ctx)
+            plan = self._refine(plan, tuple(gathered.value.facts), llm_id, ctx, command.context)
         problems = validate_plan(plan, gathered.value.known)
         if problems:
             _log.error("Story plan rejected its own result", problems=problems[:5])
@@ -376,7 +379,13 @@ class PlanStory:
         labelled as the deterministic one, never as a model's)."""
         if not command.llm or self._generator is None:
             return None
-        return None if self._generator.unavailable() is not None else self._generator.identity()
+        if self._generator.unavailable() is not None:
+            return None
+        identity = self._generator.identity()
+        if command.context.strip():
+            digest = hashlib.sha256(command.context.strip().encode("utf-8")).hexdigest()[:8]
+            return f"{identity}+context:{digest}"
+        return identity
 
     @staticmethod
     def _cache_key(
@@ -423,6 +432,7 @@ class PlanStory:
         facts: tuple[AssetFacts, ...],
         llm_id: str | None,
         ctx: JobContext,
+        context: str = "",
     ) -> StoryPlan:
         if self._generator is None:
             return _with_stage(plan, StageState.NOT_AVAILABLE, "no language model is configured")
@@ -433,7 +443,7 @@ class PlanStory:
         accepted = rejected = calls = 0
         current = plan
         try:
-            for request in build_requests(plan, facts):
+            for request in build_requests(plan, facts, context):
                 ctx.raise_if_cancelled()
                 reply = self._generator.generate(request.system, request.user, ctx.cancellation)
                 calls += 1
