@@ -6,10 +6,12 @@ stored, then states honestly whether it computed (``SUCCEEDED``), served a store
 tasks that need them as ``payload``, so downstream owners are never asked to find them again.
 """
 
+import tempfile
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
+from pathlib import Path
 
-from media_house.core.application.ports import Clock
+from media_house.core.application.ports import Clock, MediaAnalyzer, TimeSpan
 from media_house.modules.asset_relationships.application.contracts import (
     DETECTOR_IDS,
     AnalyzeAssetCommand,
@@ -32,6 +34,8 @@ from media_house.modules.audio_mix_engine.application.contracts import (
     JobState,
     MixAttacher,
     MixConfig,
+    MixOverrides,
+    MixRenderResult,
     NothingToMix,
     RenderMixCommand,
 )
@@ -98,6 +102,7 @@ from media_house.modules.editing_intelligence.application.contracts import (
     EditConfig,
     EditPlan,
     EditPlanner,
+    ExcerptMode,
     ManualOverride,
     PlanEditCommand,
     PlanState,
@@ -109,6 +114,7 @@ from media_house.modules.media_inspection.application.contracts import (
     MediaInspector,
 )
 from media_house.modules.media_library.application.contracts import (
+    AssetStatus,
     JsonValue,
     MediaAssetDto,
     MediaLibrary,
@@ -121,6 +127,7 @@ from media_house.modules.media_pipeline.application.edit_view import (
     view_of,
 )
 from media_house.modules.media_pipeline.application.layer4_inputs import (
+    GraphicWish,
     caption_timeline,
     graphics_brief,
     soundtrack_timeline,
@@ -129,12 +136,21 @@ from media_house.modules.media_pipeline.application.layer4_inputs import (
     vfx_shots,
 )
 from media_house.modules.media_pipeline.application.sequence import sequence_of
+from media_house.modules.media_pipeline.application.short_review import (
+    PlanCounts,
+    ShortSources,
+    fraction,
+    full_screen,
+    measure_short,
+    seconds_outside,
+)
 from media_house.modules.media_pipeline.application.tasks import (
     TaskExecutor,
     TaskJob,
     TaskPeek,
     TaskResult,
 )
+from media_house.modules.media_pipeline.domain.short_gate import ShortVerdict, judge_short
 from media_house.modules.media_pipeline.domain.values import TaskId, TaskKind, TaskStatus
 from media_house.modules.motion_graphics_engine.application.contracts import (
     DOCUMENT_TYPE as GRAPHICS_DOCUMENT,
@@ -218,6 +234,16 @@ from media_house.modules.story_architecture.application.contracts import (
     StoryConfig,
     StoryPlan,
     StoryPlanner,
+)
+from media_house.modules.thumbnail_design.application.contracts import (
+    DesignThumbnailsCommand,
+    DeviceCard,
+    Headline,
+    ReactionCollection,
+    ReactionSuggester,
+    StoryBadge,
+    ThumbnailBrief,
+    ThumbnailDesigner,
 )
 from media_house.modules.timeline_builder.application.contracts import (
     DOCUMENT_TYPE as BUILT_DOCUMENT,
@@ -330,6 +356,8 @@ class StageSettings:
     story_format: str | None = None
     #: Let a language model reword the story plan (off: the plan is fully deterministic).
     story_llm: bool = False
+    #: The creator's per-video context (``pipeline-context.md``), background for the story model.
+    story_context: str = ""
     #: Brand slot -> Media Library asset id (``wolf_mascot``, ``fire_plate`` ...), sorted pairs.
     brand_assets: tuple[tuple[str, str], ...] = ()
     #: A project run: these recordings, in this order, make ONE video; the first is the anchor
@@ -405,8 +433,62 @@ class StageSettings:
     #: Render Layer 4 assets (graphics, captions, transition overlays, VFX clips, the sound
     #: stem). Off = plans only (every plan is still complete and stored).
     layer4_render: bool = True
-    #: Every other back-to-back talking clip framed this much tighter (static); 1.0 = off.
+    #: Tightest framing of the camera moves on the talking picture; 1.0 = off.
     jump_cut_zoom: float = 1.0
+    #: Screen recordings shown as their page only: (asset id, x, y, w, h), sorted.
+    screen_windows: tuple[tuple[str, float, float, float, float], ...] = ()
+    #: ``crop`` (the page fills the frame) or ``card`` (the whole page floats over a ground).
+    screen_style: str = "crop"
+    #: Blur of the talking picture while a focus graphic is shown (0 = off).
+    focus_blur: float = 0.0
+    #: Moving footage under full-frame cards (a library asset id).
+    background_footage: str | None = None
+    #: A gentle per-recording colour balance in Resolve (CDL).
+    resolve_auto_grade: bool = False
+    #: Graphics the owner's brief orders over named speech.
+    graphic_wishes: tuple[GraphicWish, ...] = ()
+    #: A short cut from the long edit: keep only the best (low, high) s highlight.
+    edit_excerpt: tuple[float, float] | None = None
+    #: ``condensed``: the hook, every item's strongest phrases and the verdict of the whole
+    #: story; ``contiguous``: the single best stretch.
+    edit_excerpt_mode: str = ExcerptMode.CONDENSED.value
+    #: Judge a delivered portrait video with the Short quality gate (``domain.short_gate``).
+    short_gate: bool = True
+    #: Bus level changes of the mix, ``(bus role, dB)`` (the quality gate's iterations set them).
+    mix_bus_gain_db: tuple[tuple[str, float], ...] = ()
+    #: Seconds between framing changes of a talking picture (``None``: the format's default,
+    #: 2.2 s in a Short; the quality gate's iterations shorten it).
+    camera_beat: float | None = None
+    #: The channel's intro / outro clips (library asset ids), played whole.
+    intro_asset_id: str | None = None
+    outro_asset_id: str | None = None
+    #: Products with a full-screen intro and data card: (name, cut-out asset id, (label, value)
+    #: facts of the brief's table).
+    product_cards: tuple[tuple[str, str, tuple[tuple[str, str], ...]], ...] = ()
+    # --- thumbnails (thumbnail_design) ------------------------------------------------------
+    #: The headline, one or two lines (the owner's words: without them no thumbnail is made).
+    thumbnail_headline: tuple[str, ...] = ()
+    #: A second headline for the C variant of the A/B test.
+    thumbnail_alt_headline: tuple[str, ...] = ()
+    #: The reaction picture (library asset id); ``None`` = the newest picture tagged ``reaction``,
+    #: else the best moment of this video's recordings (from their stored video analyses).
+    thumbnail_reaction: str | None = None
+    #: Mirror the reaction so the creator looks into the picture.
+    thumbnail_flip_reaction: bool = False
+    #: Product NAMES of ``product_images`` shown as stickers; empty = the first two listed.
+    thumbnail_products: tuple[str, ...] = ()
+    #: The retailer logo (library asset id).
+    thumbnail_logo: str | None = None
+    #: The phone with the shop: a product name of ``product_images``, its price (``79,99 €``),
+    #: the button text and a picture of the shop page (library asset id).
+    thumbnail_device_product: str | None = None
+    thumbnail_device_price: str | None = None
+    thumbnail_device_button: str | None = None
+    thumbnail_device_screen: str | None = None
+    #: The struck-through story badge of the B variant (``04:30``).
+    thumbnail_badge: str | None = None
+    #: A fireworks picture or clip blended behind the products (library asset id).
+    thumbnail_plate: str | None = None
     #: Which version of a recording the timeline points at: ``original`` (default) or
     #: ``prefer_improved`` (the stored improved audio / video where one exists).
     timeline_derivatives: str | None = None
@@ -441,6 +523,15 @@ class StageSettings:
     #: Video intelligence may download a model that is not on disk (pinned checksum). Off by
     #: default: without it a missing model makes that analyzer ``not_available``.
     allow_model_download: bool = False
+
+
+def _portrait(shape: str | None) -> bool:
+    """``W:H`` taller than wide (``9:16``): a Short."""
+    width, _, height = (shape or "").partition(":")
+    try:
+        return float(height) > float(width)
+    except ValueError:
+        return False
 
 
 def _given[T](asset_id: str, result: T | None) -> dict[str, T]:
@@ -547,8 +638,13 @@ class ModuleExecutors:
         mix_attacher: MixAttacher,
         quality_analyzer: QualityAnalyzer,
         settings: StageSettings | None = None,
+        thumbnail_designer: ThumbnailDesigner | None = None,
+        reaction_suggester: ReactionSuggester | None = None,
+        reactions: ReactionCollection | None = None,
+        media_analyzer: MediaAnalyzer | None = None,
     ) -> None:
         self._library = library
+        self._media_analyzer = media_analyzer
         self._clock = clock
         self._inspector = inspector
         self._proxies = proxies
@@ -580,6 +676,9 @@ class ModuleExecutors:
         self._mix_attacher = mix_attacher
         self._quality_analyzer = quality_analyzer
         self._settings = settings or StageSettings()
+        self._thumbnail_designer = thumbnail_designer
+        self._reaction_suggester = reaction_suggester
+        self._reactions = reactions
 
     def table(self) -> Mapping[TaskKind, TaskExecutor]:
         return {
@@ -605,6 +704,7 @@ class ModuleExecutors:
             TaskKind.TRANSITIONS: self.transitions,
             TaskKind.VFX: self.vfx,
             TaskKind.SOUND_DESIGN: self.sound_design,
+            TaskKind.THUMBNAIL_DESIGN: self.thumbnail_design,
             TaskKind.TIMELINE: self.timeline,
             TaskKind.TIMELINE_BUILD: self.timeline_build,
             TaskKind.RESOLVE_EXECUTE: self.resolve_execute,
@@ -884,6 +984,7 @@ class ModuleExecutors:
             config=StoryConfig(self._settings.story_format or StoryConfig().format),
             acquire=StoryAcquire.STORED,
             llm=self._settings.story_llm,
+            context=self._settings.story_context,
             content_analyses={} if content is None else {asset_id: content},
             alignments={} if alignment is None else {asset_id: alignment},
         )
@@ -1143,6 +1244,10 @@ class ModuleExecutors:
             config=EditConfig(
                 profile=self._settings.edit_profile,
                 target=target,
+                excerpt=self._settings.edit_excerpt,
+                excerpt_mode=ExcerptMode(self._settings.edit_excerpt_mode),
+                intro_asset_id=self._settings.intro_asset_id,
+                outro_asset_id=self._settings.outro_asset_id,
                 cover_wishes=tuple(
                     CoverWish(
                         footage_asset_id=footage,
@@ -1187,6 +1292,9 @@ class ModuleExecutors:
                     placements=len(plan.placements),
                     decisions=len(plan.decisions),
                     issues=len(plan.issues),
+                    # A condensed Short: the story parts it must carry and those it does.
+                    short_parts_required=[p.part for p in plan.short_parts],
+                    short_parts_present=[p.part for p in plan.short_parts if p.present],
                 )
                 return TaskResult(
                     TaskStatus.PARTIAL if unmet else base.status,
@@ -1368,6 +1476,10 @@ class ModuleExecutors:
             transcript=self._transcripts(job),
             video=self._upstream(job, TaskKind.VIDEO_ANALYSIS, VideoAnalysis),
             product_images=dict(s.product_images),
+            wishes=s.graphic_wishes,
+            product_cards=s.product_cards,
+            # the channel's own outro is the end screen; a Short ends on its payoff
+            end_screen=False if s.outro_asset_id or s.edit_excerpt else None,
         )
         profile = _pick(s.graphics_profile, GRAPHICS_PROFILE_OF, basis.style.style.profile)
         command = PlanGraphicsCommand(
@@ -1417,6 +1529,7 @@ class ModuleExecutors:
             contents=_given(
                 asset_id, self._upstream(job, TaskKind.CONTENT_ANALYSIS, ContentAnalysis)
             ),
+            graphics=self._upstream(job, TaskKind.GRAPHICS, GraphicsPlan),
         )
         match self._caption_planner.execute(command, job.ctx):
             case Ok(result):
@@ -1545,7 +1658,12 @@ class ModuleExecutors:
             soundtrack_timeline(
                 basis.view, events, graphics.timeline_end_with_bookends if graphics else None
             ),
-            config=SoundDesignConfig(profile=profile, overrides=dict(s.sound_overrides)),
+            config=SoundDesignConfig(
+                profile=profile,
+                overrides=dict(s.sound_overrides),
+                # a vertical delivery is a Short: an effect on every moment, the bed closer
+                short_form=_portrait(s.output_format or s.reframing_target),
+            ),
             audio_timelines=_given(
                 asset_id, self._upstream(job, TaskKind.AUDIO_ANALYSIS, AudioIntelligenceTimeline)
             ),
@@ -1586,6 +1704,105 @@ class ModuleExecutors:
         )
 
     # --- Layer 5: the timeline specification ------------------------------------------------
+    def thumbnail_design(self, job: TaskJob) -> TaskResult:
+        """The video's A/B/C thumbnails from the owner's headline, a reaction picture (given,
+        tagged in the library, or the best moment of the recordings) and the product pictures."""
+        if self._thumbnail_designer is None:
+            return TaskResult(TaskStatus.SKIPPED_UNAVAILABLE, "thumbnail design is not installed")
+        style = self._upstream(job, TaskKind.VISUAL_STYLE, ResolveStyleResult)
+        if style is None:
+            return TaskResult(TaskStatus.SKIPPED_DEPENDENCY, "no resolved visual style")
+        s = self._settings
+        if not s.thumbnail_headline:
+            return TaskResult(
+                TaskStatus.SKIPPED_UNAVAILABLE,
+                "no thumbnail headline: the words are the owner's (thumbnail_headline)",
+            )
+        reaction = s.thumbnail_reaction or self._reaction_picture(job)
+        if reaction is None:
+            return TaskResult(
+                TaskStatus.SKIPPED_UNAVAILABLE,
+                "no reaction picture: give one, tag a picture 'reaction' or analyse the footage",
+            )
+        try:
+            brief = self._thumbnail_brief(reaction)
+        except InvariantViolation as exc:
+            return TaskResult(TaskStatus.FAILED, exc.user_message)
+        command = DesignThumbnailsCommand(
+            brief=brief, anchor_asset_id=job.id.asset_id, style=style.style
+        )
+        match self._thumbnail_designer.execute(command, job.ctx):
+            case Ok(result):
+                made = [v for v in result.variants if v.asset is not None]
+                warnings = (
+                    tuple(f"{v.name}: {i.message}" for v in result.variants for i in v.issues)
+                    + result.warnings
+                )
+                if not made:
+                    status = TaskStatus.FAILED
+                elif any(v.created for v in made):
+                    status = TaskStatus.SUCCEEDED
+                else:
+                    status = TaskStatus.REUSED
+                return TaskResult(
+                    status,
+                    "" if made else "every variant failed its checks",
+                    warnings=warnings[:6],
+                    facts={
+                        "rendered": [v.asset.id for v in made if v.asset is not None],
+                        "variants": [v.name for v in made],
+                        "reaction": reaction,
+                    },
+                    payload=result,
+                )
+            case Err(error):
+                return _from_error(error)
+
+    def _thumbnail_brief(self, reaction: str) -> ThumbnailBrief:
+        """The brief from the run settings; raises ``InvariantViolation`` for an invalid one."""
+        s = self._settings
+        products = dict(s.product_images)
+        device = None
+        if s.thumbnail_device_product is not None:
+            device = DeviceCard(
+                product_asset_id=products.get(s.thumbnail_device_product, ""),
+                product_name=s.thumbnail_device_product,
+                price=s.thumbnail_device_price or "",
+                button=s.thumbnail_device_button or "In den Warenkorb",
+                screen_asset_id=s.thumbnail_device_screen,
+            )
+        names = (
+            s.thumbnail_products
+            or tuple(n for n, _ in s.product_images if n != s.thumbnail_device_product)[:2]
+        )
+        return ThumbnailBrief(
+            headline=Headline(s.thumbnail_headline),
+            alternate_headline=(
+                Headline(s.thumbnail_alt_headline) if s.thumbnail_alt_headline else None
+            ),
+            reaction_asset_id=reaction,
+            flip_reaction=s.thumbnail_flip_reaction,
+            products=tuple(products[n] for n in names if n in products),
+            logo_asset_id=s.thumbnail_logo,
+            device=device,
+            badge=StoryBadge(s.thumbnail_badge) if s.thumbnail_badge else None,
+            plate_asset_id=s.thumbnail_plate,
+        )
+
+    def _reaction_picture(self, job: TaskJob) -> str | None:
+        """The owner's newest tagged reaction, else the best moment of this video's footage."""
+        if self._reactions is not None:
+            tagged = self._reactions.list()
+            if tagged:
+                return tagged[0].id
+        if self._reaction_suggester is None:
+            return None
+        recordings = self._settings.project_assets or (job.id.asset_id,)
+        found = self._reaction_suggester.execute(recordings, job.ctx, 1)
+        if isinstance(found, Ok) and found.value:
+            return found.value[0].picture.id
+        return None
+
     def timeline(self, job: TaskJob) -> TaskResult:
         """Compile the edit and every Layer 4 plan of this run (the stored ones for the plans
         the run did not make) into the validated timeline specification. A Layer 4 plan that
@@ -1598,6 +1815,11 @@ class ModuleExecutors:
             config = CompilerConfig(
                 derivative_policy=DerivativePolicy(s.timeline_derivatives or "original"),
                 jump_cut_zoom=s.jump_cut_zoom,
+                camera_beat=s.camera_beat,
+                screen_windows=s.screen_windows,
+                screen_style=s.screen_style,
+                focus_blur=s.focus_blur,
+                background_footage=s.background_footage,
             )
         except ValueError:
             return TaskResult(
@@ -1736,18 +1958,128 @@ class ModuleExecutors:
                 return _from_error(error)
             case Ok(done):
                 m = done.measurement
+                pruned = self._prune(asset, picture_id, done.asset.id)
+                facts: dict[str, JsonValue] = {
+                    "pruned": pruned,
+                    "delivery_asset_id": done.asset.id,
+                    "picture_asset_id": picture_id,
+                    "mix_asset_id": mix_id,
+                    "integrated_lufs": m.integrated_lufs,
+                    "true_peak_dbtp": m.true_peak_dbtp,
+                    "loudness_range_lu": m.loudness_range_lu,
+                }
+                verdict = self._short_gate(job, done.asset.id)
+                findings = [
+                    f"{f.code} {f.measured} (limit {f.limit})"
+                    for f in (verdict.findings if verdict else ())
+                ]
+                if verdict is not None:
+                    facts["gate_passed"] = verdict.passed
+                    facts["gate_measured"] = dict(verdict.measured)
+                    facts["gate_findings"] = list(findings)
+                    facts["gate_remedies"] = [r.value for r in verdict.remedies]
                 return TaskResult(
                     TaskStatus.SUCCEEDED if done.created else TaskStatus.REUSED,
                     "",
-                    facts={
-                        "delivery_asset_id": done.asset.id,
-                        "picture_asset_id": picture_id,
-                        "mix_asset_id": mix_id,
-                        "integrated_lufs": m.integrated_lufs,
-                        "true_peak_dbtp": m.true_peak_dbtp,
-                        "loudness_range_lu": m.loudness_range_lu,
-                    },
+                    warnings=tuple(f"quality gate: {f}" for f in findings),
+                    facts=facts,
                 )
+
+    def _short_gate(self, job: TaskJob, delivery_id: str) -> ShortVerdict | None:
+        """Measure a delivered portrait video against the Short quality gate (``None``: not a
+        Short, the gate is off, or what it reads is missing)."""
+        built = self._upstream(job, TaskKind.TIMELINE_BUILD, BuiltTimeline)
+        mixed = self._upstream(job, TaskKind.AUDIO_MIX, MixRenderResult)
+        if (
+            not self._settings.short_gate
+            or self._media_analyzer is None
+            or built is None
+            or mixed is None
+            or built.settings.height <= built.settings.width
+        ):
+            return None
+        video = self._library.local_path(delivery_id)
+        if isinstance(video, Err):
+            return None
+        stems = {s.bus_id: self._library.local_path(s.asset_id) for s in mixed.result.stems}
+
+        def stem(bus: str) -> Path | None:
+            found = stems.get(bus)
+            return found.value if isinstance(found, Ok) else None
+
+        def spans(role: str) -> tuple[TimeSpan, ...]:
+            return tuple(
+                TimeSpan(fraction(c.timeline_start), fraction(c.timeline_end))
+                for t in built.tracks
+                if t.role.value == role
+                for c in t.audio
+                if c.enabled
+            )
+
+        speech = spans("dialogue")
+        captions = self._upstream(job, TaskKind.CAPTIONS, CaptionPlan)
+        graphics = self._upstream(job, TaskKind.GRAPHICS, GraphicsPlan)
+        cards = full_screen(graphics) if graphics is not None else []
+        talk = seconds_outside(speech, cards)
+        shown = seconds_outside(
+            tuple(
+                TimeSpan(fraction(g.timeline_start), fraction(g.timeline_end))
+                for g in (captions.segments if captions is not None else ())
+            ),
+            cards,
+        )
+        edit = job.upstream.get(TaskId(job.id.asset_id, TaskKind.EDIT_PLAN))
+        parts = edit.facts if edit is not None else {}
+        required = parts.get("short_parts_required")
+        present = parts.get("short_parts_present")
+        counts = PlanCounts(
+            speech_s=talk,
+            captioned_s=min(shown, talk),
+            emoji=sum(len(g.emojis) for g in captions.segments) if captions is not None else 0,
+            required_parts=tuple(str(p) for p in required) if isinstance(required, list) else (),
+            present_parts=tuple(str(p) for p in present) if isinstance(present, list) else (),
+        )
+        sources = ShortSources(
+            video.value, stem("dialogue"), stem("music"), stem("sfx"), speech, spans("sfx")
+        )
+        # shortcut: one decoder call per sampled frame (~2 min for a 50 s Short); a single
+        # decode pass would be faster when the gate runs often.
+        with tempfile.TemporaryDirectory(prefix="mh_gate_") as evidence:
+            measured = measure_short(
+                self._media_analyzer,
+                sources,
+                counts,
+                duration=fraction(built.settings.duration),
+                evidence=Path(evidence),
+                cancellation=job.ctx.cancellation,
+            )
+        return judge_short(measured)
+
+    def _prune(self, anchor: str, picture_id: str, delivery_id: str) -> int:
+        """Earlier attempts are not kept beside the final one: every older render of this video
+        in the same format, and what was made from it, is archived (restorable, never deleted)."""
+        current = self._library.get(picture_id)
+        if isinstance(current, Err):
+            return 0
+        size = (current.value.width, current.value.height)
+        made_by = current.value.derivation.operation if current.value.derivation else None
+        older = [
+            a
+            for a in self._library.list_derived(anchor)
+            if a.derivation is not None
+            and a.derivation.operation == made_by
+            and (a.width, a.height) == size
+            and a.id != picture_id
+            and a.status is AssetStatus.ACTIVE
+        ]
+        pruned = 0
+        for render in older:
+            for made in self._library.list_derived(render.id):
+                if made.id != delivery_id and isinstance(self._library.archive(made.id), Ok):
+                    pruned += 1
+            if isinstance(self._library.archive(render.id), Ok):
+                pruned += 1
+        return pruned
 
     def audio_mix(self, job: TaskJob) -> TaskResult:
         """Mix the built timeline's sound: a specification, one stem per bus, the final mix,
@@ -1756,7 +2088,11 @@ class ModuleExecutors:
         if built is None:
             return TaskResult(TaskStatus.FAILED, "the build task delivered no built timeline")
         s = self._settings
-        config = MixConfig(profile=s.mix_profile, delivery=s.mix_delivery)
+        config = MixConfig(
+            profile=s.mix_profile,
+            delivery=s.mix_delivery,
+            overrides=MixOverrides(bus_gain_db=s.mix_bus_gain_db),
+        )
         match self._audio_mixer.execute(RenderMixCommand(timeline=built, config=config), job.ctx):
             case Err(NothingToMix() as nothing):
                 return TaskResult(TaskStatus.SKIPPED_UNAVAILABLE, nothing.user_message)
@@ -1800,12 +2136,14 @@ class ModuleExecutors:
                         "the mix has errors against its delivery",
                         warnings=notes,
                         facts=facts,
+                        payload=done,
                     )
                 reused = mix is not None and mix.reused and r.reused_stems == len(r.stems)
                 return TaskResult(
                     TaskStatus.REUSED if reused else TaskStatus.SUCCEEDED,
                     warnings=notes,
                     facts=facts,
+                    payload=done,  # the clip levels the Resolve timeline plays at
                 )
 
     def quality_control(self, job: TaskJob) -> TaskResult:
@@ -1850,6 +2188,15 @@ class ModuleExecutors:
                     facts=facts,
                 )
 
+    def _own_project(self, built: BuiltTimeline) -> str:
+        """The pipeline's own project of one video and format ("MH <recording>" / "... Short"):
+        every attempt updates it in place instead of leaving a new project behind, and a project
+        the person works in is never chosen by default."""
+        found = self._library.get(built.anchor_asset_id)
+        name = found.value.display_name if isinstance(found, Ok) else built.anchor_asset_id
+        portrait = built.settings.height > built.settings.width
+        return f"MH {name}{' Short' if portrait else ''}"
+
     def resolve_execute(self, job: TaskJob) -> TaskResult:
         """Carry the built timeline out in DaVinci Resolve and verify it; optionally render it.
 
@@ -1862,11 +2209,17 @@ class ModuleExecutors:
         s = self._settings
         try:
             config = ResolveAdapterConfig(
-                policy=ExecutionPolicy(s.resolve_policy or "require_conflict_review"),
-                project_name=s.resolve_project,
+                # the pipeline's own project gets a fresh timeline that replaces the earlier one;
+                # a project the person named keeps conflict review
+                policy=ExecutionPolicy(
+                    s.resolve_policy
+                    or ("require_conflict_review" if s.resolve_project else "regenerate")
+                ),
+                project_name=s.resolve_project or self._own_project(built),
                 adopt_existing_project=s.resolve_adopt_project,
                 allow_project_switch=s.resolve_allow_switch,
                 caption_strategy=CaptionStrategy(s.resolve_captions or "rendered"),
+                auto_grade=s.resolve_auto_grade,
             )
             render = (
                 RenderConfig(profile=s.resolve_render_profile) if s.resolve_render_profile else None
@@ -1877,8 +2230,11 @@ class ModuleExecutors:
                 f"unknown Resolve setting ({exc}): policy {s.resolve_policy!r}, captions "
                 f"{s.resolve_captions!r}, render profile {s.resolve_render_profile!r}",
             )
+        # the mix's level of every sound clip, so the Resolve timeline sounds like the mix
+        mixed = self._upstream(job, TaskKind.AUDIO_MIX, MixRenderResult)
+        gains = mixed.result.static_gains() if mixed is not None else {}
         match self._resolve_executor.execute(
-            ExecuteTimelineCommand(timeline=built, config=config), job.ctx
+            ExecuteTimelineCommand(timeline=built, config=config, audio_gains=gains), job.ctx
         ):
             case Err(ResolveUnavailable() as unavailable):
                 return TaskResult(TaskStatus.SKIPPED_UNAVAILABLE, unavailable.user_message)

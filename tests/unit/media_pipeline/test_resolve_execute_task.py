@@ -96,9 +96,54 @@ def test_the_adapter_is_handed_the_built_timeline_of_the_run(tmp_path: Path) -> 
     [command] = owner.commands
     assert isinstance(command, ExecuteTimelineCommand)
     assert command.timeline is not None and command.timeline.timeline_id
-    assert command.config.policy is ExecutionPolicy.REQUIRE_CONFLICT_REVIEW
+    # no project named: the pipeline's own project ("MH <recording>"), its timeline regenerated
+    assert command.config.policy is ExecutionPolicy.REGENERATE
+    assert command.config.project_name.startswith("MH ")
     assert command.config.caption_strategy is CaptionStrategy.RENDERED
     assert out.facts["report_asset_id"] == "rep-doc"
+
+
+def test_resolve_runs_after_the_mix_when_both_are_asked_for_without_needing_it() -> None:
+    both = plan_asset(
+        "a", has_video=True, has_audio=True, requested=frozenset({K.RESOLVE_EXECUTE, K.AUDIO_MIX})
+    )
+    alone = plan_asset(
+        "a", has_video=True, has_audio=True, requested=frozenset({K.RESOLVE_EXECUTE})
+    )
+
+    spec = next(s for s in both.specs if s.id.kind is K.RESOLVE_EXECUTE)
+    assert spec.wants == {tid(K.AUDIO_MIX)} and spec.needs == {tid(K.TIMELINE_BUILD)}
+    assert K.AUDIO_MIX not in alone.implied
+
+
+def test_the_adapter_is_handed_the_level_the_mix_gives_each_sound_clip(tmp_path: Path) -> None:
+    from media_house.modules.audio_mix_engine.application.contracts import MixRenderResult
+
+    owner = Recorder(Ok(executed(tmp_path)))
+    levels = {"a:music:seg1": -21.0, "a:sfx:sfx:1": -9.5}
+    mixed = MixRenderResult(
+        result=SimpleNamespace(static_gains=lambda: levels),  # type: ignore[arg-type]
+        result_asset=make_asset("res-1"),
+        spec=None,  # type: ignore[arg-type]
+        spec_asset=make_asset("spec-1"),
+        mix_asset=None,
+        stem_assets=(),
+    )
+
+    executors(resolve_executor=owner).resolve_execute(
+        job(
+            K.RESOLVE_EXECUTE,
+            (K.TIMELINE_BUILD, built_result()),
+            (K.AUDIO_MIX, TaskResult(TaskStatus.SUCCEEDED, payload=mixed)),
+        )
+    )
+    executors(resolve_executor=owner).resolve_execute(
+        job(K.RESOLVE_EXECUTE, (K.TIMELINE_BUILD, built_result()))
+    )
+
+    with_mix, without = owner.commands
+    assert with_mix.audio_gains == levels
+    assert without.audio_gains == {}  # no mix in this run: every clip plays at 0 dB
 
 
 def test_the_run_settings_reach_the_adapter(tmp_path: Path) -> None:

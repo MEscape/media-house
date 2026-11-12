@@ -58,11 +58,12 @@ def test_the_task_is_opt_in_in_no_group_and_independent_of_resolve() -> None:
     assert K.RESOLVE_EXECUTE not in plan.implied and K.TIMELINE_BUILD in plan.implied
 
 
-def test_nothing_waits_for_the_mix_but_the_delivery_that_puts_it_under_the_picture() -> None:
+def test_only_the_delivery_and_resolve_wait_for_the_mix() -> None:
     plan = plan_asset("a", has_video=True, has_audio=True, requested=set(K))
 
     waiting = {s.id.kind for s in plan.specs if TaskId("a", K.AUDIO_MIX) in s.upstream}
-    assert waiting == {K.DELIVER}
+    # the delivery puts the mix under the picture; Resolve plays each clip at the mix's level
+    assert waiting == {K.DELIVER, K.RESOLVE_EXECUTE}
 
 
 def test_the_engine_is_handed_the_built_timeline_and_the_runs_choices() -> None:
@@ -89,6 +90,16 @@ def test_a_finished_mix_is_a_success_with_its_measurements() -> None:
         "youtube",
         "res-1",
     )
+
+
+def test_the_mix_is_handed_on_for_the_levels_resolve_plays_the_clips_at() -> None:
+    finished = done()
+
+    out = executors(audio_mixer=Recorder(Ok(finished))).audio_mix(
+        job(K.AUDIO_MIX, (K.TIMELINE_BUILD, built_result()))
+    )
+
+    assert out.payload is finished
 
 
 def test_an_unchanged_mix_is_reused() -> None:
@@ -194,3 +205,37 @@ def test_a_mix_that_cannot_be_attached_fails_with_the_reason() -> None:
     )
 
     assert out.status is TaskStatus.FAILED
+
+
+def test_a_new_delivery_archives_the_earlier_attempts_of_the_same_format() -> None:
+    # owner 2026-11-11: every attempt left a render behind; only the final one should stay
+    from media_house.modules.media_library.application.contracts import AssetStatus
+
+    def asset(id_: str, width: int = 1080) -> SimpleNamespace:
+        made = SimpleNamespace(operation="resolve_render")
+        return SimpleNamespace(
+            id=id_, width=width, height=1920, derivation=made, status=AssetStatus.ACTIVE
+        )
+
+    class Library:
+        archived: list[str] = []
+
+        def get(self, asset_id: str) -> Ok[SimpleNamespace]:
+            return Ok(asset(asset_id))
+
+        def list_derived(self, asset_id: str) -> list[SimpleNamespace]:
+            if asset_id == "a":  # the video: this render, an older one, one of another format
+                return [asset("pic"), asset("old"), asset("wide", width=1920)]
+            return [SimpleNamespace(id="old-delivery")] if asset_id == "old" else []
+
+        def archive(self, asset_id: str) -> Ok[None]:
+            self.archived.append(asset_id)
+            return Ok(None)
+
+    library = Library()
+    out = executors(mix_attacher=Recorder(Ok(_attached())), library=library).deliver(
+        _deliver_job("pic", "mix")
+    )
+
+    assert out.status is TaskStatus.SUCCEEDED and out.facts["pruned"] == 2
+    assert library.archived == ["old-delivery", "old"]

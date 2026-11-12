@@ -3,7 +3,7 @@
 It owns no storage and no UI: it only orchestrates the contracts of the other modules.
 """
 
-from media_house.core.application.ports import Clock
+from media_house.core.application.ports import Clock, MediaAnalyzer
 from media_house.core.modules import Container
 from media_house.modules.asset_relationships.application.contracts import RelationshipDetection
 from media_house.modules.audio_improvement.application.contracts import AudioImprover
@@ -35,6 +35,11 @@ from media_house.modules.resolve_adapter.application.contracts import (
     ResolveRenderer,
 )
 from media_house.modules.story_architecture.application.contracts import StoryPlanner
+from media_house.modules.thumbnail_design.application.contracts import (
+    ReactionCollection,
+    ReactionSuggester,
+    ThumbnailDesigner,
+)
 from media_house.modules.timeline_builder.application.contracts import TimelineBuilder
 from media_house.modules.transition_engine.application.contracts import TransitionPlanner
 from media_house.modules.vfx_engine.application.contracts import VfxPlanner
@@ -84,6 +89,10 @@ class MediaPipelineModule:
                     mix_attacher=c.resolve(MixAttacher),
                     quality_analyzer=c.resolve(QualityAnalyzer),
                     settings=settings,
+                    thumbnail_designer=c.resolve(ThumbnailDesigner),
+                    reaction_suggester=c.resolve(ReactionSuggester),
+                    media_analyzer=c.resolve(MediaAnalyzer),
+                    reactions=c.resolve(ReactionCollection),
                 ),
             ),
         )

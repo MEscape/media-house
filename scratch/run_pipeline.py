@@ -89,6 +89,14 @@ creator identity's format profile). A stem or mix whose inputs did not change is
 ``--stages deliver`` (needs ``resolve_execute`` with ``--resolve-render`` and ``audio_mix``) puts the final mix
 under the rendered picture (video copied, sound replaced) and measures that file: the delivered
 loudness is a measurement. It is a review copy: nothing is approved, exported or uploaded.
+The run brief (``graphics``, ``cover``, ``screens``, ``background_footage``, ``intro``, ``outro``,
+``screen_style``, ``focus_blur``, ``vfx_overrides``) is AUTOMATIC for a project folder in the owner's
+convention (``project_folder``; default: the folder above ``--script`` when the script is in a
+``00_*`` folder): every key the config does not set is derived from the folder's files and what the
+library already knows (``media_pipeline`` ``AutoBriefer``); a key the config sets wins whole (an
+empty list means "none"); ``vfx_overrides`` merge per path. ``auto_brief = false`` turns it off.
+Every automatic decision and its reason is printed and written to ``<--output>/auto_brief.json``.
+Without ``--product-images`` the folder's ``*_pck`` folder is used.
 Brand pictures (``wolf_mascot``, ``fire_plate`` ...) are imported with ``scratch/import_brand_assets.py``
 (same ``--home``) and bound with ``--brand-asset SLOT=ASSET_ID`` (the import script prints the flags).
 ``--resolve-policy`` says what may be done to a project that already has work (default
@@ -106,7 +114,7 @@ import threading
 import tomllib
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, PositiveInt, ValidationError
@@ -125,11 +133,16 @@ from media_house.modules.content_intelligence.domain.config import (
     LlmSettings,
 )
 from media_house.modules.content_intelligence.module import ContentIntelligenceModule
+from media_house.modules.media_inspection.application.contracts import InspectionCatalog
 from media_house.modules.media_library.application.contracts import MediaLibrary
 from media_house.modules.media_pipeline.application.contracts import (
+    AUTO_KEYS,
     DEFAULT_STAGES,
     LAYER4_STAGES,
     AssetReport,
+    AutoBriefCommand,
+    AutoBriefer,
+    GraphicWish,
     Lane,
     MediaPipeline,
     PipelineReport,
@@ -139,10 +152,15 @@ from media_house.modules.media_pipeline.application.contracts import (
     TaskRecord,
     TaskReport,
     TaskStatus,
+    apply_auto_brief,
+    decisions,
+    next_attempt,
 )
+from media_house.modules.motion_graphics_engine.application.contracts import SlotValue
 from media_house.modules.production_project.application.contracts import (
     TranscriptLine,
     conform,
+    fact_rows,
     parse_script,
     sentence_lines,
 )
@@ -153,6 +171,12 @@ from media_house.modules.reframing_intelligence.application.contracts import (
 )
 from media_house.modules.resolve_adapter.infrastructure.install import ResolveInstall
 from media_house.modules.resolve_adapter.module import ResolveAdapterModule
+from media_house.modules.story_architecture.application.contracts import StoryCatalog
+from media_house.modules.video_intelligence.application.contracts import VideoCatalog
+from media_house.modules.visual_asset_generation.application.contracts import (
+    AdjustImageCommand,
+    ImageAdjuster,
+)
 from media_house.shared.concurrency import CancellationToken, JobContext, JobProgress
 from media_house.shared.configuration import Environment
 from media_house.shared.errors import Err
@@ -189,6 +213,62 @@ class CoverEntry(BaseModel):
     until: str | None = None
     start: float = 0.0
     seconds: float = 8.0
+    #: Start this far (source seconds) into the line, and cover at most ``upto`` of it.
+    skip: float = 0.0
+    upto: float | None = None
+
+
+class ScreenEntry(BaseModel):
+    """A screen recording shown as its page only: ``window`` = x, y, w, h (normalised)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    footage: Path
+    window: tuple[float, float, float, float]
+
+
+type _Slot = str | int | list[str] | list[list[str]]
+
+
+class GraphicEntry(BaseModel):
+    """A graphic over named speech (``say``). A slot value ``file:PATH`` is imported and passed as
+    its library asset id; ``brand:SLOT`` is the asset bound to that brand slot."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: str
+    say: str
+    slots: dict[str, _Slot] = {}
+    variant: str = ""
+    occurrence: int = 1
+    offset: float = 0.0
+    duration: float | None = None
+    zone: str = ""
+    emphasis: int | None = None
+
+
+class ThumbnailEntry(BaseModel):
+    """The ``[thumbnail]`` table: the video's A/B/C thumbnails (stage ``thumbnail_design``).
+
+    Files are imported into the library (stored once); ``products`` and ``device_product`` are
+    names of the ``--product-images`` pictures. Without ``reaction`` the newest picture tagged
+    ``reaction`` is used, else the best moment of the analysed footage.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    headline: list[str]
+    alt_headline: list[str] | None = None
+    reaction: Path | None = None
+    flip_reaction: bool = False
+    products: list[str] | None = None
+    logo: Path | None = None
+    device_product: str | None = None
+    device_price: str | None = None
+    device_button: str | None = None
+    device_screen: Path | None = None
+    badge: str | None = None
+    plate: Path | None = None
 
 
 class RunConfig(BaseModel):
@@ -211,6 +291,8 @@ class RunConfig(BaseModel):
     video_processing_profile: str | None = None
     story_format: str | None = None
     story_llm: bool | None = None
+    #: The text of the per-video context file (``--context``), background for the story model.
+    story_context: str | None = None
     #: Brand slot -> library asset id (``scratch/import_brand_assets.py`` prints them).
     brand_assets: dict[str, str] | None = None
     edit_profile: str | None = None
@@ -240,7 +322,31 @@ class RunConfig(BaseModel):
     vfx_overrides: dict[str, str | int | float | bool | list[str]] | None = None
     layer4_render: bool | None = None
     jump_cut_zoom: float | None = None
+    camera_beat: float | None = None
+    #: A Short from the long edit: the best (low, high) seconds highlight only.
+    edit_excerpt: tuple[float, float] | None = None
+    #: ``condensed`` (default: hook, every item, verdict) or ``contiguous`` (one stretch).
+    edit_excerpt_mode: Literal["condensed", "contiguous"] | None = None
     cover: list[CoverEntry] | None = None
+    screens: list[ScreenEntry] | None = None
+    graphics: list[GraphicEntry] | None = None
+    thumbnail: ThumbnailEntry | None = None
+    #: Lines to leave out (a slip that cannot be cut around): the line that says the phrase.
+    drop: list[str] | None = None
+    #: The channel's intro / outro clips (played whole: intro before the greeting).
+    intro: Path | None = None
+    outro: Path | None = None
+    screen_style: str | None = None
+    focus_blur: float | None = None
+    #: Moving footage under full-frame cards (never shown as B-roll).
+    background_footage: Path | None = None
+    #: The owner's project folder (``00_kontext`` ... ``06_gfx``) the automatic brief reads.
+    project_folder: Path | None = None
+    #: ``false``: no automatic brief (only the hand entries above).
+    auto_brief: bool | None = None
+    #: Attempts at a Short: after one fails the quality gate, its remedies plan the next.
+    gate_iterations: int | None = None
+    resolve_auto_grade: bool | None = None
     timeline_derivatives: str | None = None
     timeline_conflict_policy: str | None = None
     timeline_fit: str | None = None
@@ -411,6 +517,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         default=None,
         help="let a local language model reword the story plan (grounded; off = deterministic)",
+    )
+    add(
+        "--context",
+        type=Path,
+        help="the per-video context (pipeline-context.md of a Brief-to-Cut project): background "
+        "text the story model reads; with --story-llm only",
     )
     add(
         "--llm-provider",
@@ -703,8 +815,12 @@ def parse_keep_out(texts: Sequence[str] | None) -> tuple[KeepOut, ...]:
     return tuple(rules)
 
 
-def import_product_images(app: Application, folder: Path, settings: StageSettings) -> StageSettings:
-    """Import every picture of the folder (stored once) and name it after its file."""
+def import_product_images(
+    app: Application, folder: Path, settings: StageSettings, script: Path | None = None
+) -> StageSettings:
+    """Import every picture of the folder (stored once) and name it after its file. With a
+    script, every product its fact tables name gets a full-screen intro and data card (its
+    picture cut out by the library's own cut-out operation, reused when stored)."""
     library = app.container.resolve(MediaLibrary)
     named: list[tuple[str, str]] = []
     for path in sorted(folder.iterdir()):
@@ -717,8 +833,23 @@ def import_product_images(app: Application, folder: Path, settings: StageSetting
         name = " ".join(w.capitalize() for w in path.stem.replace("_", "-").split("-") if w)
         named.append((name, imported.value.asset.id))
     print(f"product pictures: {', '.join(n for n, _ in named) or 'none'}")
+    cards: list[tuple[str, str, tuple[tuple[str, str], ...]]] = []
+    if script is not None:
+        rows = fact_rows(script.read_text(encoding="utf-8"), [n for n, _ in named])
+        adjuster = app.container.resolve(ImageAdjuster)
+        for name, asset_id in named:
+            if name not in rows:
+                continue
+            cut = adjuster.execute(
+                AdjustImageCommand(source_asset_id=asset_id), JobContext.detached()
+            )
+            if isinstance(cut, Err):
+                print(f"  ! {name}: no cut-out ({cut.error.user_message})")
+                continue
+            cards.append((name, cut.value.asset.id, rows[name]))
+        print(f"product cards: {', '.join(n for n, _, _ in cards) or 'none'}")
     print()
-    return dataclasses.replace(settings, product_images=tuple(named))
+    return dataclasses.replace(settings, product_images=tuple(named), product_cards=tuple(cards))
 
 
 def conform_to_script(
@@ -727,6 +858,7 @@ def conform_to_script(
     script_path: Path,
     settings: StageSettings,
     cover: list[CoverEntry],
+    drop: list[str] | None = None,
 ) -> tuple[list[Path], StageSettings]:
     """Order the recordings by the script scene they speak and collect the excluded speech. Reads
     stored transcripts only; a recording without one is left out and named."""
@@ -776,8 +908,115 @@ def conform_to_script(
         (m.line.asset_id, m.line.start, m.line.end, f"script: {m.exclusion.value}")
         for m in result.excluded
     ) + tuple((t.line.asset_id, t.line.start, t.line.end, t.reason) for t in result.rejected)
+    for phrase in drop or []:
+        line = _line_saying(lines, phrase)
+        if line is None:
+            print(f"  ! drop: nobody says {phrase!r}")
+            continue
+        print(
+            f"  - cut {by_id[line.asset_id].name} {line.start:.1f}-{line.end:.1f}s (dropped): {line.text[:70]}"
+        )
+        excluded += ((line.asset_id, line.start, line.end, f"owner: drop {phrase!r}"),)
     wishes = cover_wishes(library, lines, cover, by_id)
     return placed, dataclasses.replace(settings, excluded_speech=excluded, cover_wishes=wishes)
+
+
+def thumbnail_settings(
+    app: Application, settings: StageSettings, entry: ThumbnailEntry | None
+) -> StageSettings:
+    """Import the thumbnail pictures and hand the brief to the ``thumbnail_design`` stage."""
+    if entry is None:
+        return settings
+    library = app.container.resolve(MediaLibrary)
+
+    def picture(path: Path | None, tags: tuple[str, ...] = ()) -> str | None:
+        if path is None:
+            return None
+        imported = library.import_file(path, tags=tags)
+        if isinstance(imported, Err):
+            sys.exit(f"thumbnail: {path}: {imported.error.user_message}")
+        if tags:
+            library.add_tags(imported.value.asset.id, tags)  # a stored duplicate joins too
+        return imported.value.asset.id
+
+    print(f"thumbnail: {' / '.join(entry.headline)}")
+    return dataclasses.replace(
+        settings,
+        thumbnail_headline=tuple(entry.headline),
+        thumbnail_alt_headline=tuple(entry.alt_headline or ()),
+        thumbnail_reaction=picture(entry.reaction, ("reaction",)),
+        thumbnail_flip_reaction=entry.flip_reaction,
+        thumbnail_products=tuple(entry.products or ()),
+        thumbnail_logo=picture(entry.logo),
+        thumbnail_device_product=entry.device_product,
+        thumbnail_device_price=entry.device_price,
+        thumbnail_device_button=entry.device_button,
+        thumbnail_device_screen=picture(entry.device_screen),
+        thumbnail_badge=entry.badge,
+        thumbnail_plate=picture(entry.plate),
+    )
+
+
+def brief_graphics(
+    app: Application,
+    settings: StageSettings,
+    screens: list[ScreenEntry],
+    graphics: list[GraphicEntry],
+    intro: Path | None = None,
+    outro: Path | None = None,
+    background: Path | None = None,
+) -> StageSettings:
+    """Screen windows and the brief's graphics, with their files as library asset ids."""
+    library = app.container.resolve(MediaLibrary)
+    brand = dict(settings.brand_assets)
+
+    def asset(path: Path) -> str | None:
+        imported = library.import_file(path.expanduser())
+        if isinstance(imported, Err):
+            print(f"  ! {path}: {imported.error.user_message}")
+            return None
+        return imported.value.asset.id
+
+    windows = []
+    for screen in screens:
+        if (asset_id := asset(screen.footage)) is not None:
+            windows.append((asset_id, *screen.window))
+
+    def slot(value: _Slot) -> SlotValue:
+        if isinstance(value, list):
+            return tuple(  # type: ignore[return-value]
+                tuple(v) if isinstance(v, list) else slot(v) for v in value
+            )
+        if isinstance(value, str) and value.startswith("file:"):
+            return asset(Path(value[5:])) or value
+        if isinstance(value, str) and value.startswith("brand:"):
+            return brand.get(value[6:], value)
+        return value
+
+    wishes = tuple(
+        GraphicWish(
+            kind=g.kind,
+            say=g.say,
+            slots=tuple((k, slot(v)) for k, v in sorted(g.slots.items())),
+            variant=g.variant,
+            occurrence=g.occurrence,
+            offset=g.offset,
+            duration=g.duration,
+            zone=g.zone,
+            emphasis=g.emphasis,
+        )
+        for g in graphics
+    )
+    if windows or wishes:
+        print(f"brief: {len(windows)} screen window(s), {len(wishes)} graphic(s)")
+    return dataclasses.replace(
+        settings,
+        screen_windows=tuple(sorted(windows)),
+        graphic_wishes=wishes,
+        intro_asset_id=asset(intro) if intro is not None else None,
+        outro_asset_id=asset(outro) if outro is not None else None,
+        background_footage=asset(background) if background is not None else None,
+    )
 
 
 def _said(text: str) -> list[str]:
@@ -807,6 +1046,9 @@ def cover_wishes(
             print(f"  ! cover: nobody says {entry.over!r}")
             continue
         end = line.end
+        start = line.start + entry.skip
+        if entry.upto is not None:
+            end = min(end, start + entry.upto)
         if entry.until is not None:
             later = [x for x in lines if x.asset_id == line.asset_id and x.start >= line.start]
             last = _line_saying(later, entry.until)
@@ -821,12 +1063,66 @@ def cover_wishes(
         footage = imported.value.asset.id
         print(
             f"  cover {entry.footage.name} over {by_id[line.asset_id].name} "
-            f"{line.start:.1f}-{end:.1f}s ({entry.over!r})"
+            f"{start:.1f}-{end:.1f}s ({entry.over!r})"
         )
-        out.append(
-            (footage, line.asset_id, line.start, end, entry.start, entry.seconds, entry.over)
-        )
+        out.append((footage, line.asset_id, start, end, entry.start, entry.seconds, entry.over))
     return tuple(out)
+
+
+def project_folder(config: RunConfig, script: Path | None) -> Path | None:
+    """The configured project folder, else the one the script's ``00_*`` folder sits in."""
+    if config.project_folder is not None:
+        return config.project_folder.expanduser()
+    if script is not None and script.parent.name.startswith("00_"):
+        return script.parent.parent
+    return None
+
+
+def auto_brief(
+    app: Application,
+    settings: StageSettings,
+    config: RunConfig,
+    folder: Path,
+    files: list[Path],
+    script: Path | None,
+    output: Path | None,
+) -> StageSettings:
+    """The automatic brief of the project folder for every brief key the config leaves out."""
+    library = app.container.resolve(MediaLibrary)
+    recordings = []
+    for path in files:
+        imported = library.import_file(path)
+        if not isinstance(imported, Err):
+            recordings.append(imported.value.asset.id)
+    briefer = AutoBriefer(
+        library,
+        app.container.resolve(AudioCatalog),
+        app.container.resolve(VideoCatalog),
+        app.container.resolve(InspectionCatalog),
+        app.container.resolve(StoryCatalog),
+    )
+    result = briefer.execute(
+        AutoBriefCommand(
+            files=tuple(p for p in sorted(folder.glob("*/*")) if p.is_file()),
+            recordings=tuple(recordings),
+            script=script.read_text(encoding="utf-8") if script is not None else None,
+            settings=settings,
+        )
+    )
+    given = frozenset(k for k in AUTO_KEYS if getattr(config, k) is not None)
+    log = decisions(result, given)
+    print(f"auto brief ({result.brief.format_profile}) of {folder}:")
+    for d in log:
+        mark = "+" if d["used"] else "-"
+        print(f"  {mark} {d['key']}: {d['what']}  [{d['source']}]")
+    for name, why in result.skipped:
+        print(f"  ! {name}: {why}")
+    if given:
+        print(f"  (hand entries win: {', '.join(sorted(given))})")
+    print()
+    if output is not None:
+        write_json_atomically(output / "auto_brief.json", log)
+    return apply_auto_brief(settings, result.brief, given)
 
 
 def _overrides(
@@ -846,6 +1142,7 @@ def settings_from(config: RunConfig) -> StageSettings:
         video_processing_profile=config.video_processing_profile,
         story_format=config.story_format,
         story_llm=bool(config.story_llm),
+        story_context=config.story_context or "",
         brand_assets=tuple(sorted((config.brand_assets or {}).items())),
         edit_profile=config.edit_profile,
         edit_target_seconds=config.edit_target_seconds,
@@ -874,6 +1171,12 @@ def settings_from(config: RunConfig) -> StageSettings:
         sound_profile=config.sound_profile,
         sound_overrides=_overrides(config.sound_overrides),
         jump_cut_zoom=config.jump_cut_zoom or 1.0,
+        camera_beat=config.camera_beat,
+        edit_excerpt=config.edit_excerpt,
+        edit_excerpt_mode=config.edit_excerpt_mode or "condensed",
+        screen_style=config.screen_style or "crop",
+        focus_blur=config.focus_blur or 0.0,
+        resolve_auto_grade=bool(config.resolve_auto_grade),
         vfx_overrides=_overrides(config.vfx_overrides),
         layer4_render=config.layer4_render is not False,
         timeline_derivatives=config.timeline_derivatives,
@@ -1173,6 +1476,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             if getattr(args, key) is not None
         }
     )
+    if args.context is not None:
+        try:
+            context_text = args.context.expanduser().read_text(encoding="utf-8")
+        except OSError as exc:
+            parser.error(f"--context {args.context}: {exc.strerror or exc}")
+        merged = merged.model_copy(update={"story_context": context_text})
     if args.brand_asset:
         bound = dict(merged.brand_assets or {})
         for text in args.brand_asset:
@@ -1219,29 +1528,68 @@ def main(argv: Sequence[str] | None = None) -> int:
             if not args.project:
                 parser.error("--script needs --project")
             files, settings = conform_to_script(
-                app, files, args.script, settings, merged.cover or []
+                app, files, args.script, settings, merged.cover or [], merged.drop
             )
-        if args.product_images is not None:
-            settings = import_product_images(app, args.product_images, settings)
-        result = pipeline.execute(
-            RunPipelineCommand(
-                paths=files,
-                asset_ids=args.asset_id,
-                stages=stages,
-                content_uses_video=bool(merged.content_uses_video),
-                capacity=capacity,
-                dry_run=args.dry_run,
-                project=args.project,
-                max_running=args.max_workers,
-                settings=settings,
-            ),
-            JobContext("cli", token, JobContext.detached().progress),
-            ConsoleObserver(args.verbose),
+        settings = brief_graphics(
+            app,
+            settings,
+            merged.screens or [],
+            merged.graphics or [],
+            merged.intro,
+            merged.outro,
+            merged.background_footage,
         )
-        if isinstance(result, Err):
-            print(f"x {result.error.user_message}", file=sys.stderr)
-            return EXIT_USAGE
-        report = result.value
+        folder = project_folder(merged, args.script)
+        auto = folder is not None and merged.auto_brief is not False
+        pictures = args.product_images
+        if pictures is None and auto and folder is not None:
+            pictures = next((d for d in sorted(folder.iterdir()) if d.name.endswith("_pck")), None)
+        if pictures is not None:
+            settings = import_product_images(app, pictures, settings, args.script)
+        if auto and folder is not None:
+            settings = auto_brief(app, settings, merged, folder, files, args.script, args.output)
+        settings = thumbnail_settings(app, settings, merged.thumbnail)
+        attempts = max(1, merged.gate_iterations or 3)
+        for attempt in range(1, attempts + 1):
+            result = pipeline.execute(
+                RunPipelineCommand(
+                    paths=files,
+                    asset_ids=args.asset_id,
+                    stages=stages,
+                    content_uses_video=bool(merged.content_uses_video),
+                    capacity=capacity,
+                    dry_run=args.dry_run,
+                    project=args.project,
+                    max_running=args.max_workers,
+                    settings=settings,
+                ),
+                JobContext("cli", token, JobContext.detached().progress),
+                ConsoleObserver(args.verbose),
+            )
+            if isinstance(result, Err):
+                print(f"x {result.error.user_message}", file=sys.stderr)
+                return EXIT_USAGE
+            report = result.value
+            gate = next(
+                (t.facts for a in report.assets if (t := a.task(TaskKind.DELIVER)) is not None),
+                None,
+            )
+            if not gate or "gate_passed" not in gate:
+                break
+            print(
+                f"quality gate, attempt {attempt}: {'passed' if gate['gate_passed'] else 'failed'}"
+            )
+            for finding in gate.get("gate_findings") or []:  # type: ignore[union-attr]
+                print(f"  - {finding}")
+            if gate["gate_passed"] or attempt == attempts or report.cancelled:
+                break
+            remedies = tuple(str(r) for r in gate.get("gate_remedies") or [])  # type: ignore[union-attr]
+            following = next_attempt(settings, remedies)
+            if following is None:
+                print("  no remedy can change this attempt: a person decides")
+                break
+            settings = following
+            print(f"  next attempt with: {', '.join(remedies)}")
         if report.dry_run:
             print("Execution graph (tasks in one row are independent):")
             for number, level in enumerate(report.levels, 1):

@@ -64,7 +64,8 @@ DEFAULT_STAGES: frozenset[TaskKind] = frozenset(
 
 
 #: Every Layer 4 stage (``--stages layer4``): the style, graphics, captions, transitions, VFX and
-#: sound design of each asset. Opt-in: each stores plans and renders files for a chosen format.
+#: sound design of each asset, and its thumbnails. Opt-in: each stores plans and renders files for
+#: a chosen format.
 LAYER4_STAGES: frozenset[TaskKind] = frozenset(
     {
         TaskKind.VISUAL_STYLE,
@@ -73,6 +74,7 @@ LAYER4_STAGES: frozenset[TaskKind] = frozenset(
         TaskKind.TRANSITIONS,
         TaskKind.VFX,
         TaskKind.SOUND_DESIGN,
+        TaskKind.THUMBNAIL_DESIGN,
     }
 )
 

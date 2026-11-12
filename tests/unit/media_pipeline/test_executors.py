@@ -31,6 +31,12 @@ class Recorder:
 
     analyze = execute  # RelationshipDetection answers a single asset with ``analyze``
 
+    def get(self, asset_id: str) -> Any:  # the library: no asset is known
+        return Err(ValidationError(f"unknown asset {asset_id}"))
+
+    def list_derived(self, asset_id: str) -> list[Any]:
+        return []
+
 
 def executors(settings: StageSettings | None = None, **owners: Any) -> ModuleExecutors:
     fail = Recorder(Err(ValidationError("unexpected call")))
@@ -67,6 +73,9 @@ def executors(settings: StageSettings | None = None, **owners: Any) -> ModuleExe
         mix_attacher=owners.get("mix_attacher", fail),
         quality_analyzer=owners.get("quality_analyzer", fail),
         settings=settings,
+        thumbnail_designer=owners.get("thumbnail_designer"),
+        reaction_suggester=owners.get("reaction_suggester"),
+        reactions=owners.get("reactions"),
     )
 
 

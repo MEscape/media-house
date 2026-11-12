@@ -404,7 +404,9 @@ def test_a_price_tag_is_a_key_moment_however_calm_its_motion() -> None:
         return SimpleNamespace(
             graphic_id=graphic_id,
             status=ItemStatus.OK,
-            request=SimpleNamespace(kind=kind, content=SimpleNamespace(chart=None)),
+            request=SimpleNamespace(
+                kind=kind, content=SimpleNamespace(chart=None, variant=""), priority=0.5
+            ),
             animation=SimpleNamespace(motion=SimpleNamespace(entry="pop_in")),
         )
 

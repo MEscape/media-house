@@ -289,6 +289,19 @@ def test_each_module_maps_the_style_profile_unless_its_own_profile_is_given() ->
     assert graphics.commands[0].brief.width == 1080 and graphics.commands[0].brief.height == 1920
 
 
+def test_a_vertical_delivery_plans_the_sound_of_a_short() -> None:
+    style = (K.VISUAL_STYLE, TaskResult(TaskStatus.SUCCEEDED, payload=style_result()))
+    shapes = {"9:16": True, "16:9": False, "1:1": False, None: False}
+    for shape, short in shapes.items():
+        sound = Recorder(Err(NothingToTransition()))
+
+        executors(StageSettings(output_format=shape), sound_planner=sound).sound_design(
+            job(K.SOUND_DESIGN, style, INSPECTED)
+        )
+
+        assert sound.commands[0].config.short_form is short, shape
+
+
 # --- the report's Layer 4 package ------------------------------------------------------------
 def test_the_layer4_package_lists_what_was_stored_rendered_and_not_made() -> None:
     from media_house.modules.media_pipeline.application.report import AssetReport, TaskReport

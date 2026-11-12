@@ -7,8 +7,8 @@ reads itself from the stored analyses (words, story, pacing) are not re-derived 
 """
 
 import re
-from collections.abc import Callable, Iterable, Mapping
-from dataclasses import replace
+from collections.abc import Callable, Iterable, Mapping, Sequence
+from dataclasses import dataclass, replace
 from fractions import Fraction
 
 from media_house.core.domain import Rational
@@ -39,12 +39,14 @@ from media_house.modules.motion_graphics_engine.application.contracts import (
     EditorialGraphic,
     EventKind,
     GraphicKind,
+    GraphicOrder,
     GraphicsBrief,
     GraphicsPlan,
     Intent,
     ItemStatus,
     OnScreenText,
     ProductFacts,
+    SlotValue,
     product_facts,
     rank_of,
 )
@@ -101,6 +103,7 @@ _GRAPHIC_REVEALS = {
     GraphicKind.PRICE_TAG: "price_reveal",
     GraphicKind.LOGO_STING: "logo_sting",
     GraphicKind.SILHOUETTE_TEASER: "reveal",
+    GraphicKind.URL_CARD: "typing",
 }
 _ENTRY_EVENTS = {"pop_in": "pop_in", "slide_in": "fly_in", "wipe_in": "fly_in"}
 #: A price, a rank or a product reveal is a key moment by what it says, however calm its motion
@@ -266,6 +269,9 @@ def graphics_brief(
     transcript: Transcripts = None,
     video: VideoAnalysis | None = None,
     product_images: Mapping[str, str] | None = None,
+    wishes: Sequence["GraphicWish"] = (),
+    product_cards: Sequence[tuple[str, str, tuple[tuple[str, str], ...]]] = (),
+    end_screen: bool | None = None,
 ) -> GraphicsBrief:
     """Sections with their rank and product facts (content's ``commerce_facts`` of the words
     heard in them, each with the time it is spoken), editorial GRAPHIC requests, the text the
@@ -342,7 +348,220 @@ def graphics_brief(
         graphics=graphics,
         products=tuple(products),
         on_screen=on_screen_text(view, video),
+        end_screen=end_screen,
+        orders=(
+            *spoken_urls(heard),
+            *card_orders(heard, product_cards, products),
+            *wished(heard, wishes),
+        ),
     )
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class GraphicWish:
+    """A graphic the owner's brief asks for over named speech: fully in (``offset`` s after)
+    when the ``occurrence``-th time ``say`` is spoken in the edit."""
+
+    kind: str
+    say: str
+    slots: tuple[tuple[str, SlotValue], ...] = ()
+    variant: str = ""
+    occurrence: int = 1
+    offset: float = 0.0
+    duration: float | None = None
+    zone: str = ""
+    #: 0 small .. 2 large (``None``: the preset's default).
+    emphasis: int | None = None
+    #: Why it is asked for (the automatic brief names its rule); "" = the owner's brief.
+    reason: str = ""
+
+
+def _timeline_words(heard: Mapping[str, _Heard]) -> list[tuple[str, Fraction]]:
+    return sorted((w for words in heard.values() for w in words), key=lambda w: w[1])
+
+
+def _bare_word(text: str) -> str:
+    return re.sub(r"\W+", "", text.casefold())
+
+
+def wished(heard: Mapping[str, _Heard], wishes: Sequence[GraphicWish]) -> tuple[GraphicOrder, ...]:
+    """Each wish at the time its phrase is spoken (a phrase that is not in the edit is skipped:
+    that speech was cut)."""
+    words = _timeline_words(heard)
+    bare = [_bare_word(w) for w, _ in words]
+    out: list[GraphicOrder] = []
+    for n, wish in enumerate(wishes):
+        phrase = [b for b in (_bare_word(w) for w in wish.say.split()) if b]
+        hits = [
+            i
+            for i in range(len(bare) - len(phrase) + 1)
+            if phrase and bare[i : i + len(phrase)] == phrase
+        ]
+        if len(hits) < wish.occurrence:
+            continue
+        at = words[hits[wish.occurrence - 1]][1] + Fraction(str(wish.offset))
+        out.append(
+            GraphicOrder(
+                kind=GraphicKind(wish.kind),
+                at=rat(max(Fraction(0), at)),
+                slots=dict(wish.slots),
+                variant=wish.variant,
+                emphasis=wish.emphasis,
+                duration=None if wish.duration is None else rat(Fraction(str(wish.duration))),
+                request_id=f"wish:{n}:{wish.kind}",
+                zone=wish.zone,
+                priority=0.8,
+                reason=wish.reason or f"the brief asks for it over '{wish.say}'",
+            )
+        )
+    return tuple(out)
+
+
+#: A product's full-screen intro (its name, picture and place) when it is first named, then its
+#: data card (the facts of the brief's table) once its price is said.
+_INTRO = (GraphicKind.RANK_CARD, "intro")
+_INTRO_SECONDS = Fraction(13, 5)
+_SHOWCASE_SECONDS = Fraction(5)
+#: The facts a data card shows, in this order, under these labels (table headers vary).
+_CARD_FACTS = (
+    ("schuss", "Schuss"),
+    ("effekthöhe", "Höhe"),
+    ("höhe", "Höhe"),
+    ("brenndauer", "Brenndauer"),
+    ("effektmenge", "Effektmenge"),
+)
+_PRICE = re.compile(r"(\d{1,3}(?:\.\d{3})*),(\d{2})")
+_RANK = re.compile(r"^(\d+)\s*/\s*(\d+)$")
+
+
+def card_orders(
+    heard: Mapping[str, _Heard],
+    cards: Sequence[tuple[str, str, tuple[tuple[str, str], ...]]],
+    products: Sequence[ProductFacts],
+) -> tuple[GraphicOrder, ...]:
+    """Every product the brief names (name, prepared cut-out, its table facts) gets the same two
+    full-screen cards: an intro where it is first named, a data card where its price is said (or
+    right after the intro)."""
+    words = _timeline_words(heard)
+    bare = [_bare_word(w) for w, _ in words]
+    out: list[GraphicOrder] = []
+    for n, (name, cutout, facts) in enumerate(cards):
+        phrase = [b for b in (_bare_word(w) for w in name.split()) if b]
+        at = next(
+            (
+                words[i][1]
+                for i in range(len(bare) - len(phrase) + 1)
+                if phrase and bare[i : i + len(phrase)] == phrase
+            ),
+            None,
+        )
+        if at is None:
+            continue  # never named in the edit
+        table = {label.casefold(): value for label, value in facts}
+        place = next((m for v in table.values() if (m := _RANK.match(v))), None)
+        rank = int(place.group(1)) if place else n + 1
+        label = f"BATTERIE {place.group(0).replace(' ', '')}" if place else f"NR. {rank}"
+        price = next(
+            (
+                int(m.group(1).replace(".", "")) * 100 + int(m.group(2))
+                for key, v in table.items()
+                if key.startswith("preis") and (m := _PRICE.search(v))
+            ),
+            None,
+        )
+        spoken = next((p for p in products if p.name == name and p.timeline_at is not None), None)
+        if price is None and spoken is not None:
+            price = spoken.price_cents
+        intro: dict[str, SlotValue] = {
+            "rank": rank,
+            "label": label,
+            "product": name,
+            "image": cutout,
+        }
+        if price is not None:
+            intro["price"] = price
+        out.append(
+            GraphicOrder(
+                kind=_INTRO[0],
+                at=rat(at),
+                slots=intro,
+                variant=_INTRO[1],
+                duration=rat(_INTRO_SECONDS),
+                request_id=f"card:{n}:intro",
+                priority=0.9,
+                reason=f"{name} is introduced",
+            )
+        )
+        rows: list[tuple[str, str]] = []
+        for key, fact in _CARD_FACTS:
+            value = table.get(key, "").replace("ca.", "").strip().strip('"„“')
+            if value and len(value) <= 12 and all(fact != have for have, _ in rows):
+                rows.append((fact, value))
+        if len(rows) < 2:
+            continue
+        show = at + _INTRO_SECONDS + Fraction(4, 5)
+        if spoken is not None and spoken.timeline_at is not None:
+            show = max(show, fr(spoken.timeline_at))
+        slots: dict[str, SlotValue] = {
+            "product": name,
+            "label": label,
+            "facts": tuple(rows[:4]),
+            "image": cutout,
+        }
+        if price is not None:
+            slots["price"] = price
+        out.append(
+            GraphicOrder(
+                kind=GraphicKind.SPEC_CARD,
+                at=rat(show),
+                slots=slots,
+                variant="showcase",
+                duration=rat(_SHOWCASE_SECONDS),
+                request_id=f"card:{n}:data",
+                priority=0.9,
+                reason=f"the facts of {name}",
+            )
+        )
+    return tuple(out)
+
+
+_DOMAIN = re.compile(r"^[a-z0-9-]+\.(de|com|net|org|eu|at|ch)$")
+_JOINERS = {"slash": "/", "schrägstrich": "/", "minus": "-", "bindestrich": "-", "punkt": "."}
+
+
+def spoken_urls(heard: Mapping[str, _Heard]) -> tuple[GraphicOrder, ...]:
+    """An address read out ("lidl.de slash feuerwerk minus vorbestellung") is typed in on a
+    URL card while it is said."""
+    words = _timeline_words(heard)
+    out: list[GraphicOrder] = []
+    i = 0
+    while i < len(words):
+        token = words[i][0].casefold().strip(".,!?;:")
+        if not _DOMAIN.match(token):
+            i += 1
+            continue
+        url, j = token, i + 1
+        if "/" in words[i][0]:
+            url = words[i][0].casefold().strip(".,!?;:")
+        while j + 1 < len(words) and words[j][0].casefold().strip(".,!?;:") in _JOINERS:
+            url += _JOINERS[words[j][0].casefold().strip(".,!?;:")]
+            url += words[j + 1][0].casefold().strip(".,!?;:")
+            j += 2
+        if url != token or "/" in url:
+            out.append(
+                GraphicOrder(
+                    kind=GraphicKind.URL_CARD,
+                    at=rat(words[i][1]),
+                    slots={"url": url},
+                    variant="typing",
+                    emphasis=2,
+                    request_id=f"url:{len(out)}",
+                    priority=0.9,
+                    reason=f"the address {url} is read out",
+                )
+            )
+        i = j
+    return tuple(out)
 
 
 # --- caption_engine ---------------------------------------------------------------------------
@@ -613,14 +832,23 @@ def _graphic_events(plan: GraphicsPlan) -> Iterable[SyncEvent]:
             else:
                 entry = item.animation.motion.entry if item.animation else ""
                 kind = _GRAPHIC_REVEALS.get(request.kind) or _ENTRY_EVENTS.get(entry, entry)
+                if request.content.variant in ("showcase", "gallery"):
+                    kind = "showcase"  # a full-screen card: a riser leads into it
         if kind:
-            reveal = event.kind is EventKind.ENTER_PEAK and kind in _GRAPHIC_REVEALS.values()
+            reveal = event.kind is EventKind.ENTER_PEAK and (
+                kind in _GRAPHIC_REVEALS.values() or kind == "showcase"
+            )
             yield SyncEvent(
                 event_id=f"{event.graphic_id}:{event.kind.value}:{index}",
                 source=EventSource.GRAPHICS,
                 kind=kind,
                 timeline_at=event.timeline_at,
-                strength=max(event.strength, _REVEAL_STRENGTH) if reveal else event.strength,
+                # a graphic's own weight counts too: an ordered card is a moment worth a sound
+                strength=max(event.strength, _REVEAL_STRENGTH)
+                if reveal
+                else max(event.strength, item.request.priority)
+                if event.kind is EventKind.ENTER_PEAK
+                else event.strength,
             )
 
 

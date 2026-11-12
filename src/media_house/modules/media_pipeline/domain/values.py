@@ -32,6 +32,8 @@ class TaskKind(StrEnum):
     TRANSITIONS = "transitions"
     VFX = "vfx"
     SOUND_DESIGN = "sound_design"
+    #: The YouTube thumbnails (A/B/C) of the video, from the owner's brief and reaction pictures.
+    THUMBNAIL_DESIGN = "thumbnail_design"
     # Layer 5: the timeline specification compiled from the edit and every Layer 4 plan.
     TIMELINE = "timeline"
     # Layer 5: the constructed timeline (tracks, clips, transitions, markers) built from it.

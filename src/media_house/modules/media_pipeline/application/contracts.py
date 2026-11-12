@@ -10,7 +10,16 @@ inputs again reports ``reused`` instead of doing the work twice.
 
 from typing import Protocol
 
+from media_house.modules.media_pipeline.application.auto_brief import (
+    AUTO_KEYS,
+    AutoBriefCommand,
+    AutoBriefer,
+    AutoBriefResult,
+    apply_auto_brief,
+    decisions,
+)
 from media_house.modules.media_pipeline.application.executors import StageSettings
+from media_house.modules.media_pipeline.application.layer4_inputs import GraphicWish
 from media_house.modules.media_pipeline.application.report import (
     AssetReport,
     InputFailure,
@@ -23,6 +32,7 @@ from media_house.modules.media_pipeline.application.run_pipeline import (
     LAYER5_STAGES,
     RunPipelineCommand,
 )
+from media_house.modules.media_pipeline.application.short_iterate import next_attempt
 from media_house.modules.media_pipeline.application.tasks import RunObserver, TaskRecord
 from media_house.modules.media_pipeline.domain.values import Lane, TaskId, TaskKind, TaskStatus
 from media_house.shared.concurrency import JobContext
@@ -39,10 +49,15 @@ class MediaPipeline(Protocol):
 
 
 __all__ = [
+    "AUTO_KEYS",
     "DEFAULT_STAGES",
     "LAYER4_STAGES",
     "LAYER5_STAGES",
     "AssetReport",
+    "AutoBriefCommand",
+    "AutoBriefResult",
+    "AutoBriefer",
+    "GraphicWish",
     "InputFailure",
     "Lane",
     "MediaPipeline",
@@ -55,4 +70,7 @@ __all__ = [
     "TaskRecord",
     "TaskReport",
     "TaskStatus",
+    "apply_auto_brief",
+    "decisions",
+    "next_attempt",
 ]

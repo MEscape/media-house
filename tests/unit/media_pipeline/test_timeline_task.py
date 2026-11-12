@@ -58,8 +58,10 @@ def test_the_timeline_waits_for_every_layer4_plan_the_run_makes_and_nothing_wait
     plan = plan_asset("a", has_video=True, has_audio=True, requested=requested)
     specs = {s.id.kind: s for s in plan.specs}
 
-    layer4 = {tid(k) for k in LAYER4_STAGES - {K.VISUAL_STYLE}}
+    # thumbnails are a delivery of their own: the timeline neither shows nor waits for them
+    layer4 = {tid(k) for k in LAYER4_STAGES - {K.VISUAL_STYLE, K.THUMBNAIL_DESIGN}}
     assert layer4 <= specs[K.TIMELINE].wants
+    assert tid(K.THUMBNAIL_DESIGN) not in specs[K.TIMELINE].upstream
     assert tid(K.EDIT_PLAN) in specs[K.TIMELINE].wants
     assert tid(K.TIMELINE) not in {u for s in specs.values() for u in s.upstream}
     assert len(PipelineGraph(plan.specs).levels()) > 1

@@ -59,6 +59,9 @@ owning module, not guessed:
 * ``sound_design`` (CPU: the stem render) WANTS ``graphics``, ``transitions`` and ``captions``
   (their events become sync points), the story plan, pacing and audio analyses. It needs no
   picture: music under a voice recording is still sound design.
+* ``thumbnail_design`` (CPU: cut-outs and compositing) WANTS the edit plan and the video analysis
+  (the reaction moments it may pick from are read from the stored analyses). It needs a picture.
+  Nothing waits for it: a thumbnail is a delivery of its own, never part of the timeline.
 * ``timeline`` (Layer 5; LIGHT: it only reads stored results and verifies files) compiles the
   edit and every Layer 4 plan into the ``timeline_specification``. Like every Layer 4 task it
   NEEDS the style and the inspection and WANTS the edit plan; it also WANTS the story plan, the
@@ -256,6 +259,12 @@ STAGES: Mapping[TaskKind, Stage] = {
             TaskKind.CAPTIONS,
         ),
     ),
+    TaskKind.THUMBNAIL_DESIGN: Stage(
+        Lane.CPU,
+        needs=_LAYER4_NEEDS,
+        wants=_k(TaskKind.EDIT_PLAN, TaskKind.VIDEO_ANALYSIS),
+        needs_video=True,
+    ),
     TaskKind.TIMELINE: Stage(
         Lane.LIGHT,
         needs=_LAYER4_NEEDS,
@@ -271,10 +280,18 @@ STAGES: Mapping[TaskKind, Stage] = {
         ),
     ),
     TaskKind.TIMELINE_BUILD: Stage(Lane.LIGHT, needs=_k(TaskKind.TIMELINE)),
-    TaskKind.RESOLVE_EXECUTE: Stage(Lane.LIGHT, needs=_k(TaskKind.TIMELINE_BUILD)),
+    # after the mix when both run: the Resolve timeline plays every sound clip at the mix's level
+    TaskKind.RESOLVE_EXECUTE: Stage(
+        Lane.LIGHT, needs=_k(TaskKind.TIMELINE_BUILD), wants=_k(TaskKind.AUDIO_MIX)
+    ),
     TaskKind.AUDIO_MIX: Stage(Lane.CPU, needs=_k(TaskKind.TIMELINE_BUILD)),
     TaskKind.QUALITY_CONTROL: Stage(Lane.CPU, needs=_k(TaskKind.TIMELINE_BUILD)),
-    TaskKind.DELIVER: Stage(Lane.CPU, needs=_k(TaskKind.RESOLVE_EXECUTE, TaskKind.AUDIO_MIX)),
+    # a portrait delivery is judged by the Short quality gate, which reads these plans
+    TaskKind.DELIVER: Stage(
+        Lane.CPU,
+        needs=_k(TaskKind.RESOLVE_EXECUTE, TaskKind.AUDIO_MIX),
+        wants=_k(TaskKind.TIMELINE_BUILD, TaskKind.EDIT_PLAN, TaskKind.CAPTIONS, TaskKind.GRAPHICS),
+    ),
 }
 
 
