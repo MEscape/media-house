@@ -4,6 +4,69 @@ From a client brief and the creator's raw material to a fully prepared, complian
 YouTube project in the creator's style. Spec: the "Brief-to-Cut" implementation prompt.
 No thumbnails, no music or sound-effect requests, no auto-publishing.
 
+## ALDI audit and repair (November 2026)
+
+The original implementation was validated with a synthetic Lidl fixture. The supplied real ALDI
+PDF and `Downloads/yt-video/00_kontext/lidl-nico-transcript.md` exposed different requirements:
+an editorial overview, unpriced products, wrapped PDF tables, historical reference prices,
+uncertain relabeling, and incomplete regional listings. A Lidl sales template was unsuitable.
+
+| Existing component | Finding and repair |
+| --- | --- |
+| Qt job runner and job list | A running job without progress still displayed `pending`. Forward start events to the UI; cover queued/running/cancelled/failed completion with real threaded tests. |
+| Local text model | CPU inference could occupy import for many minutes. Basic extraction now defaults to deterministic parsing; explicit model enrichment is optional. Local generation observes the existing timeout and cooperative cancellation, including queue wait. |
+| Document reader and parser | Preserve PDF column layout, wrapped names and page provenance. Keep unpriced products and distinguish historical products/prices. Extract required-section bullets, uncertainty and asset-rights constraints. Reference-video publication dates and author handles are not project deadlines or mandatory metadata. |
+| Script and prompts | Supply actual fact values, sources, creator ideas and original brief context. Reject incomplete/ungrounded model scripts; retain unknowns as slots. Use current technical data, consolidate incompletely documented classics, and avoid inventing ordering/delivery or sponsorship. Full generation records include input fingerprints. |
+| Wizard | Persistent rewrite dock, project summary, visible work state, document drop, editable context tabs, script restore, debounced draft lint, grouped material requirements and recording instructions. Preserve unsaved edits and clear dependent views when switching projects. |
+| Compliance and export | Historical prices/descriptions cannot authorize current numeric claims. Prices require currency facts. Accepted risk replacements change the actual text; old rewrite proposals cannot overwrite newer scripts. Missing material and stale generated artifacts block export; editorial handoff omits `--sponsored`. |
+| Media and persistence | Reuse the existing workflow, project/style SQLite adapters, Media Library contracts and pipeline handoff. No new media store and no changes to original assets. Existing JSON project storage remains compatible; no schema migration was needed. |
+
+Run the repeatable local review with the real PDF:
+
+```powershell
+uv run --extra documents python scripts/check_brief_to_cut.py `
+  --brief 'C:\Users\L14\Downloads\ALDI Feuerwerk 202627 – Video-Briefing.pdf' `
+  --reference-dir 'C:\Users\L14\Downloads\yt-video' `
+  --client ALDI --year 2026 --output scratch/aldi-review-final
+```
+
+The output contains the extracted model, concept/script drafts, client documents in Markdown,
+Word and PDF, recording guide, asset plan, context variants, metadata, compliance findings and
+`quality-report.json`. This is a review workspace: it does not bypass the final export gate.
+The report separates deterministic safety checks from spoken length, repetition, unresolved
+fields and comparison with the manual reference. It makes no creative-equivalence claim.
+No external model calls are made by this command. Originals remain in Downloads.
+
+To inspect the native widget at 1280×900 and 1600×1000:
+
+```powershell
+uv run --no-sync python -m scratch.preview_brief_to_cut
+```
+
+This produces screenshots and geometry evidence in `scratch/brief-to-cut-preview`. On Windows
+the offscreen preview registers Segoe UI explicitly; normal desktop font selection is unchanged.
+Restart the desktop application to load the fixes. Existing in-memory jobs in an already running
+process continue using the previous code.
+
+Focused gates:
+
+```powershell
+uv run pytest tests/unit/production_project tests/integration/production_project `
+  tests/presentation/test_brief_to_cut_ui.py tests/presentation/test_job_bridge.py `
+  tests/unit/content_intelligence/test_local_llm_budget.py tests/architecture
+uv run ruff check src/media_house/modules/production_project
+uv run mypy --strict src/media_house/modules/production_project
+```
+
+Limits that remain: the local deterministic draft is a starting point, not the manually written
+final script. Unknown prices, missing primary-source details and the creator's personal judgments
+remain open; duration is checked against the brief's explicit target. There are no ALDI recordings
+in this fixture, so no final cut, render or DaVinci output has been evaluated. The current context
+runner is a timeline planning check, not a validated 75-second rendered A/B/C experiment: excerpt
+trimming, context-sensitive model execution and project privacy/asset-policy propagation through
+that bridge still need dedicated implementation. Native model loading and a single decoding step
+can only stop once control returns to Python.
+
 ## Where it lives (audit: reuse before rewriting)
 
 | Need | Owner | What was done |

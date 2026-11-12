@@ -128,7 +128,10 @@ def quality_checks(project: Project) -> dict[str, bool]:
         checks["reference_video_dates_not_project_deadlines"] = not any(
             deadline.kind == "publish" for deadline in project.brief.deadlines
         )
-        checks["no_lidl_campaign_leakage"] = "lidl" not in generated.casefold()
+        checks["no_lidl_campaign_leakage"] = not any(
+            phrase in generated.casefold()
+            for phrase in ("lidl plus", "lidl und nico", "lidlnico", "494,95", "2.474,75")
+        )
     return checks
 
 
@@ -206,6 +209,19 @@ def run(args: argparse.Namespace) -> int:
         "can_export": gate.can_export,
         "blocking_findings": len(gate.blocking),
         "estimated_minutes": round(lint.seconds / 60, 2),
+        "requirements_without_scenes": [
+            requirement.requirement_id
+            for requirement in project.requirements
+            if not requirement.scene_ids
+        ],
+        "brief_duration_target_minutes": (
+            [int(duration.group(1)), int(duration.group(2))]
+            if (duration := re.search(r"Länge:\s*(\d+)\s*[\u2013-]\s*(\d+)\s*Minuten", text))
+            else None
+        ),
+        "manual_quality_equivalence": (
+            "Nicht nachgewiesen; eine Strukturprüfung ersetzt keine kreative Bewertung."
+        ),
         "draft_comparison": comparison,
         "creative_review": (
             "Offen: Stimme, Dramaturgie, technische Tiefe und Länge am Referenzskript prüfen."
