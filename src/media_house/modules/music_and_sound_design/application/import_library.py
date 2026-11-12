@@ -50,6 +50,7 @@ from media_house.modules.music_and_sound_design.domain.serialization import (
 )
 from media_house.modules.music_and_sound_design.domain.values import (
     ANALYZER_VERSION,
+    CATEGORY_TAG_PREFIX,
     METADATA_KEY,
     MUSIC_ANALYSIS,
     SCHEMA_VERSION,
@@ -346,6 +347,13 @@ class ImportSoundLibrary:
             if isinstance(patched, Err):
                 return patched
             asset, updated = patched.value, True
+        # the manifest owns the category tags: a category it no longer lists is removed
+        stale_tags = [t for t in asset.tags if t.startswith(CATEGORY_TAG_PREFIX) and t not in tags]
+        if stale_tags:
+            untagged = self._library.remove_tags(asset.id, stale_tags)
+            if isinstance(untagged, Err):
+                return untagged
+            asset, updated = untagged.value, True
         missing_tags = [t for t in tags if t not in asset.tags]
         if missing_tags:
             tagged = self._library.add_tags(asset.id, missing_tags)

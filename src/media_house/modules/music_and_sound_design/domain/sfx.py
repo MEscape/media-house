@@ -2,8 +2,13 @@
 strong enough, it does not mask speech or cover preserved original audio, and the density and
 spacing budgets allow it. Every declined event is recorded with its reason. A sound comes only
 from the library; when none fits, the gap becomes a missing-asset recommendation.
+
+A sound is chosen by what the moment means (the rule's categories, then the words that say a
+sound fits it and those that say it does not), never by chance, and every moment of one kind gets
+the sound the first one got: the same card reveal always sounds the same.
 """
 
+import math
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from fractions import Fraction
@@ -136,9 +141,12 @@ def place_sfx(events: tuple[SyncEvent, ...], index: SoundIndex, ctx: SfxContext)
 
     accepted = _budget(wanted, ctx, decline)
     recent: list[str] = []
+    #: (source, kind) -> the sound every moment of that kind gets
+    chosen: dict[tuple[str, str], str] = {}
     missing: dict[tuple[str, tuple[str, ...]], MissingAsset] = {}
     for w in sorted(accepted, key=lambda w: (w.at, w.event.event_id)):
-        placed = _choose(w, index, ctx, recent)
+        kind = (w.rule.source, w.rule.kind)
+        placed = _choose(w, index, ctx, recent, chosen.get(kind))
         if placed is None:
             decline(
                 w.event,
@@ -152,6 +160,8 @@ def place_sfx(events: tuple[SyncEvent, ...], index: SoundIndex, ctx: SfxContext)
             continue
         out.events.append(placed)
         recent.append(placed.asset.asset_id)
+        if w.profile.sfx.one_sound_per_kind and placed.decision is None:
+            chosen.setdefault(kind, placed.asset.asset_id)
     out.missing.extend(missing.values())
     return out
 
@@ -208,9 +218,12 @@ def _priority(w: _Wanted) -> float:
     return round(w.event.strength * weight, 6)
 
 
-def _choose(w: _Wanted, index: SoundIndex, ctx: SfxContext, recent: list[str]) -> SfxEvent | None:
+def _choose(
+    w: _Wanted, index: SoundIndex, ctx: SfxContext, recent: list[str], same: str | None = None
+) -> SfxEvent | None:
+    """``same``: the sound the earlier moments of this kind got (kept unless it no longer fits)."""
     decision = ctx.decisions.get(item_id(w.event))
-    window = w.profile.sfx.repeat_window
+    window = 0 if w.profile.sfx.one_sound_per_kind else w.profile.sfx.repeat_window
     blocked = frozenset(recent[-window:]) if window else frozenset()
     rejected = frozenset(
         [decision.asset_id]
@@ -220,12 +233,17 @@ def _choose(w: _Wanted, index: SoundIndex, ctx: SfxContext, recent: list[str]) -
     query = SoundQuery(
         kind=SoundKind.SFX,
         categories=w.rule.categories,
-        text=w.event.kind.replace("_", " "),
-        max_seconds=w.rule.max_seconds,
+        text=" ".join(w.rule.prefer) or w.event.kind.replace("_", " "),
+        # a sound laid from its start is cut to the rule's length, so a longer file still fits
+        max_seconds=None if w.rule.align == SfxAlign.START.value else w.rule.max_seconds,
         policy=ctx.policy,
         exclude=rejected,
     )
     matches = [m for m in index.search(query) if _creditable(m.asset)]
+    fitting = [m for m in matches if not _avoided(m.asset, w.rule.avoid)]
+    matches = fitting or matches
+    if same is not None and (kept := [m for m in matches if m.asset.asset_id == same]):
+        matches = kept
     conflicts: list[str] = []
     if decision and decision.decision is Decision.ACCEPTED and decision.asset_id:
         pinned = index.get(decision.asset_id)
@@ -287,6 +305,11 @@ def _choose(w: _Wanted, index: SoundIndex, ctx: SfxContext, recent: list[str]) -
     )
 
 
+def _avoided(sound: SoundAsset, words: tuple[str, ...]) -> bool:
+    haystack = " ".join([sound.title, *sound.tags]).casefold()
+    return any(word in haystack for word in words)
+
+
 def _creditable(sound: SoundAsset) -> bool:
     """An asset that needs a credit but has no credit text cannot be used honestly."""
     return not sound.licence.attribution_required or bool(sound.licence.attribution_text)
@@ -323,6 +346,9 @@ def _timing(
             note = "not measured: aligned by its start"
     if src_end <= src_start:
         return None
+    if align is SfxAlign.START and src_end - src_start > seconds(w.rule.max_seconds):
+        src_end = src_start + seconds(w.rule.max_seconds)
+        note = (note + "; " if note else "") + f"cut to {w.rule.max_seconds:g} s"
     at = w.at + offset
     if align is SfxAlign.PEAK:
         start = at - (peak - src_start)
@@ -353,7 +379,11 @@ def _gain(sound: SoundAsset, w: _Wanted) -> tuple[float, str]:
     if sound.sfx is None:
         return 0.0, "level not measured: played at file level"
     m = sound.sfx.measurement
-    gain = min(target - m.rms_max_dbfs, mix.max_boost_db)
+    # heard over ~0.4 s: a short pop sounds quieter than its loudest 50 ms, a long swoosh does
+    # not, so the reference is lowered by the share of that window the sound fills
+    useful = float(m.seconds(m.useful_end_sample - m.useful_start_sample))
+    heard = m.rms_max_dbfs + 10.0 * math.log10(min(1.0, max(useful, 0.05) / 0.4))
+    gain = min(target - heard, mix.max_boost_db)
     note = ""
     if m.peak_dbfs + gain > mix.headroom_dbfs:
         note = f"predicted peak {m.peak_dbfs + gain:+.1f} dBFS (clipping risk)"

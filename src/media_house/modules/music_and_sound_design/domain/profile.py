@@ -353,6 +353,18 @@ class SfxRule:
     max_seconds: float = knob(3.0, "Longest effect", unit="s", min=0.05, max=30.0, step=0.05)
     soft: bool = knob(False, "Soft (may sit under speech)")
     gain_db: float = knob(0.0, "Extra gain", unit="dB", min=-24.0, max=12.0, step=0.5)
+    prefer: tuple[str, ...] = knob(
+        (),
+        "Preferred words",
+        "Words in a sound's title or tags that say it fits the moment (ranked first)",
+        kind="words",
+    )
+    avoid: tuple[str, ...] = knob(
+        (),
+        "Avoided words",
+        "A sound whose title or tags has one of these is not chosen while another fits",
+        kind="words",
+    )
 
 
 def _rule(
@@ -367,6 +379,8 @@ def _rule(
     max_seconds: float = 3.0,
     soft: bool = False,
     gain_db: float = 0.0,
+    prefer: tuple[str, ...] = (),
+    avoid: tuple[str, ...] = (),
 ) -> SfxRule:
     return SfxRule(
         source=source.value,
@@ -379,30 +393,56 @@ def _rule(
         max_seconds=max_seconds,
         soft=soft,
         gain_db=gain_db,
+        prefer=prefer,
+        avoid=avoid,
     )
+
+
+#: What makes a sound wrong for a light accent (water, toys, a weapon, a room's objects).
+_NOT_UI = ("water", "bubble", "soap", "cartoon")
+_NOT_HIT = ("bell", "glass", "wood", "metal", "soft", "punch", "explosion", "cannon")
+_NOT_WHOOSH = ("sword", "cloth", "paper", "sand", "rocket", "magic", "tunnel", "vacuum", "windy")
+#: The words that say a sound fits (a hit lands, a whoosh passes, a pop is short and dry).
+_HIT = ("bass", "hit", "boom", "cinematic")
+_POP = ("pop", "notification")
+_WHOOSH = ("fast", "whoosh", "transition")
 
 
 #: Restraint by default: no rule for plain cuts or dissolves, high thresholds for captions.
 _G, _T, _C, _E = EventSource.GRAPHICS, EventSource.TRANSITION, EventSource.CAPTION, EventSource.EDIT
 DEFAULT_RULES: Final = (
     _rule(_G, "rank_reveal", "rank reveal accent", ("impact", "cinematic_hit"),
-          need=Need.RECOMMENDED),
-    _rule(_G, "price_reveal", "price accent", ("cash_register", "pop"), min_strength=0.7,
-          soft=True),
-    _rule(_G, "pop_in", "graphic pops in", ("pop",), min_strength=0.8, soft=True, gain_db=-3.0),
-    _rule(_G, "fly_in", "graphic flies in", ("swish_swipe", "whoosh"), min_strength=0.8, soft=True),
-    _rule(_G, "drop", "object lands", ("impact", "pop"), min_strength=0.7),
+          need=Need.RECOMMENDED, prefer=_HIT, avoid=_NOT_HIT),
+    _rule(_G, "price_reveal", "price accent", ("pop", "ui_notification"), min_strength=0.7,
+          soft=True, prefer=("ding", "pop", "notification"), avoid=_NOT_UI),
+    _rule(_G, "pop_in", "graphic pops in", ("pop",), min_strength=0.8, soft=True, gain_db=-3.0,
+          prefer=_POP, avoid=_NOT_UI),
+    _rule(_G, "fly_in", "graphic flies in", ("whoosh", "swish_swipe"), min_strength=0.8,
+          soft=True, gain_db=-3.0, prefer=("small", "fast", "swoosh", "whoosh"),
+          avoid=_NOT_WHOOSH),
+    _rule(_G, "drop", "object lands", ("impact", "pop"), min_strength=0.7, prefer=_HIT,
+          avoid=_NOT_HIT),
     _rule(_G, "counter", "number counts", ("click", "countdown_beeps"), min_strength=0.85,
           soft=True),
-    _rule(_G, "reveal", "product reveal", ("riser",), min_strength=0.7, align=SfxAlign.END,
-          need=Need.RECOMMENDED, max_seconds=6.0),
+    _rule(_G, "reveal", "product reveal", ("whoosh", "impact"), min_strength=0.7,
+          need=Need.RECOMMENDED, max_seconds=3.0, prefer=("cinematic", "whoosh", "fast"),
+          avoid=_NOT_WHOOSH),
+    _rule(_G, "showcase", "full-screen card", ("whoosh", "riser"), min_strength=0.7,
+          need=Need.RECOMMENDED, max_seconds=3.0, prefer=("cinematic", "whoosh", "fast"),
+          avoid=_NOT_WHOOSH),
+    _rule(_G, "typing", "an address is typed", ("typewriter_keyboard",), min_strength=0.5,
+          align=SfxAlign.START, soft=True, max_seconds=1.8),
+    _rule(_G, "flash", "pictures flash by", ("camera_shutter", "paper_page_turn"),
+          min_strength=0.5, soft=True, gain_db=-3.0),
     _rule(_G, "highlight", "highlight accent", ("ui_notification", "click"), min_strength=0.85,
           soft=True, gain_db=-3.0),
     _rule(_G, "logo_sting", "channel sting", ("jingle_stinger",), min_strength=0.5,
           align=SfxAlign.START, need=Need.RECOMMENDED, max_seconds=8.0),
     # transition kinds exactly as transition_engine publishes them (``TransitionKind`` values)
-    _rule(_T, "zoom", "zoom transition", ("whoosh", "swish_swipe"), min_strength=0.6),
-    _rule(_T, "whip_pan", "whip transition", ("swish_swipe", "whoosh"), min_strength=0.6),
+    _rule(_T, "zoom", "zoom transition", ("whoosh", "swish_swipe"), min_strength=0.6,
+          prefer=_WHOOSH, avoid=_NOT_WHOOSH),
+    _rule(_T, "whip_pan", "whip transition", ("whoosh", "swish_swipe"), min_strength=0.6,
+          prefer=_WHOOSH, avoid=_NOT_WHOOSH),
     _rule(_T, "slide", "slide transition", ("swish_swipe",), min_strength=0.7, soft=True),
     _rule(_T, "push", "push transition", ("swish_swipe",), min_strength=0.7, soft=True),
     _rule(_T, "wipe", "wipe transition", ("swish_swipe",), min_strength=0.7, soft=True),
@@ -412,12 +452,17 @@ DEFAULT_RULES: Final = (
           min_strength=0.5),
     _rule(_T, "pixel_dissolve", "pixel dissolve into the end screen", ("swish_swipe", "whoosh"),
           min_strength=0.5, soft=True, gain_db=-3.0),
-    _rule(_C, "emoji", "emoji pop", ("pop",), min_strength=0.85, soft=True, gain_db=-4.0),
+    _rule(_C, "emoji", "emoji pop", ("pop",), min_strength=0.85, soft=True, gain_db=-4.0,
+          prefer=_POP, avoid=_NOT_UI),
+    # a lighter, drier pop than the emoji's: a word is a smaller moment than a picture
     _rule(_C, "keyword", "key word emphasis", ("pop", "click"), min_strength=0.9, soft=True,
-          gain_db=-6.0),
-    _rule(_E, "section_change", "section change", ("swish_swipe", "whoosh"), min_strength=0.75),
-    _rule(_E, "reveal", "editorial reveal", ("riser",), min_strength=0.7, align=SfxAlign.END,
-          max_seconds=6.0),
+          gain_db=-6.0, prefer=("dry", "pop"), avoid=_NOT_UI),
+    _rule(_E, "section_change", "section change", ("whoosh", "swish_swipe"), min_strength=0.75,
+          prefer=_WHOOSH, avoid=_NOT_WHOOSH),
+    # a riser under speech with nothing shown is a promise the picture does not keep: only the
+    # strongest editorial reveals get one (graphics bring their own)
+    _rule(_E, "reveal", "editorial reveal", ("riser",), min_strength=0.95, align=SfxAlign.END,
+          max_seconds=4.0),
 )  # fmt: skip
 
 
@@ -457,10 +502,16 @@ class SfxRules:
         "never, only soft ones (pops, clicks), or any",
         choices=_UNDER_SPEECH,
     )
+    one_sound_per_kind: bool = knob(
+        True,
+        "One sound per kind of moment",
+        "Every moment of one kind (each card reveal, each emoji) gets the same sound",
+    )
     repeat_window: int = knob(
         3,
         "Do not repeat a sound within",
-        "Number of previous effects that may not use the same file",
+        "Number of previous effects that may not use the same file (only without one sound per"
+        " kind)",
         min=0,
         max=20,
         step=1,
@@ -644,8 +695,21 @@ PROFILES: Final[dict[str, SoundProfile]] = {
                     hook=("hype_energetic", "suspense_build"),
                     reveal=("hype_energetic", "cinematic_epic"),
                 ),
+                presence=replace(_BASE.music.presence, hook=_BED, reveal=_BED),
             ),
             silence=replace(_BASE.silence, reveal_dropout_seconds=0.5),
+            # one voice carries it: the bed stays far back, and every card that pops in gets
+            # its small sound at one steady level (owner review 2026-11-10)
+            mix=replace(
+                _BASE.mix,
+                speech_reference_lufs=-18.0,
+                bed_below_speech_lu=24.0,
+                duck_depth_db=4.0,
+                speech_merge_gap_seconds=2.0,
+                sfx_below_speech_lu=9.0,
+                sfx_strength_range_db=2.0,
+            ),
+            sfx=replace(_BASE.sfx, max_per_minute=24.0, min_spacing_seconds=0.8),
         ),
         _format(
             "brochure_review",
@@ -793,6 +857,43 @@ PROFILES: Final[dict[str, SoundProfile]] = {
 }
 DEFAULT_PROFILE: Final = "generic"
 
+#: The sources whose every moment gets an effect in a Short (the edit's own cues keep restraint).
+_SHORTS_SOURCES: Final = frozenset({_G.value, _T.value, _C.value})
+_SHORTS_MIN_STRENGTH: Final = 0.5
+
+
+def for_shorts(profile: SoundProfile) -> SoundProfile:
+    """A 9:16 Short: a sound on every graphic, emoji, key word and transition (at least
+    ``min_spacing_seconds`` apart, the same sound for every moment of one kind), allowed under
+    the voice that runs through it, and the music closer under the voice (a phone speaker)."""
+    rules = tuple(
+        replace(r, min_strength=min(r.min_strength, _SHORTS_MIN_STRENGTH))
+        if r.source in _SHORTS_SOURCES
+        else r
+        for r in profile.sfx.rules
+    )
+    if not any(r.source == _G.value and r.kind == "cut" for r in rules):
+        # a graphic that simply appears is a moment too
+        rules += (
+            _rule(_G, "cut", "graphic appears", ("pop",), min_strength=_SHORTS_MIN_STRENGTH,
+                  soft=True, gain_db=-3.0, prefer=_POP, avoid=_NOT_UI),
+        )  # fmt: skip
+    return replace(
+        profile,
+        mix=replace(
+            profile.mix, bed_below_speech_lu=15.0, duck_depth_db=8.0, sfx_below_speech_lu=6.0
+        ),
+        sfx=replace(
+            profile.sfx,
+            max_per_minute=max(profile.sfx.max_per_minute, 40.0),
+            min_spacing_seconds=1.2,
+            under_speech="allow",
+            one_sound_per_kind=True,
+            rules=rules,
+        ),
+    )
+
+
 #: Story format (story_architecture) -> format profile.
 STORY_FORMAT_PROFILE: Final[dict[str, str]] = {
     "generic": "generic",
@@ -828,6 +929,8 @@ class SoundDesignConfig:
     overrides: Mapping[str, OverrideValue] = field(default_factory=dict)
     section_overrides: tuple[SectionOverride, ...] = ()
     licence: LicencePolicy = field(default_factory=LicencePolicy)
+    #: The video is a 9:16 Short: ``for_shorts`` applies on top of the profile.
+    short_form: bool = False
 
     def resolve(self, story_format: str | None = None) -> SoundProfile:
         if self.custom is not None:
@@ -839,6 +942,8 @@ class SoundDesignConfig:
                     f"unknown profile {name!r}; choose one of {', '.join(sorted(PROFILES))}"
                 )
             base = PROFILES[name]
+        if self.short_form:
+            base = for_shorts(base)
         profile = apply_overrides(base, self.overrides)
         problems = profile.problems()
         if problems:

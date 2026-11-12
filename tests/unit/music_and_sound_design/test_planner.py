@@ -239,6 +239,7 @@ def test_the_per_minute_budget_and_the_repeat_window_are_kept() -> None:
             "sfx.max_per_minute": 4.0,
             "sfx.min_spacing_seconds": 1.0,
             "sfx.repeat_window": 1,  # two pops in the library: they alternate
+            "sfx.one_sound_per_kind": False,
         }
     )
 
@@ -248,6 +249,64 @@ def test_the_per_minute_budget_and_the_repeat_window_are_kept() -> None:
     assert {n.declined for n in p.no_sfx} == {Declined.DENSITY}
     used = [e.asset.asset_id for e in p.sfx]
     assert all(a != b for a, b in itertools.pairwise(used))
+
+
+def test_every_moment_of_one_kind_gets_the_same_sound() -> None:
+    events = tuple(event(f"p{i}", 2.0 + 3 * i, "pop_in") for i in range(4)) + tuple(
+        event(f"c{i}", 3.5 + 3 * i, "showcase") for i in range(3)
+    )
+    index = library(sfx("whoosh1", ("whoosh",)), sfx("whoosh2", ("whoosh",)))
+
+    p = plan(timeline(duration=60.0, events=events), index=index)
+
+    by_kind: dict[str, set[str]] = {}
+    for e in p.sfx:
+        by_kind.setdefault(e.sync_kind, set()).add(e.asset.asset_id)
+    assert set(by_kind) == {"pop_in", "showcase"}
+    assert all(len(assets) == 1 for assets in by_kind.values()), by_kind
+
+
+def test_a_sound_is_chosen_by_what_the_moment_means_not_by_its_file_name() -> None:
+    def titled(asset_id: str, title: str, categories: tuple[str, ...]) -> SoundAsset:
+        return replace(sfx(asset_id, categories), title=title)
+
+    index = SoundIndex(
+        [
+            titled("a1", "impactBell_heavy_001", ("impact",)),
+            titled("a2", "impactGlass_heavy_000", ("impact",)),
+            titled("z9", "Short bass hit", ("impact",)),
+            titled("b1", "Water bubble", ("pop",)),
+            titled("z8", "Long pop", ("pop",)),
+        ]
+    )
+    events = (event("rank", 5.0, "rank_reveal"), event("pop", 10.0, "pop_in"))
+
+    p = plan(timeline(duration=30.0, events=events), index=index)
+
+    chosen = {e.sync_kind: e.asset.title for e in p.sfx}
+    assert chosen == {"rank_reveal": "Short bass hit", "pop_in": "Long pop"}
+
+
+def test_a_short_gets_an_effect_on_every_moment_at_least_its_spacing_apart() -> None:
+    caption = EventSource.CAPTION
+    events = (
+        event("g0", 0.0, "cut", strength=0.5),
+        event("k1", 2.0, "keyword", source=caption, strength=0.6),
+        event("e1", 2.6, "emoji", source=caption, strength=1.0),
+        event("k2", 5.0, "keyword", source=caption, strength=0.6),
+        event("e2", 8.0, "emoji", source=caption, strength=1.0),
+    )
+    soundtrack = timeline(duration=12.0, events=events, speech_spans=(speech(0.0, 12.0),))
+
+    long_form = plan(soundtrack)
+    short = plan(soundtrack, SoundDesignConfig(short_form=True))
+
+    assert len(short.sfx) > len(long_form.sfx)
+    assert {e.sync_event_id for e in short.sfx} == {"g0", "e1", "k2", "e2"}
+    declined = {n.sync_event_id: n.declined for n in short.no_sfx}
+    assert declined == {"k1": Declined.TOO_CLOSE}  # 0.6 s before a stronger emoji
+    starts = sorted(seconds(e.timeline_at) for e in short.sfx)
+    assert all(b - a >= 1.2 for a, b in itertools.pairwise(starts))
 
 
 def test_effects_never_mask_speech_or_cover_preserved_audio() -> None:
@@ -269,7 +328,7 @@ def test_a_missing_sound_is_recommended_never_substituted() -> None:
     soundtrack = timeline(
         duration=30.0,
         sections=(section("a", 0, 30, "hook"),),
-        events=(event("reveal", 10, "reveal"), event("reveal2", 20, "reveal")),
+        events=(event("reveal", 10, "showcase"), event("reveal2", 20, "showcase")),
     )
     index = SoundIndex([sfx("boom", ("impact",))])  # no riser, no music at all
 

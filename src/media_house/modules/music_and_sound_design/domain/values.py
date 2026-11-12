@@ -13,7 +13,11 @@ ANALYZER_VERSION: Final = 1
 #: 2: incidental speech keeps a take's sound in front; 3: the appended end screen is an outro
 #: 4: a track that ends before its cue fades out instead of a negative tail
 #: 5: a loud moment inside the speech of a talking clip is the voice, not protected sound
-PLANNER_VERSION: Final = 5
+#: 6: prices pop instead of ringing a till, risers only lead into a full-screen card, typing
+#: 7: a sound laid from its start is cut to its rule's length (a long typing take fits)
+#: 8: effects are levelled by how loud they are heard (a short pop is lifted)
+#: 9: one sound per event kind, chosen by the rule's words; a Short gets an effect on every moment
+PLANNER_VERSION: Final = 9
 RENDERER_VERSION: Final = 1
 SCHEMA_VERSION: Final = 1
 VOCABULARY_VERSION: Final = 2  # 2: transition rules use transition_engine kind names

@@ -2,6 +2,7 @@
 
 from collections.abc import Sequence
 
+from media_house.bootstrap.variant_runner import VariantRunnerModule
 from media_house.core.modules import ApplicationModule
 from media_house.modules.asset_relationships.module import AssetRelationshipsModule
 from media_house.modules.audio_improvement.module import AudioImprovementModule
@@ -23,6 +24,7 @@ from media_house.modules.media_pipeline.module import MediaPipelineModule
 from media_house.modules.motion_graphics_engine.module import MotionGraphicsEngineModule
 from media_house.modules.music_and_sound_design.module import MusicAndSoundDesignModule
 from media_house.modules.pacing_intelligence.module import PacingIntelligenceModule
+from media_house.modules.production_project.module import ProductionProjectModule
 from media_house.modules.proxy_manager.module import ProxyManagerModule
 from media_house.modules.quality_control.module import QualityControlModule
 from media_house.modules.reframing_intelligence.module import ReframingIntelligenceModule
@@ -32,6 +34,8 @@ from media_house.modules.resolve_export.module import ResolveExportModule
 from media_house.modules.review_orchestrator.module import ReviewOrchestratorModule
 from media_house.modules.revision_engine.module import RevisionEngineModule
 from media_house.modules.story_architecture.module import StoryArchitectureModule
+from media_house.modules.style_memory.module import StyleMemoryModule
+from media_house.modules.thumbnail_design.module import ThumbnailDesignModule
 from media_house.modules.timeline_builder.module import TimelineBuilderModule
 from media_house.modules.transition_engine.module import TransitionEngineModule
 from media_house.modules.vfx_engine.module import VfxEngineModule
@@ -48,6 +52,7 @@ def installed_modules() -> Sequence[ApplicationModule]:
         WorkspaceModule(),
         MediaLibraryModule(),
         VisualAssetGenerationModule(),
+        ThumbnailDesignModule(),
         AudioIntelligenceModule(),
         AudioImprovementModule(),
         MediaInspectionModule(),
@@ -59,6 +64,9 @@ def installed_modules() -> Sequence[ApplicationModule]:
         AssetRelationshipsModule(),
         MediaPipelineModule(),
         StoryArchitectureModule(),
+        StyleMemoryModule(),
+        ProductionProjectModule(),
+        VariantRunnerModule(),
         PacingIntelligenceModule(),
         BrollIntelligenceModule(),
         ContinuityIntelligenceModule(),
